@@ -12,6 +12,7 @@ export {
 } from "./catalogue";
 export {
   can,
+  enforceSecondFactor,
   refuse,
   requireAnyPermission,
   requireMember,

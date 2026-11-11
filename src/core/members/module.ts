@@ -12,6 +12,8 @@ export const membersModule = defineModule({
   coreCollections: { memberLocks },
   typeDefs: [membersTypeDefs],
   resolvers: membersResolvers as never,
+  // `member:assign_owner` is declarative: the owner alone holds it so clients can
+  // gate the owner option; the server rule stays `members.errors.owner-required`.
   permissions: ["member:read", "member:manage", "member:assign_owner"],
   defaultGrants: {
     admin: ["member:read", "member:manage"],

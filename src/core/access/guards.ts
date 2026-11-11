@@ -36,11 +36,11 @@ type GatedScope = {
   tenant: { requireSecondFactor?: boolean };
 };
 
-function enforceSecondFactor(
+export function enforceSecondFactor(
   viewer: { hasSecondFactor?: boolean } | null,
   scope: GatedScope,
 ) {
-  if (scope.tenant.requireSecondFactor && viewer && !viewer.hasSecondFactor) {
+  if (scope.tenant.requireSecondFactor && !viewer?.hasSecondFactor) {
     throw fail("auth.errors.second-factor-required", { status: 403 });
   }
 }
