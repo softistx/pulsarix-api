@@ -58,6 +58,7 @@ export const issuesResolvers: Resolvers = {
     statusId: (issue) => issue.statusId.toHexString(),
     labelIds: (issue) => issue.labelIds.map((id) => id.toHexString()),
     parentId: (issue) => issue.parentId?.toHexString() ?? null,
+    clientReportId: (issue) => issue.clientReportId?.toHexString() ?? null,
     watching: (issue, _, ctx) =>
       issue.watcherIds.includes(requireViewer(ctx).id),
   },

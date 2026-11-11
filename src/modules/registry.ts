@@ -8,6 +8,7 @@ import { system } from "../core/system/module";
 import { activityModule } from "./activity/module";
 import { attachmentsModule } from "./attachments/module";
 import { commentsModule } from "./comments/module";
+import { intakeModule } from "./intake/module";
 import { issuesModule } from "./issues/module";
 import { notificationsModule } from "./notifications/module";
 import { projectsModule } from "./projects/module";
@@ -29,6 +30,7 @@ const registered = [
   activityModule,
   notificationsModule,
   searchModule,
+  intakeModule,
 ] as const;
 
 export const modules: readonly Module[] = resolveModules(registered);

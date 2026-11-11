@@ -43,8 +43,10 @@ export const issues = defineCollection({
     startDate: z.date().nullable().default(null),
     dueDate: z.date().nullable().default(null),
     rank: z.string().min(1).max(200),
-    // The member who made it (intake reports will add their own source).
+    // The member who made it.
     reporterId: accountId.nullable().default(null),
+    // The client report it was accepted from (intake, A9), if any.
+    clientReportId: objectId().nullable().default(null),
     watcherIds: z.array(accountId).default([]),
   }),
   timestamps: true,

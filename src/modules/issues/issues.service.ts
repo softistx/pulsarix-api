@@ -44,6 +44,9 @@ export interface CreateIssueInput {
   parentId?: string | null;
   startDate?: Date | null;
   dueDate?: Date | null;
+  // Set by the intake module only (never by GraphQL's `CreateIssueInput`): the
+  // client report this issue is made from.
+  clientReportId?: ObjectId | null;
 }
 
 export interface UpdateIssueInput {
@@ -272,6 +275,7 @@ export class IssuesService {
           dueDate: input.dueDate ?? null,
           rank: await this.endOfColumn(tx, status._id),
           reporterId: this.viewerId,
+          clientReportId: input.clientReportId ?? null,
           watcherIds: [],
         });
         await changed("created", created, changesFromNothing(created, CREATED));

@@ -24,6 +24,9 @@ import {
   type Media,
   useMedia,
 } from "./modules/attachments/attachments.storage";
+import { publicRoutes } from "./modules/intake/intake.routes";
+import { serverIntake } from "./modules/intake/intake.server";
+import type { PublicIntake } from "./modules/intake/intake.submit";
 import { modules } from "./modules/registry";
 
 // The largest body /graphql reads.
@@ -63,6 +66,9 @@ export function createApp(
     // The file store of the attachments (src/config/media.ts by default, none
     // without S3_*); a spec gives its own, or none.
     media?: Media | undefined;
+    // The public intake behind /public/graphql (the server's by default: Redis
+    // rate limits, the server's mailer); a spec gives its own.
+    intake?: PublicIntake;
   } = {},
 ) {
   const auth = options.auth ?? serverAuth();
@@ -71,6 +77,7 @@ export function createApp(
   const tenancy = options.tenancy ?? tenancyOf(membership);
   const media = "media" in options ? options.media : serverMedia;
   useMedia(media);
+  const intake = options.intake ?? serverIntake(tenancy);
   const pipeline = mediaPipeline({
     media,
     access,
@@ -89,6 +96,9 @@ export function createApp(
       // CSRF header, Bearer token and `x-organization-id`. Without S3_* they
       // answer 503.
       .group((group) => group.use(pipeline.guard).plugin(pipeline.routes))
+      // The widget's endpoint and the tracking page's: the one unauthenticated
+      // surface, with a schema, a CORS policy and rate limits of its own.
+      .plugin(publicRoutes(intake))
       .plugin((app) =>
         graphql(app, {
           schema: options.schema ?? schema,

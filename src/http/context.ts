@@ -1,4 +1,4 @@
-import { alxia, defineMiddleware } from "@alxia/core";
+import { alxia, defineMiddleware, forwardedIp } from "@alxia/core";
 import type { GraphQLContext } from "@alxia/graphql";
 import type { ViewerMemberships } from "@alxia/tenancy";
 import { StoreFailure } from "@softistx/janus";
@@ -47,7 +47,12 @@ export function createBase(options: BaseOptions = {}) {
     return next({ requestId });
   });
 
-  return alxia().decorate({ env }).use(i18n).use(requestIdOf).use(viewerOf);
+  // The client address (`ip`) is the connection's, or, behind the proxies of
+  // TRUSTED_PROXIES, the one they appended to X-Forwarded-For.
+  const base = env.TRUSTED_PROXIES
+    ? alxia({ ip: forwardedIp({ trusted: env.TRUSTED_PROXIES }) })
+    : alxia();
+  return base.decorate({ env }).use(i18n).use(requestIdOf).use(viewerOf);
 }
 
 export interface BaseOptions {

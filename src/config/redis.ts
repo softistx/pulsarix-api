@@ -1,22 +1,26 @@
 import {
   defineRedis,
+  type LimitScope,
   localChannels,
   openRedis,
   type QueueScope,
 } from "@softistx/redis";
 import { RedisClient } from "bun";
 import * as channels from "../modules/activity/activity.channels";
-import * as queues from "../modules/notifications/notifications.queues";
+import * as limits from "../modules/intake/intake.limits";
 import { env } from "./env";
+import * as queues from "./queues";
 
 // The live channels of the API (src/modules/activity/activity.channels.ts), its
 // queues (src/modules/notifications/notifications.queues.ts) and what closes
-// them. Queues need Redis: without it `queues` is absent.
+// them. Queues and rate limits need Redis: without it `queues` and `limits`
+// are absent (the public endpoint then refuses, 503).
 export interface Realtime {
   readonly channels: ReturnType<
     typeof localChannels<typeof channels>
   >["channels"];
   readonly queues?: QueueScope<typeof queues> | undefined;
+  readonly limits?: LimitScope<typeof limits> | undefined;
   close(): Promise<void>;
 }
 
@@ -41,6 +45,7 @@ export async function openRealtime(
       prefix: "pulsarix",
       channels,
       queues,
+      limits,
       background: {
         onDown: () =>
           log("redis unavailable: live events stay in this process"),
@@ -51,6 +56,7 @@ export async function openRealtime(
   return {
     channels: redis.channels as Realtime["channels"],
     queues: redis.queues as unknown as Realtime["queues"],
+    limits: redis.limits as unknown as Realtime["limits"],
     close: async () => {
       await redis.close();
       client.close();
