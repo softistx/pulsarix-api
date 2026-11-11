@@ -1,0 +1,104 @@
+import type { Locale } from "./locale";
+
+// The text of every error code in each language (ICU messages, interpolating
+// the `params` of the refusal). English is the default, French is offered
+// (plan Q14). `src/i18n/texts.spec.ts` fails when a declared code lacks one.
+export const texts: Record<Locale, Record<string, string>> = {
+  en: {
+    "auth.errors.client-header-required":
+      "The {header} header is required on every request.",
+    "auth.errors.unauthenticated": "Sign in to continue.",
+    "auth.errors.forbidden": "You are not allowed to do this.",
+    "auth.errors.unavailable":
+      "The service is temporarily unavailable. Try again shortly.",
+    "auth.errors.invalid-credentials": "The e-mail or the password is wrong.",
+    "auth.errors.invalid-token": "This link or code is invalid or has expired.",
+    "auth.errors.too-many-attempts":
+      "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "auth.errors.exhausted":
+      "The request kept colliding with others. Try again.",
+    "auth.errors.step-up-required":
+      "Confirm it is you to continue: ask for a confirmation code.",
+    "auth.errors.invalid-code":
+      "The code is wrong, or it has expired or been used already.",
+    "auth.errors.second-factor-active":
+      "A second factor is already active. Disable it first.",
+    "auth.errors.second-factor-not-enrolled":
+      "No second factor is being set up. Start again.",
+    "tenancy.errors.organization-required":
+      "Name the organisation in the {header} header.",
+    "tenancy.errors.unknown-organization": "This organisation does not exist.",
+    "tenancy.errors.slug-taken": 'The address "{slug}" is already taken.',
+    "validation.errors.invalid-input": "Some fields are invalid.",
+    "validation.errors.required": "This field is required.",
+    "validation.errors.invalid": "This value is invalid.",
+    "validation.errors.too-short":
+      "At least {min, plural, one {# character} other {# characters}} are needed.",
+    "validation.errors.too-long":
+      "At most {max, plural, one {# character} other {# characters}} are allowed.",
+    "validation.errors.out-of-range": "This value is out of range.",
+    "members.errors.not-found": "This member does not exist.",
+    "members.errors.last-owner":
+      "An organisation keeps at least one owner. Name another owner first.",
+    "members.errors.owner-required":
+      "Only an owner can grant, change or remove the owner role.",
+    "invitations.errors.invalid":
+      "This invitation is invalid, has expired or has been used.",
+    "invitations.errors.not-found": "This invitation does not exist.",
+    "invitations.errors.not-pending":
+      "This invitation was already accepted or revoked.",
+    "invitations.errors.already-member":
+      "You are already a member of this organisation.",
+    "invitations.errors.address-already-member":
+      "This address already belongs to a member of the organisation.",
+  },
+  fr: {
+    "auth.errors.client-header-required":
+      "L'en-tête {header} est obligatoire sur chaque requête.",
+    "auth.errors.unauthenticated": "Connectez-vous pour continuer.",
+    "auth.errors.forbidden": "Vous n'avez pas le droit de faire cela.",
+    "auth.errors.unavailable":
+      "Le service est momentanément indisponible. Réessayez dans un instant.",
+    "auth.errors.invalid-credentials":
+      "L'e-mail ou le mot de passe est incorrect.",
+    "auth.errors.invalid-token": "Ce lien ou ce code est invalide ou a expiré.",
+    "auth.errors.too-many-attempts":
+      "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+    "auth.errors.exhausted":
+      "La requête est entrée en collision avec d'autres. Réessayez.",
+    "auth.errors.step-up-required":
+      "Confirmez votre identité pour continuer : demandez un code de confirmation.",
+    "auth.errors.invalid-code":
+      "Le code est incorrect, expiré ou déjà utilisé.",
+    "auth.errors.second-factor-active":
+      "Un second facteur est déjà actif. Désactivez-le d'abord.",
+    "auth.errors.second-factor-not-enrolled":
+      "Aucun second facteur n'est en cours de configuration. Recommencez.",
+    "tenancy.errors.organization-required":
+      "Indiquez l'organisation dans l'en-tête {header}.",
+    "tenancy.errors.unknown-organization": "Cette organisation n'existe pas.",
+    "tenancy.errors.slug-taken": "L'adresse « {slug} » est déjà prise.",
+    "validation.errors.invalid-input": "Certains champs sont invalides.",
+    "validation.errors.required": "Ce champ est obligatoire.",
+    "validation.errors.invalid": "Cette valeur est invalide.",
+    "validation.errors.too-short":
+      "Il faut au moins {min, plural, one {# caractère} other {# caractères}}.",
+    "validation.errors.too-long":
+      "{max, plural, one {# caractère} other {# caractères}} au maximum.",
+    "validation.errors.out-of-range": "Cette valeur est hors limites.",
+    "members.errors.not-found": "Ce membre n'existe pas.",
+    "members.errors.last-owner":
+      "Une organisation garde au moins un propriétaire. Nommez d'abord un autre propriétaire.",
+    "members.errors.owner-required":
+      "Seul un propriétaire peut attribuer, changer ou retirer le rôle de propriétaire.",
+    "invitations.errors.invalid":
+      "Cette invitation est invalide, expirée ou déjà utilisée.",
+    "invitations.errors.not-found": "Cette invitation n'existe pas.",
+    "invitations.errors.not-pending":
+      "Cette invitation a déjà été acceptée ou révoquée.",
+    "invitations.errors.already-member":
+      "Vous êtes déjà membre de cette organisation.",
+    "invitations.errors.address-already-member":
+      "Cette adresse appartient déjà à un membre de l'organisation.",
+  },
+};

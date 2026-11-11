@@ -1,5 +1,6 @@
 schema {
   query: Query
+  mutation: Mutation
 }
 
 """
@@ -68,6 +69,16 @@ directive @constraint(
   startsWith: String
 ) on ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
 
+"""
+What accepting an invitation answers: the new session, or `linked` (no
+session) when the account already signs in with a password. A session is
+SECOND_FACTOR_REQUIRED for an account with a second factor.
+"""
+type AcceptInvitationPayload {
+  linked: Boolean!
+  signIn: SignInPayload
+}
+
 """Standard base64 with padding, in its canonical spelling."""
 scalar Base64 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4648#section-4")
 
@@ -85,8 +96,24 @@ scalar CIDRv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4632")
 """An IPv6 block in CIDR notation, such as 2001:db8::/32."""
 scalar CIDRv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
 
+input ChangePasswordInput {
+  currentPassword: String! @constraint(maxLength: 1024)
+  newPassword: String! @constraint(maxLength: 1024)
+}
+
 """An ISO 3166-1 alpha-2 country code, such as FR."""
 scalar CountryCode @specifiedBy(url: "https://www.iso.org/iso-3166-country-codes.html")
+
+"""
+`slug` is the organisation's address (lower case letters, digits and single
+hyphens, 2 to 63 characters); left out, it is made from the name. `timeZone`
+defaults to UTC.
+"""
+input CreateOrganisationInput {
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  slug: String @constraint(maxLength: 63)
+  timeZone: String @constraint(maxLength: 64)
+}
 
 """
 A cuid2: a lowercase letter, then lowercase letters and digits, 2 to 32 in all.
@@ -146,6 +173,35 @@ scalar IPv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
 """An ISBN-10 or ISBN-13, digits only, with its check digit verified."""
 scalar ISBN @specifiedBy(url: "https://www.isbn-international.org/content/isbn-users-manual/29")
 
+"""
+An organisation's invitation of an e-mail address to join it with a role. Its
+link (valid 7 days, mailed to the address) accepts it.
+"""
+type Invitation {
+  createdAt: DateTime!
+  email: EmailAddress!
+  expiresAt: DateTime!
+  id: ID!
+  """How the invitee is greeted, and what a new account is called."""
+  name: String!
+  role: Role!
+  """PENDING past `expiresAt` can no longer be accepted: resend it."""
+  status: InvitationStatus!
+  updatedAt: DateTime!
+}
+
+enum InvitationStatus {
+  ACCEPTED
+  PENDING
+  REVOKED
+}
+
+input InviteMemberInput {
+  email: String! @constraint(maxLength: 320)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  role: Role!
+}
+
 """Any JSON value."""
 scalar JSON @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc8259")
 
@@ -159,6 +215,12 @@ scalar JWT @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc7519")
 
 """A KSUID: 27 characters of base62."""
 scalar KSUID @specifiedBy(url: "https://github.com/segmentio/ksuid")
+
+"""The languages of mails and texts: English by default, French offered."""
+enum Language {
+  EN
+  FR
+}
 
 """A latitude in decimal degrees, from -90 to 90."""
 scalar Latitude
@@ -184,6 +246,193 @@ scalar Longitude
 A MAC address: six hex pairs separated by colons (not the IEEE hyphen form).
 """
 scalar MAC
+
+"""
+A person who works in the request's organisation: an account with one role there.
+"""
+type Member {
+  """False for a deactivated account, which can no longer sign in."""
+  active: Boolean!
+  conflict: Boolean!
+  email: EmailAddress!
+  """The account's id."""
+  id: ID!
+  """Whether this member is the signed-in account."""
+  isViewer: Boolean!
+  name: String!
+  """
+  Null when the account holds several roles in the organisation (`conflict`,
+  data written outside the API): it has no access until `changeMemberRole`
+  gives it one, or `removeMember` takes it out.
+  """
+  role: Role
+}
+
+type Mutation {
+  """
+  Accepts an invitation with the token of its link (`/invitations/accept`):
+  makes or finds the account of the invitation's e-mail, gives it the
+  invitation's role in the organisation, and signs it in (`signIn`), or answers
+  `linked` for an account that already signs in with a password (sign in as
+  usual). A new account, and an account whose e-mail was never proved, needs
+  `password`. Anonymous. 400 `invitations.errors.invalid` for a token unknown,
+  spent, revoked or expired; 400 `validation.errors.invalid-input` (a
+  `required` issue on `password`); 409 `invitations.errors.already-member`.
+  """
+  acceptInvitation(password: String @constraint(maxLength: 1024), token: String! @constraint(maxLength: 200)): AcceptInvitationPayload!
+  """
+  Activates the factor with the first code the app shows, and answers the
+  recovery codes, once. 400 `auth.errors.invalid-code`; 409
+  `auth.errors.second-factor-not-enrolled` or `auth.errors.second-factor-active`.
+  """
+  activateSecondFactor(code: String! @constraint(maxLength: 20)): RecoveryCodes!
+  """
+  Gives a member another role. Needs `member:manage` (admin, owner) and a
+  recent proof of identity (403 `auth.errors.step-up-required`: `requestStepUp`
+  then `confirmStepUp`). Only an owner grants the owner role or changes an
+  owner's (403 `members.errors.owner-required`). An organisation never loses its
+  last active owner (409 `members.errors.last-owner`). 404
+  `members.errors.not-found` for an account that is no member.
+  """
+  changeMemberRole(id: ID!, role: Role!): Member!
+  """
+  Changes the signed-in account's password, given the current one; every other
+  session of the account is signed out, the request's own stays. 401
+  `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `currentPassword`, a `too-short` issue on `newPassword`).
+  """
+  changePassword(input: ChangePasswordInput!): Boolean!
+  """
+  The token of a sign-in link, posted by the page it opens (never on GET: mail
+  scanners follow links). 400 `auth.errors.invalid-token`. An account with a
+  second factor gets SECOND_FACTOR_REQUIRED.
+  """
+  confirmMagicLink(token: String! @constraint(maxLength: 200)): SignInPayload!
+  """
+  Opens the session of a SECOND_FACTOR_REQUIRED sign-in with the six-digit code
+  of the app. 400 `auth.errors.invalid-code` (with `attemptsLeft`; five wrong
+  codes spend the challenge) or `auth.errors.invalid-token` for a challenge
+  unknown, expired or spent: sign in again.
+  """
+  confirmSecondFactor(challenge: String! @constraint(maxLength: 200), code: String! @constraint(maxLength: 20)): SignInPayload!
+  """
+  Confirms the proof: the request's session counts as freshly signed in for ten
+  minutes. 400 `auth.errors.invalid-code` or `auth.errors.invalid-token`.
+  """
+  confirmStepUp(challenge: String! @constraint(maxLength: 200), code: String! @constraint(maxLength: 20)): Boolean!
+  """
+  Creates an organisation with its own database; the signed-in account becomes
+  its owner. Needs `organisation:create`, which every signed-in account holds.
+  409 `tenancy.errors.slug-taken`; 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `slug` or `timeZone`).
+  """
+  createOrganisation(input: CreateOrganisationInput!): MyOrganisation!
+  """
+  Removes the second factor and its recovery codes. Needs a recent proof of
+  identity (403 `auth.errors.step-up-required`).
+  """
+  disableSecondFactor: Boolean!
+  """
+  Starts setting up a second factor for the signed-in account: a new secret
+  replaces a waiting one. 409 `auth.errors.second-factor-active` when one is
+  active already. It protects nothing until `activateSecondFactor`.
+  """
+  enrollSecondFactor: SecondFactorEnrolment!
+  """
+  Invites an e-mail address to the request's organisation with a role, and
+  mails the link (in the request's language). Inviting an address again
+  replaces its pending invitation. Needs `member:manage`; only an owner invites
+  an owner (403 `members.errors.owner-required`). 409
+  `invitations.errors.address-already-member` when the address holds an account
+  that is a member already.
+  """
+  inviteMember(input: InviteMemberInput!): Invitation!
+  """
+  Opens the session with a recovery code instead of the app's code; the code is
+  spent. Same refusals as `confirmSecondFactor`.
+  """
+  recoverSecondFactor(challenge: String! @constraint(maxLength: 200), recoveryCode: String! @constraint(maxLength: 40)): SignInPayload!
+  """
+  Takes a member out of the organisation (their account stays, and any other
+  organisation they belong to). Same permission, proof and owner rules as
+  `changeMemberRole`. Answers the removed account's id. Takes out an account in
+  `conflict` too.
+  """
+  removeMember(id: ID!): ID!
+  """
+  Sends a sign-in link (`/auth/magic-link`). True once accepted, whether or not
+  the e-mail holds an account. 429 `auth.errors.too-many-attempts` (with
+  `retryAfter`) past five requests for one address in ten minutes.
+  """
+  requestMagicLink(email: String! @constraint(maxLength: 320)): Boolean!
+  """
+  Sends a password-reset link (`/auth/reset-password`). True once accepted,
+  whether or not the e-mail holds an account; throttled as `requestMagicLink`.
+  """
+  requestPasswordReset(email: String! @constraint(maxLength: 320)): Boolean!
+  """
+  Asks for a fresh proof of identity before a sensitive action (a role change,
+  a removal, disabling the second factor): a code mailed to the account, or the
+  app's code when a second factor is active. 401 `auth.errors.unauthenticated`.
+  """
+  requestStepUp: StepUpChallenge!
+  """
+  Sends a pending invitation again, with a new link valid 7 days (the old one
+  ends). Needs `member:manage`. 404 `invitations.errors.not-found`; 409
+  `invitations.errors.not-pending` for one accepted or revoked, 409
+  `invitations.errors.address-already-member` when its address became a member.
+  """
+  resendInvitation(id: ID!): Invitation!
+  """
+  Sets a new password from a reset link's token, and signs the account out
+  everywhere: sign in again after it. 400 `auth.errors.invalid-token`, 400
+  `validation.errors.invalid-input` (a `too-short` issue on `password`).
+  """
+  resetPassword(password: String! @constraint(maxLength: 1024), token: String! @constraint(maxLength: 200)): Boolean!
+  """
+  Revokes a pending invitation: its link no longer works. Needs `member:manage`.
+  404 `invitations.errors.not-found`; 409 `invitations.errors.not-pending`.
+  """
+  revokeInvitation(id: ID!): Invitation!
+  """
+  Signs in with a password. 401 `auth.errors.invalid-credentials` for a wrong
+  e-mail or password (the same answer for an unknown account); 429
+  `auth.errors.too-many-attempts` (with `retryAfter`, in seconds) after ten wrong
+  passwords at one e-mail. An account with a second factor gets
+  SECOND_FACTOR_REQUIRED.
+  """
+  signIn(input: SignInInput!): SignInPayload!
+  """Revokes the request's session. False when it presented none."""
+  signOut: Boolean!
+  """
+  Makes an account and signs it in. 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `email` for an address that is taken or malformed, a
+  `too-short` issue on `password`). Making an organisation comes next
+  (`createOrganisation`).
+  """
+  signUp(input: SignUpInput!): SignInPayload!
+  """
+  Changes the name or the time zone of the request's organisation. Needs
+  `organisation:manage` (admin, owner): 403 `auth.errors.forbidden` otherwise.
+  """
+  updateOrganisation(input: UpdateOrganisationInput!): Organisation!
+  """
+  Updates the signed-in account's own name and preferred language; nothing else
+  (not the e-mail, not the roles). Fields left out are kept. 401
+  `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input`.
+  """
+  updateViewer(input: UpdateViewerInput!): Viewer!
+}
+
+"""An organisation the viewer is a member of, with their role there."""
+type MyOrganisation {
+  organisation: Organisation!
+  """
+  What `role` may do in this organisation, in the catalogue's order; the UI gates on it.
+  """
+  permissions: [String!]!
+  role: Role!
+}
 
 """A Nano ID: 21 characters of A-Z, a-z, 0-9, _ and -."""
 scalar NanoID @specifiedBy(url: "https://github.com/ai/nanoid")
@@ -213,6 +462,29 @@ scalar NonPositiveInt
 scalar ObjectID @specifiedBy(url: "https://www.mongodb.com/docs/manual/reference/method/ObjectId/")
 
 """
+An organisation: the tenant of every request that names it, a team or a company.
+"""
+type Organisation {
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  """
+  Names the organisation in URLs; set when it is created and never changed.
+  """
+  slug: String!
+  """An IANA time zone name, such as `Europe/Paris`; dates are shown in it."""
+  timeZone: String!
+  updatedAt: DateTime!
+  """
+  What the viewer may do IN THIS organisation, from their role there (the
+  access catalogue, built from the module manifests): permission codes
+  `<area>:<action>`, in catalogue order; the UI gates on them. Empty for an
+  anonymous viewer or a non-member.
+  """
+  viewerPermissions: [String!]!
+}
+
+"""
 Where a page of a list ends. Paging is forward only: `endCursor` is the
 `after` of the next page; to go back, a client keeps the cursors it has
 visited. `startCursor` is the `after` this page was asked with, and
@@ -238,7 +510,32 @@ scalar PositiveFloat
 scalar PositiveInt
 
 type Query {
+  """
+  The request's organisation's invitations, newest first, at most 100.
+  Organisation admins and owners only (`member:manage`).
+  """
+  invitations(status: InvitationStatus): [Invitation!]!
+  """
+  The request's organisation's members, by name. Any member
+  (`member:read`).
+  """
+  members: [Member!]!
+  """
+  The active organisations the signed-in account is a member of, by name, for
+  the organisation switcher. Needs no `x-organization-id`. 401
+  `auth.errors.unauthenticated`.
+  """
+  myOrganisations: [MyOrganisation!]!
+  """
+  The organisation the request names in `x-organization-id` (its id or slug).
+  Any member. 401 `auth.errors.unauthenticated`, 400
+  `tenancy.errors.organization-required`, 404 `tenancy.errors.unknown-organization`
+  (unknown, or the viewer is no member: the same answer).
+  """
+  organisation: Organisation!
   version: String!
+  """The signed-in account, or null when anonymous."""
+  viewer: Viewer
 }
 
 """A CSS rgb() color, such as rgb(255, 0, 0)."""
@@ -246,6 +543,25 @@ scalar RGB @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#rgb-functions")
 
 """A CSS rgba() color, such as rgba(255, 0, 0, 0.5)."""
 scalar RGBA @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#rgb-functions")
+
+"""
+The ten one-time codes that replace the app when the phone is lost. Shown once.
+"""
+type RecoveryCodes {
+  codes: [String!]!
+}
+
+"""
+What a member is in an organisation (CONTEXT.md, Role). The values are the
+stored role codes; the roles are built in (plan Q13) and the permissions each
+holds come from the module manifests. From the most to the least privileged.
+"""
+enum Role {
+  admin
+  member
+  owner
+  viewer
+}
 
 """A SHA-256 digest: 64 hexadecimal digits."""
 scalar SHA256 @specifiedBy(url: "https://csrc.nist.gov/pubs/fips/180-4/upd1/final")
@@ -256,8 +572,68 @@ scalar SHA512 @specifiedBy(url: "https://csrc.nist.gov/pubs/fips/180-4/upd1/fina
 """An integer from -9007199254740991 to 9007199254740991."""
 scalar SafeInt
 
+"""
+A password was right but the account's second factor is active: no session
+yet. The BFF keeps the challenge (never in a URL or a log) and sends it back
+with a code to `confirmSecondFactor`, or with a recovery code to
+`recoverSecondFactor`.
+"""
+type SecondFactorChallenge {
+  """Five minutes after the sign-in."""
+  expiresAt: DateTime!
+  token: String!
+}
+
+"""
+The secret of a second factor being set up: render `uri` as a QR code and show
+`secret` beside it. Shown once, never again; never cached.
+"""
+type SecondFactorEnrolment {
+  secret: String!
+  uri: String!
+}
+
 """A Semantic Versioning 2.0.0 version, such as 1.0.0-rc.1."""
 scalar SemVer @specifiedBy(url: "https://semver.org/spec/v2.0.0.html")
+
+"""
+An open session. The token is for a backend (the BFF), which keeps it in its
+own httpOnly cookie and calls the API with `Authorization: Bearer <token>`;
+never readable by the page's scripts, never in a URL or in page data.
+"""
+type Session {
+  """When the session ends."""
+  expiresAt: DateTime!
+  """The session's token, to send as `Authorization: Bearer`."""
+  token: String!
+  viewer: Viewer!
+}
+
+input SignInInput {
+  email: String! @constraint(maxLength: 320)
+  password: String! @constraint(maxLength: 1024)
+}
+
+"""
+What a sign-in answers: `session` for SIGNED_IN, `challenge` for
+SECOND_FACTOR_REQUIRED (exactly one of the two is set).
+"""
+type SignInPayload {
+  challenge: SecondFactorChallenge
+  session: Session
+  status: SignInStatus!
+}
+
+enum SignInStatus {
+  SECOND_FACTOR_REQUIRED
+  SIGNED_IN
+}
+
+input SignUpInput {
+  email: String! @constraint(maxLength: 320)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  password: String! @constraint(maxLength: 1024)
+}
 
 """
 The direction of a list's `orderBy`. Every sorted list also orders by `id` after
@@ -266,6 +642,21 @@ its `orderBy`, so a cursor page across a sort neither skips nor repeats a row.
 enum SortDirection {
   ASC
   DESC
+}
+
+"""
+A confirmation to give back: with `via` APP the code is the one the
+authenticator app shows, with EMAIL it was mailed to the account.
+"""
+type StepUpChallenge {
+  challenge: String!
+  expiresAt: DateTime!
+  via: StepUpVia!
+}
+
+enum StepUpVia {
+  APP
+  EMAIL
 }
 
 """A time of day with its offset, such as 10:15:30Z (RFC 3339 full-time)."""
@@ -294,8 +685,48 @@ scalar UUIDv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 """A version 7 (time-ordered) UUID."""
 scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 
+"""
+A field left out stays as it is; null is refused (400 `validation.errors.required`).
+"""
+input UpdateOrganisationInput {
+  name: String @constraint(minLength: 1, maxLength: 200)
+  timeZone: String @constraint(maxLength: 64)
+}
+
+input UpdateViewerInput {
+  """The account's preferred language. Left out keeps it; null is refused."""
+  language: Language
+  """
+  Null is refused (400 `validation.errors.required`): the name cannot be cleared.
+  """
+  name: String @constraint(minLength: 1, maxLength: 200)
+}
+
 """A UTC offset from -12:00 to +14:00, such as +05:30."""
 scalar UtcOffset
+
+"""The signed-in account."""
+type Viewer {
+  email: EmailAddress!
+  """
+  Whether a TOTP second factor is active: a sign-in then asks for a code.
+  """
+  hasSecondFactor: Boolean!
+  id: ID!
+  """The account's preferred language, or null when it never chose."""
+  language: Language
+  name: String!
+  """
+  What the account may do whatever organisations it belongs to:
+  `organisation:create`. The permissions in an organisation are
+  `Organisation.viewerPermissions`.
+  """
+  permissions: [String!]!
+  """
+  When the request's session ends: the BFF sets its cookie's expiry to it.
+  """
+  sessionExpiresAt: DateTime
+}
 
 """No value: always null."""
 scalar Void
