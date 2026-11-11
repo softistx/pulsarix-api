@@ -8,6 +8,7 @@ import {
   coreMongo,
   tenancyOf,
 } from "./config/db";
+import { realtime } from "./config/redis";
 import { type Access, accessOf, type Membership } from "./core/access";
 import type { Auth } from "./core/auth";
 import { janusViewer, type Viewer } from "./core/auth/viewer";
@@ -78,6 +79,7 @@ export function createApp(
         }),
       )
       .onStop(async () => {
+        await realtime.close();
         await tenancy.close();
         await closeDatabases();
       })

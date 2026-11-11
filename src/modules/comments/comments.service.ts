@@ -1,7 +1,12 @@
 import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
-import { invalid } from "../../core/shared/errors";
+import {
+  type AfterCommit,
+  runAfterCommit,
+} from "../../core/shared/after-commit";
+import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
+import { retryWriteConflicts } from "../../core/shared/locked";
 import { issueNotFound } from "../issues/issues.errors";
 import {
   commentNotFound,
@@ -9,6 +14,7 @@ import {
   mentionNotMember,
 } from "./comments.errors";
 import type { CommentDocument } from "./comments.model";
+import { type CommentChange, commentChanged } from "./comments.usage";
 import { mentionedIds } from "./mentions";
 
 export type CommentsMongo = ModuleMongo<"comments">;
@@ -45,7 +51,42 @@ export class CommentsService {
     private readonly isMember: IsMember,
     private readonly viewerId: string,
     private readonly moderator: boolean,
+    private readonly organisationId: string,
   ) {}
+
+  // Runs `work` in a transaction; what `changed` reports is written inside it
+  // by the registered handlers (the activity journal), and their live events
+  // go out once it has committed.
+  private async write<T>(
+    work: (
+      tx: CommentsMongo,
+      changed: (
+        verb: CommentChange["verb"],
+        comment: CommentDocument,
+      ) => Promise<void>,
+    ) => Promise<T>,
+  ): Promise<T> {
+    let later: AfterCommit[] = [];
+    const result = await retryWriteConflicts(
+      () =>
+        this.mongo.transaction(async (tx) => {
+          later = [];
+          return work(tx as CommentsMongo, async (verb, comment) => {
+            later.push(
+              ...(await commentChanged(tx as CommentsMongo, {
+                verb,
+                comment,
+                actorId: this.viewerId,
+                organisationId: this.organisationId,
+              })),
+            );
+          });
+        }),
+      exhausted,
+    );
+    await runAfterCommit(later);
+    return result;
+  }
 
   private async issue(issueId: string): Promise<ObjectId> {
     const id = idOrInvalid(issueId, "issueId");
@@ -103,12 +144,16 @@ export class CommentsService {
   async add(issueId: string, input: CommentInput): Promise<CommentDocument> {
     const issue = await this.issue(issueId);
     const resolved = await this.resolve(input.body);
-    return this.mongo.db.comments.create({
-      issueId: issue,
-      authorId: this.viewerId,
-      ...resolved,
-      public: input.public ?? false,
-      editedAt: null,
+    return this.write(async (tx, changed) => {
+      const created = await tx.db.comments.create({
+        issueId: issue,
+        authorId: this.viewerId,
+        ...resolved,
+        public: input.public ?? false,
+        editedAt: null,
+      });
+      await changed("commented", created);
+      return created;
     });
   }
 
@@ -131,20 +176,27 @@ export class CommentsService {
       input.body != null && input.body.trim() !== current.body
         ? await this.resolve(input.body)
         : null;
-    return this.mongo.db.comments.update(current._id, {
-      ...resolved,
-      ...(input.public != null && { public: input.public }),
-      ...((resolved ||
-        (input.public != null && input.public !== current.public)) && {
-        editedAt: new Date(),
-      }),
+    return this.write(async (tx, changed) => {
+      const edited = await tx.db.comments.update(current._id, {
+        ...resolved,
+        ...(input.public != null && { public: input.public }),
+        ...((resolved ||
+          (input.public != null && input.public !== current.public)) && {
+          editedAt: new Date(),
+        }),
+      });
+      await changed("commentEdited", edited);
+      return edited;
     });
   }
 
   // Answers the comment's id.
   async delete(id: string): Promise<string> {
     const current = await this.changeable(id);
-    await this.mongo.db.comments.hardDelete(current._id);
+    await this.write(async (tx, changed) => {
+      await tx.db.comments.hardDelete(current._id);
+      await changed("commentDeleted", current);
+    });
     return current.id;
   }
 }

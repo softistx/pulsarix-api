@@ -2,7 +2,10 @@
 
 export type { IssueDocument } from "./issues.model";
 export {
+  type IssueChange,
+  type IssueChangeHandler,
   type IssueRemoval,
   issueRemoved,
+  registerIssueChange,
   registerIssueRemoval,
 } from "./issues.usage";

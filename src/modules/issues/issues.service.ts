@@ -2,6 +2,15 @@ import { ConflictError } from "@softistx/mongo";
 import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
 import {
+  type AfterCommit,
+  runAfterCommit,
+} from "../../core/shared/after-commit";
+import {
+  changesBetween,
+  changesFromNothing,
+  type FieldChange,
+} from "../../core/shared/changes";
+import {
   exhausted,
   type FieldIssue,
   invalid,
@@ -16,7 +25,7 @@ import {
   type Priority,
   priorityLevel,
 } from "./issues.model";
-import { issueRemoved } from "./issues.usage";
+import { type IssueChange, issueChanged, issueRemoved } from "./issues.usage";
 import { rankAfter, rankBetween } from "./rank";
 
 export type IssuesMongo = ModuleMongo<"issues">;
@@ -48,6 +57,29 @@ export interface UpdateIssueInput {
   dueDate?: Date | null;
 }
 
+// The fields whose change the activity journal records. A move is the status
+// and the rank.
+const TRACKED = [
+  "title",
+  "description",
+  "priority",
+  "assigneeId",
+  "labelIds",
+  "parentId",
+  "startDate",
+  "dueDate",
+] as const;
+const CREATED = [...TRACKED, "statusId"] as const;
+const MOVED = ["statusId", "rank"] as const;
+
+// Tells the registered handlers (the activity journal) what the transaction
+// changed; they write inside it.
+type Changed = (
+  verb: IssueChange["verb"],
+  issue: IssueDocument,
+  changes: FieldChange[],
+) => Promise<void>;
+
 // The ids given, as ObjectIds, each once.
 const distinct = (given: string[], path: string): ObjectId[] => {
   const seen = new Map<string, ObjectId>();
@@ -72,6 +104,7 @@ export class IssuesService {
     private readonly mongo: IssuesMongo,
     private readonly isMember: IsMember,
     private readonly viewerId: string,
+    private readonly organisationId: string,
   ) {}
 
   async byKey(key: string): Promise<IssueDocument> {
@@ -88,19 +121,40 @@ export class IssuesService {
     return found;
   }
 
-  // Runs `work` in a transaction holding the project's lock.
-  private inProject<T>(
+  // Runs `work` in a transaction holding the project's lock. What `changed`
+  // reports is written inside it by the registered handlers; their live events
+  // go out once it has committed (the attempt that committed only).
+  private async inProject<T>(
     projectId: ObjectId,
-    work: (tx: IssuesMongo, project: ProjectDocument) => Promise<T>,
+    work: (
+      tx: IssuesMongo,
+      project: ProjectDocument,
+      changed: Changed,
+    ) => Promise<T>,
   ): Promise<T> {
-    return retryWriteConflicts(
+    let later: AfterCommit[] = [];
+    const result = await retryWriteConflicts(
       () =>
         this.mongo.transaction(async (tx) => {
+          later = [];
           const project = await lockProject(tx, projectId);
-          return work(tx as IssuesMongo, project);
+          const changed: Changed = async (verb, issue, changes) => {
+            later.push(
+              ...(await issueChanged(tx as IssuesMongo, {
+                verb,
+                issue,
+                changes,
+                actorId: this.viewerId,
+                organisationId: this.organisationId,
+              })),
+            );
+          };
+          return work(tx as IssuesMongo, project, changed);
         }),
       exhausted,
     );
+    await runAfterCommit(later);
+    return result;
   }
 
   // The fields that name other records, checked against the issue's project.
@@ -183,7 +237,7 @@ export class IssuesService {
     const statusId = input.statusId
       ? idOrInvalid(input.statusId, "statusId")
       : null;
-    return this.inProject(projectId, async (tx, project) => {
+    return this.inProject(projectId, async (tx, project, changed) => {
       const status = statusId
         ? await tx.db.statuses.findById(statusId)
         : await defaultStatus(tx, projectId);
@@ -200,7 +254,7 @@ export class IssuesService {
 
       const level = input.priority ?? "none";
       try {
-        return await tx.db.issues.create({
+        const created = await tx.db.issues.create({
           projectId,
           number,
           key: `${project.key}-${number}`,
@@ -220,6 +274,8 @@ export class IssuesService {
           reporterId: this.viewerId,
           watcherIds: [],
         });
+        await changed("created", created, changesFromNothing(created, CREATED));
+        return created;
       } catch (error) {
         // Cannot happen under the project's lock; kept as a refusal, not a 500.
         if (error instanceof ConflictError) throw exhausted();
@@ -244,7 +300,7 @@ export class IssuesService {
     }
     if (issues.length > 0) throw invalid(issues);
     const current = await this.byId(id);
-    return this.inProject(current.projectId, async (tx) => {
+    return this.inProject(current.projectId, async (tx, _, changed) => {
       const issue = await tx.db.issues.findById(current._id);
       if (!issue) throw issueNotFound();
       const startDate =
@@ -265,7 +321,7 @@ export class IssuesService {
           idOrInvalid(input.parentId, "parentId"),
         );
       }
-      return tx.db.issues.update(issue._id, {
+      const updated = await tx.db.issues.update(issue._id, {
         ...(title && { title }),
         ...(input.description != null && {
           description: input.description.trim(),
@@ -288,6 +344,9 @@ export class IssuesService {
         ...(input.startDate !== undefined && { startDate: input.startDate }),
         ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
       });
+      const changes = changesBetween(issue, updated, TRACKED);
+      if (changes.length > 0) await changed("updated", updated, changes);
+      return updated;
     });
   }
 
@@ -305,7 +364,7 @@ export class IssuesService {
     const before = beforeId ? idOrInvalid(beforeId, "beforeId") : null;
     const after = afterId ? idOrInvalid(afterId, "afterId") : null;
     const current = await this.byId(id);
-    return this.inProject(current.projectId, async (tx) => {
+    return this.inProject(current.projectId, async (tx, _, changed) => {
       const issue = await tx.db.issues.findById(current._id);
       if (!issue) throw issueNotFound();
       const status = await tx.db.statuses.findById(target);
@@ -352,15 +411,22 @@ export class IssuesService {
         rank = await this.endOfColumn(tx, status._id, issue._id);
       }
       if (rank === null) throw badPlacement();
-      return tx.db.issues.update(issue._id, { statusId: status._id, rank });
+      const moved = await tx.db.issues.update(issue._id, {
+        statusId: status._id,
+        rank,
+      });
+      const changes = changesBetween(issue, moved, MOVED);
+      if (changes.length > 0) await changed("moved", moved, changes);
+      return moved;
     });
   }
 
   // Answers the issue's id; its children lose their parent.
   async delete(id: string): Promise<string> {
     const current = await this.byId(id);
-    await this.inProject(current.projectId, async (tx) => {
+    await this.inProject(current.projectId, async (tx, _, changed) => {
       await tx.db.issues.hardDelete(current._id);
+      await changed("deleted", current, []);
       await issueRemoved(tx as IssuesMongo, current.id);
       await tx.db.issues.updateMany(
         { parentId: current._id },

@@ -24,6 +24,10 @@ Bun.env["MONGO_URI"] = replSet.getUri();
 // an SMTP server of the developer's .env.
 delete Bun.env["MAIL_URL"];
 
+// Live events run in the one process (local channels), never through the
+// developer's Redis.
+delete Bun.env["REDIS_URL"];
+
 // janus's collections (users, sessions, tokens, relations) in the core
 // database, as the tenancy store syncs them: autoSync does not know them, and a
 // write inside a transaction to a collection not yet created would hang.

@@ -17,6 +17,7 @@ async function scoped(ctx: Context, permission: Permission) {
       (await ctx.services.roleOf(organisationId, accountId)) !== null,
     viewer.id,
     await can(ctx, "comment:delete"),
+    organisationId,
   );
 }
 
