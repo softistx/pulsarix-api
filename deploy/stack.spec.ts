@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 // The compose file and the Dockerfile are read as text and as YAML: what the
 // slice promises (routing, proxies, Redis, no published port) is pinned here
-// without Docker. `docker compose config` checks the same file in the PR's run.
+// without Docker. CI does not run Docker: the image build (with its PDF check) and `docker compose config` are run locally for the PR.
 const dir = import.meta.dir;
 // Compose interpolation, written without a template-looking string.
 const v = (expr: string) => ["$", "{", expr, "}"].join("");

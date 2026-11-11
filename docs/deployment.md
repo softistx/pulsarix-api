@@ -50,7 +50,7 @@ check on the host.
 ## Migrations
 
 There is no migration step. Each organisation has its own database, created at runtime, so no
-deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true`: validators and indexes are
+deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true` (exactly `true`; the compose file sets it): validators and indexes are
 created on first use. For that the app user holds `readWriteAnyDatabase` and `dbAdminAnyDatabase`
 (the backup user holds `backup` only).
 
