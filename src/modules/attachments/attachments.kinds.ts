@@ -61,6 +61,7 @@ export const attachmentKind = defineMediaKind<MediaAccess>({
   sizes: images.sizes,
   renditions: {
     ...images.renditions,
+    // Temporary, until @softistx/image#390
     // A thumbnail for pictures; a PDF is stored as it is, with no preview
     // (nothing in the in-house packages renders a PDF page).
     make: (file) =>
