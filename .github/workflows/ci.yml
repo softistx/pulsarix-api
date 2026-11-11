@@ -39,17 +39,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
       # A9's Redis-backed specs (the intake limits, the live channels across instances) run
-      # over a real server, found at $REDIS_BIN. Use the runner's own redis-server when it
-      # has one, else build the pinned release once and cache the binary (no service
-      # container: the job stays one job and needs no Docker on the runner).
+      # over a real server, found at $REDIS_BIN. Redis publishes no prebuilt binary, so the
+      # job takes the runner's own redis-server when it has one, else builds the pinned
+      # release once from source (needs make and a C compiler) and caches the binary. Where
+      # neither is possible the step warns and leaves REDIS_BIN unset: those specs skip
+      # instead of failing the job. No service container: one job, no Docker on the runner.
       - id: redis-bin
         run: |
           if command -v redis-server >/dev/null; then
             echo "bin=$(command -v redis-server)" >> "$GITHUB_OUTPUT"
             echo "build=false" >> "$GITHUB_OUTPUT"
-          else
+          elif command -v make >/dev/null && command -v cc >/dev/null; then
             echo "bin=$HOME/redis-bin/redis-server" >> "$GITHUB_OUTPUT"
             echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::no redis-server, make or cc on this runner: the real-Redis specs are skipped"
+            echo "bin=" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/cache@v4
         id: cache-redis
