@@ -589,5 +589,7 @@ test("IPv6 clients are limited by their /64", () => {
   expect(addressKey("2001:db8:1:2:3:4:5:6")).toBe("2001:db8:1:2::/64");
   expect(addressKey("2001:DB8::1")).toBe("2001:db8:0:0::/64");
   expect(addressKey("203.0.113.7")).toBe("203.0.113.7");
+  expect(addressKey("::ffff:203.0.113.7")).toBe("203.0.113.7");
+  expect(addressKey("fe80::1%en0")).toBe("fe80:0:0:0::/64");
   expect(addressKey(undefined)).toBe("unknown");
 });
