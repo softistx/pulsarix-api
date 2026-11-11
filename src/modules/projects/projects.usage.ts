@@ -6,6 +6,8 @@ export type ProjectsMongo = ModuleMongo<"projects">;
 // issues module registers its own (A3) so that `deleteStatus` refuses a status
 // that issues use (409 `projects.errors.status-in-use`) without this module
 // importing it.
+// It runs inside the deleting transaction (`mongo` is that transaction, and
+// the project is locked), so an issue cannot land on the status meanwhile.
 export type StatusUsage = (
   mongo: ProjectsMongo,
   statusId: string,

@@ -311,6 +311,57 @@ describe("statuses", () => {
   });
 });
 
+describe("statuses under concurrency and across organisations", () => {
+  test("statuses made at once get distinct, gap-free orders", async () => {
+    const { asOwner, project } = await withProject();
+    await Promise.all(
+      ["P", "Q", "R", "S"].map((name) =>
+        asOwner.call(CreateStatus, {
+          input: {
+            projectId: project.id,
+            name,
+            category: "todo",
+            colour: "#112233",
+          },
+        }),
+      ),
+    );
+    const read = await asOwner.call<{ project: Project }>(ByKey, {
+      key: project.key,
+    });
+    expect(read.project.statuses.map((s) => s.order)).toEqual(
+      Array.from({ length: 10 }, (_, i) => i),
+    );
+  });
+
+  test("a member cannot manage statuses or labels, and another organisation's ids match nothing", async () => {
+    const { owner, organisation, project } = await withProject();
+    const member = await memberWith(
+      kit,
+      organisation.id,
+      owner.token,
+      "member",
+    );
+    const asMember = kit.client(member.token, {
+      organisation: organisation.id,
+    });
+    const statusId = project.statuses[0]?.id;
+    for (const [query, variables] of [
+      [DeleteStatus, { id: statusId }],
+      [Reorder, { projectId: project.id, ids: [] }],
+      [DeleteLabel, { id: statusId }],
+    ] as const) {
+      expect(codeOf(await asMember.attempt(query, variables))).toBe(
+        "auth.errors.forbidden",
+      );
+    }
+    const other = await withProject("OTH");
+    expect(
+      codeOf(await other.asOwner.attempt(DeleteStatus, { id: statusId })),
+    ).toBe("projects.errors.status-not-found");
+  });
+});
+
 describe("labels", () => {
   test("labels are created, renamed, listed by name and deleted; names are unique per project", async () => {
     const { asOwner, project } = await withProject();
