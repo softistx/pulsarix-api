@@ -1,6 +1,5 @@
 import { printSchemaWithDirectives } from "@graphql-tools/utils";
 import { lexicographicSortSchema } from "graphql";
-import { schema } from "@/http/schema";
 
 // Writes the schema the server runs, every module's SDL merged with the
 // scalars and @constraint, sorted, with every directive usage kept (graphql-js
@@ -8,6 +7,11 @@ import { schema } from "@/http/schema";
 // the committed contract pulsarix-ui generates its client from. With
 // --check, writes nothing and exits 1 when schema.graphql is stale, which
 // `bun run verify` runs.
+// Building the schema imports src/config/env.ts, which requires MONGO_URI, though printing
+// opens no connection: a placeholder stands in so that CI and a fresh checkout need no .env.
+Bun.env["MONGO_URI"] ??= "mongodb://placeholder.invalid:27017";
+const { schema } = await import("@/http/schema");
+
 const path = `${import.meta.dir}/../../schema.graphql`;
 const printed = `${printSchemaWithDirectives(lexicographicSortSchema(schema))}\n`;
 
