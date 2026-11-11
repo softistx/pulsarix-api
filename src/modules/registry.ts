@@ -5,6 +5,7 @@ import { invitationsModule } from "../core/invitations/module";
 import { membersModule } from "../core/members/module";
 import { organisationsModule } from "../core/organisations/module";
 import { system } from "../core/system/module";
+import { projectsModule } from "./projects/module";
 
 // THE list of modules: adding one is one line here. Dependency order is
 // computed (`resolveModules`), not written.
@@ -15,6 +16,7 @@ const registered = [
   organisationsModule,
   membersModule,
   invitationsModule,
+  projectsModule,
 ] as const;
 
 export const modules: readonly Module[] = resolveModules(registered);

@@ -17,6 +17,8 @@ describe("the access catalogue, built from the manifests", () => {
       "organisation:manage",
       "member:read",
       "member:manage",
+      "project:read",
+      "project:manage",
     ]);
     expect(access.permissionsOf("owner")).toEqual(access.permissions);
   });
@@ -26,10 +28,12 @@ describe("the access catalogue, built from the manifests", () => {
     expect(access.permissionsOf("member")).toEqual([
       "organisation:read",
       "member:read",
+      "project:read",
     ]);
     expect(access.permissionsOf("viewer")).toEqual([
       "organisation:read",
       "member:read",
+      "project:read",
     ]);
     expect(access.permissionsOf(null)).toEqual([]);
     expect(access.roleCan("member", "member:manage")).toBe(false);

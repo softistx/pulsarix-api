@@ -104,6 +104,12 @@ input ChangePasswordInput {
 """An ISO 3166-1 alpha-2 country code, such as FR."""
 scalar CountryCode @specifiedBy(url: "https://www.iso.org/iso-3166-country-codes.html")
 
+input CreateLabelInput {
+  colour: String! @constraint(maxLength: 7)
+  name: String! @constraint(minLength: 1, maxLength: 100)
+  projectId: ID!
+}
+
 """
 `slug` is the organisation's address (lower case letters, digits and single
 hyphens, 2 to 63 characters); left out, it is made from the name. `timeZone`
@@ -113,6 +119,21 @@ input CreateOrganisationInput {
   name: String! @constraint(minLength: 1, maxLength: 200)
   slug: String @constraint(maxLength: 63)
   timeZone: String @constraint(maxLength: 64)
+}
+
+"""`key` is stored in capitals. `leadId` must be a member."""
+input CreateProjectInput {
+  description: String @constraint(maxLength: 10000)
+  key: String! @constraint(minLength: 2, maxLength: 10)
+  leadId: ID
+  name: String! @constraint(minLength: 1, maxLength: 200)
+}
+
+input CreateStatusInput {
+  category: StatusCategory!
+  colour: String! @constraint(maxLength: 7)
+  name: String! @constraint(minLength: 1, maxLength: 100)
+  projectId: ID!
 }
 
 """
@@ -216,6 +237,15 @@ scalar JWT @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc7519")
 """A KSUID: 27 characters of base62."""
 scalar KSUID @specifiedBy(url: "https://github.com/segmentio/ksuid")
 
+"""A tag a project puts on its issues."""
+type Label {
+  """`#rrggbb`."""
+  colour: String!
+  id: ID!
+  name: String!
+  projectId: ID!
+}
+
 """The languages of mails and texts: English by default, French offered."""
 enum Language {
   EN
@@ -287,6 +317,10 @@ type Mutation {
   """
   activateSecondFactor(code: String! @constraint(maxLength: 20)): RecoveryCodes!
   """
+  Hides the project from the default list; nothing is deleted. Needs `project:manage`.
+  """
+  archiveProject(id: ID!): Project!
+  """
   Gives a member another role. Needs `member:manage` (admin, owner) and a
   recent proof of identity (403 `auth.errors.step-up-required`: `requestStepUp`
   then `confirmStepUp`). Only an owner grants the owner role or changes an
@@ -320,6 +354,8 @@ type Mutation {
   minutes. 400 `auth.errors.invalid-code` or `auth.errors.invalid-token`.
   """
   confirmStepUp(challenge: String! @constraint(maxLength: 200), code: String! @constraint(maxLength: 20)): Boolean!
+  """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
+  createLabel(input: CreateLabelInput!): Label!
   """
   Creates an organisation with its own database; the signed-in account becomes
   its owner. Needs `organisation:create`, which every signed-in account holds.
@@ -327,6 +363,25 @@ type Mutation {
   `invalid` issue on `slug` or `timeZone`).
   """
   createOrganisation(input: CreateOrganisationInput!): MyOrganisation!
+  """
+  Makes a project with the default workflow (Triage, Backlog, Todo, In
+  progress, Done, Cancelled). Needs `project:manage` (admin, owner). 409
+  `projects.errors.key-taken`; 400 `validation.errors.invalid-input` (`key`,
+  `name`, `leadId`).
+  """
+  createProject(input: CreateProjectInput!): Project!
+  """
+  Adds a status at the end of the project's workflow. Needs `project:manage`.
+  409 `projects.errors.status-name-taken`.
+  """
+  createStatus(input: CreateStatusInput!): Status!
+  """Deletes a label. Answers its id. Needs `project:manage`."""
+  deleteLabel(id: ID!): ID!
+  """
+  Deletes a status and closes the gap in the order. Refused while issues use it
+  (409 `projects.errors.status-in-use`). Answers its id. Needs `project:manage`.
+  """
+  deleteStatus(id: ID!): ID!
   """
   Removes the second factor and its recovery codes. Needs a recent proof of
   identity (403 `auth.errors.step-up-required`).
@@ -359,6 +414,12 @@ type Mutation {
   `conflict` too.
   """
   removeMember(id: ID!): ID!
+  """
+  Sets the workflow's order: `ids` are ALL the project's statuses, each once,
+  in the new order (400 `validation.errors.invalid-input` on `ids` otherwise).
+  Answers them in that order. Needs `project:manage`.
+  """
+  reorderStatuses(ids: [ID!]!, projectId: ID!): [Status!]!
   """
   Sends a sign-in link (`/auth/magic-link`). True once accepted, whether or not
   the e-mail holds an account. 429 `auth.errors.too-many-attempts` (with
@@ -411,11 +472,19 @@ type Mutation {
   (`createOrganisation`).
   """
   signUp(input: SignUpInput!): SignInPayload!
+  """Brings an archived project back. Needs `project:manage`."""
+  unarchiveProject(id: ID!): Project!
+  """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
+  updateLabel(id: ID!, input: UpdateLabelInput!): Label!
   """
   Changes the name or the time zone of the request's organisation. Needs
   `organisation:manage` (admin, owner): 403 `auth.errors.forbidden` otherwise.
   """
   updateOrganisation(input: UpdateOrganisationInput!): Organisation!
+  """Changes a project; its key stays. Needs `project:manage`."""
+  updateProject(id: ID!, input: UpdateProjectInput!): Project!
+  """Needs `project:manage`. 409 `projects.errors.status-name-taken`."""
+  updateStatus(id: ID!, input: UpdateStatusInput!): Status!
   """
   Updates the signed-in account's own name and preferred language; nothing else
   (not the e-mail, not the roles). Fields left out are kept. 401
@@ -509,6 +578,37 @@ scalar PositiveFloat
 """An integer from 1 to 2147483647."""
 scalar PositiveInt
 
+"""
+A project of the organisation: a place where issues are tracked. Its `key`
+(`ABC`) prefixes its issues' keys and is unique in the organisation.
+"""
+type Project {
+  """Null while the project is active."""
+  archivedAt: DateTime
+  createdAt: DateTime!
+  description: String!
+  id: ID!
+  """
+  2 to 10 capital letters or digits, starting with a letter; fixed when the project is made.
+  """
+  key: String!
+  labels: [Label!]!
+  """
+  The account leading the project, a member of the organisation; null when nobody does.
+  """
+  leadId: ID
+  name: String!
+  """The project's workflow, in order."""
+  statuses: [Status!]!
+  updatedAt: DateTime!
+  """Who sees the project; `organisation` is every member."""
+  visibility: ProjectVisibility!
+}
+
+enum ProjectVisibility {
+  organisation
+}
+
 type Query {
   """
   The request's organisation's invitations, newest first, at most 100.
@@ -533,6 +633,16 @@ type Query {
   (unknown, or the viewer is no member: the same answer).
   """
   organisation: Organisation!
+  """
+  One project by its key (any case). 404 `projects.errors.not-found`. Needs
+  `project:read`.
+  """
+  project(key: String!): Project!
+  """
+  The request's organisation's projects, by key; archived ones only when asked.
+  Any member (`project:read`).
+  """
+  projects(includeArchived: Boolean = false): [Project!]!
   version: String!
   """The signed-in account, or null when anonymous."""
   viewer: Viewer
@@ -644,6 +754,31 @@ enum SortDirection {
   DESC
 }
 
+"""A step of a project's workflow."""
+type Status {
+  category: StatusCategory!
+  """`#rrggbb`."""
+  colour: String!
+  id: ID!
+  name: String!
+  """Its place in the workflow, from 0, with no gap."""
+  order: Int!
+  projectId: ID!
+}
+
+"""
+Where a status stands in the life of an issue. `triage` holds what intake
+brings in before a member accepts it.
+"""
+enum StatusCategory {
+  backlog
+  cancelled
+  done
+  inProgress
+  todo
+  triage
+}
+
 """
 A confirmation to give back: with `via` APP the code is the one the
 authenticator app shows, with EMAIL it was mailed to the account.
@@ -685,12 +820,34 @@ scalar UUIDv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 """A version 7 (time-ordered) UUID."""
 scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 
+"""A field left out stays as it is; null is refused."""
+input UpdateLabelInput {
+  colour: String @constraint(maxLength: 7)
+  name: String @constraint(minLength: 1, maxLength: 100)
+}
+
 """
 A field left out stays as it is; null is refused (400 `validation.errors.required`).
 """
 input UpdateOrganisationInput {
   name: String @constraint(minLength: 1, maxLength: 200)
   timeZone: String @constraint(maxLength: 64)
+}
+
+"""
+A field left out stays as it is; null is refused for `name`, and clears `leadId`.
+"""
+input UpdateProjectInput {
+  description: String @constraint(maxLength: 10000)
+  leadId: ID
+  name: String @constraint(minLength: 1, maxLength: 200)
+}
+
+"""A field left out stays as it is; null is refused."""
+input UpdateStatusInput {
+  category: StatusCategory
+  colour: String @constraint(maxLength: 7)
+  name: String @constraint(minLength: 1, maxLength: 100)
 }
 
 input UpdateViewerInput {

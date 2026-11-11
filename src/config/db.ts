@@ -1,4 +1,5 @@
 import {
+  type CollectionsOf,
   type CoreCollectionsOf,
   collectionsOf,
   coreCollectionsOf,
@@ -57,7 +58,7 @@ function databasesOf(list: readonly Module[]) {
       defineMongo({
         client: connection.client,
         database,
-        collections: collectionsOf(list) as object,
+        collections: collectionsOf(list) as CollectionsOf,
         autoSync,
       }),
   });
