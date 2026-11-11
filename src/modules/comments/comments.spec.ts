@@ -130,7 +130,7 @@ describe("adding comments", () => {
           input: { body: "   " },
         }),
       ),
-    ).toBe("validation.errors.required");
+    ).toBe("validation.errors.invalid-input");
     expect(
       codeOf(
         await asMember.attempt(Add, {
@@ -171,7 +171,7 @@ describe("editing and deleting", () => {
     expect(codeOf(bad)).toBe("comments.errors.mention-not-member");
     expect(
       codeOf(await asMember.attempt(Edit, { id: added.id, input: {} })),
-    ).toBe("validation.errors.required");
+    ).toBe("validation.errors.invalid-input");
   });
 
   test("another member cannot edit or delete; an admin and the owner can", async () => {
