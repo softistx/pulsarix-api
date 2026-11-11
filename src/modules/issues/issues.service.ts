@@ -16,6 +16,7 @@ import {
   type Priority,
   priorityLevel,
 } from "./issues.model";
+import { issueRemoved } from "./issues.usage";
 import { rankAfter, rankBetween } from "./rank";
 
 export type IssuesMongo = ModuleMongo<"issues">;
@@ -360,6 +361,7 @@ export class IssuesService {
     const current = await this.byId(id);
     await this.inProject(current.projectId, async (tx) => {
       await tx.db.issues.hardDelete(current._id);
+      await issueRemoved(tx as IssuesMongo, current.id);
       await tx.db.issues.updateMany(
         { parentId: current._id },
         { parentId: null },

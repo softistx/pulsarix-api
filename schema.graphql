@@ -79,6 +79,12 @@ type AcceptInvitationPayload {
   signIn: SignInPayload
 }
 
+input AddCommentInput {
+  body: String! @constraint(minLength: 1, maxLength: 20000)
+  """Default false."""
+  public: Boolean
+}
+
 """Standard base64 with padding, in its canonical spelling."""
 scalar Base64 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4648#section-4")
 
@@ -99,6 +105,33 @@ scalar CIDRv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
 input ChangePasswordInput {
   currentPassword: String! @constraint(maxLength: 1024)
   newPassword: String! @constraint(maxLength: 1024)
+}
+
+"""
+A comment on an issue. `body` is rich text with the `@[Label](id)` markers of
+the mention input; `mentionIds` are the members they name, checked by the
+server.
+"""
+type Comment {
+  authorId: ID!
+  body: String!
+  createdAt: DateTime!
+  """When the body or the flag was last changed; null if never."""
+  editedAt: DateTime
+  id: ID!
+  issueId: ID!
+  """The members the body mentions, in order of appearance."""
+  mentionIds: [ID!]!
+  """A reply the tracking page of a client report shows."""
+  public: Boolean!
+  updatedAt: DateTime!
+}
+
+type CommentConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Comment!]!
 }
 
 """An ISO 3166-1 alpha-2 country code, such as FR."""
@@ -170,6 +203,12 @@ scalar DateTime @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc3339")
 
 """An ISO 8601 duration, such as P1DT2H or PT0.5S."""
 scalar Duration @specifiedBy(url: "https://www.iso.org/iso-8601-date-and-time-format.html")
+
+"""A field left out stays as it is."""
+input EditCommentInput {
+  body: String @constraint(minLength: 1, maxLength: 20000)
+  public: Boolean
+}
 
 """An email address."""
 scalar EmailAddress
@@ -425,6 +464,13 @@ type Mutation {
   """
   activateSecondFactor(code: String! @constraint(maxLength: 20)): RecoveryCodes!
   """
+  Comments on an issue as the viewer. Needs `comment:write`. 404
+  `issues.errors.not-found`; 400 `comments.errors.mention-not-member` (on
+  `body`) when a mention marker names someone who is no member of the
+  organisation.
+  """
+  addComment(input: AddCommentInput!, issueId: ID!): Comment!
+  """
   Hides the project from the default list; nothing is deleted. Needs `project:manage`.
   """
   archiveProject(id: ID!): Project!
@@ -489,6 +535,8 @@ type Mutation {
   409 `projects.errors.status-name-taken`.
   """
   createStatus(input: CreateStatusInput!): Status!
+  """Deletes a comment; answers its id. Same rules as `editComment`."""
+  deleteComment(id: ID!): ID!
   """
   Deletes an issue; its children lose their parent. Answers its id. Needs `issue:delete` (admin, owner).
   """
@@ -505,6 +553,12 @@ type Mutation {
   identity (403 `auth.errors.step-up-required`).
   """
   disableSecondFactor: Boolean!
+  """
+  Changes the body or the `public` flag; the body's mentions are checked again.
+  Needs `comment:write`, and being the author or an admin: 403
+  `comments.errors.not-yours` otherwise. 404 `comments.errors.not-found`.
+  """
+  editComment(id: ID!, input: EditCommentInput!): Comment!
   """
   Starts setting up a second factor for the signed-in account: a new secret
   replaces a waiting one. 409 `auth.errors.second-factor-active` when one is
@@ -745,6 +799,11 @@ enum ProjectVisibility {
 }
 
 type Query {
+  """
+  The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
+  default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
+  """
+  comments(after: String, first: Int = 50, issueId: ID!): CommentConnection!
   """
   The request's organisation's invitations, newest first, at most 100.
   Organisation admins and owners only (`member:manage`).

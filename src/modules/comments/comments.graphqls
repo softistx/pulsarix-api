@@ -1,0 +1,64 @@
+"""
+A comment on an issue. `body` is rich text with the `@[Label](id)` markers of
+the mention input; `mentionIds` are the members they name, checked by the
+server.
+"""
+type Comment {
+  id: ID!
+  issueId: ID!
+  authorId: ID!
+  body: String!
+  "The members the body mentions, in order of appearance."
+  mentionIds: [ID!]!
+  "A reply the tracking page of a client report shows."
+  public: Boolean!
+  "When the body or the flag was last changed; null if never."
+  editedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CommentConnection {
+  nodes: [Comment!]!
+  "Pass it as `after` for the next page; null on the last."
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+input AddCommentInput {
+  body: String! @constraint(minLength: 1, maxLength: 20000)
+  "Default false."
+  public: Boolean
+}
+
+"A field left out stays as it is."
+input EditCommentInput {
+  body: String @constraint(minLength: 1, maxLength: 20000)
+  public: Boolean
+}
+
+type Query {
+  """
+  The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
+  default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
+  """
+  comments(issueId: ID!, first: Int = 50, after: String): CommentConnection!
+}
+
+type Mutation {
+  """
+  Comments on an issue as the viewer. Needs `comment:write`. 404
+  `issues.errors.not-found`; 400 `comments.errors.mention-not-member` (on
+  `body`) when a mention marker names someone who is no member of the
+  organisation.
+  """
+  addComment(issueId: ID!, input: AddCommentInput!): Comment!
+  """
+  Changes the body or the `public` flag; the body's mentions are checked again.
+  Needs `comment:write`, and being the author or an admin: 403
+  `comments.errors.not-yours` otherwise. 404 `comments.errors.not-found`.
+  """
+  editComment(id: ID!, input: EditCommentInput!): Comment!
+  "Deletes a comment; answers its id. Same rules as `editComment`."
+  deleteComment(id: ID!): ID!
+}

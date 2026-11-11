@@ -53,6 +53,11 @@ export const texts: Record<Locale, Record<string, string>> = {
       "An issue cannot be its own parent, nor the parent of one of its parents.",
     "issues.errors.bad-placement":
       "The issues named as neighbours must be in that status, in order.",
+    "comments.errors.not-found": "This comment does not exist.",
+    "comments.errors.not-yours":
+      "Only the author or an admin can change this comment.",
+    "comments.errors.mention-not-member":
+      "A mention names someone who is not a member of this organisation.",
     "members.errors.not-found": "This member does not exist.",
     "members.errors.last-owner":
       "An organisation keeps at least one owner. Name another owner first.",
@@ -118,6 +123,11 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Un ticket ne peut pas être son propre parent, ni le parent d'un de ses parents.",
     "issues.errors.bad-placement":
       "Les tickets voisins doivent être dans ce statut, dans l'ordre.",
+    "comments.errors.not-found": "Ce commentaire n'existe pas.",
+    "comments.errors.not-yours":
+      "Seul l'auteur ou un administrateur peut modifier ce commentaire.",
+    "comments.errors.mention-not-member":
+      "Une mention désigne quelqu'un qui n'est pas membre de cette organisation.",
     "members.errors.not-found": "Ce membre n'existe pas.",
     "members.errors.last-owner":
       "Une organisation garde au moins un propriétaire. Nommez d'abord un autre propriétaire.",
