@@ -62,3 +62,19 @@ export interface MyOrganisationView {
   organisation: OrganisationDocument;
   role: Role;
 }
+
+// The organisation's own settings, ONE document (`_id` "main") in the
+// organisation's database. An organisation's database cannot be empty
+// (`defineMongo` refuses a database with no collection), and this is the first
+// thing that belongs to an organisation alone; projects, issues and the rest
+// join it with the slices that add them. The document is made on first write.
+export const settings = defineCollection({
+  name: "settings",
+  schema: z.object({
+    _id: z.literal("main"),
+    // The language of notifications and digests the organisation sends.
+    defaultLocale: z.enum(["en", "fr"]).default("en"),
+  }),
+  timestamps: true,
+  actors,
+});

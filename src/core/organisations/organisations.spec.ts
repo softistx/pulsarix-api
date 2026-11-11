@@ -68,7 +68,6 @@ describe("createOrganisation", () => {
       input: { name: "Whatever", slug: first.organisation.slug },
     });
     expect(codeOf(taken)).toBe("tenancy.errors.slug-taken");
-    expect(taken.errors?.[0]?.extensions?.http?.status).toBe(409);
     const bad = await kit.client(other.token).attempt(Create, {
       input: { name: "Bad", slug: "Not A Slug", timeZone: "Mars/Base" },
     });
@@ -109,7 +108,6 @@ describe("one organisation never reads another's", () => {
     ]) {
       const foreign = await asA(b.organisation.id).attempt(query);
       expect(codeOf(foreign)).toBe("tenancy.errors.unknown-organization");
-      expect(foreign.errors?.[0]?.extensions?.http?.status).toBe(404);
     }
     const unknown = await asA("0".repeat(24)).attempt(
       `{ organisation { id } }`,

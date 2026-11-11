@@ -52,7 +52,7 @@ async function accountWithSecondFactor() {
   return {
     email,
     secret,
-    input,
+    input: { email, password: specPassword },
     recoveryCodes: activated.activateSecondFactor.codes,
     token: signedUp.signUp.session.token,
   };

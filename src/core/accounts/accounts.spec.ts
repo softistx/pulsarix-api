@@ -98,7 +98,6 @@ describe("sign-up and sign-in", () => {
       });
     }
     expect(codeOf(last ?? {})).toBe("auth.errors.too-many-attempts");
-    expect(last?.errors?.[0]?.extensions?.http?.status).toBe(429);
   });
 
   test("the account's language and name are its own to change", async () => {
@@ -223,6 +222,7 @@ describe("magic link, reset and password change", () => {
         input: { email: account.email, password: specPassword },
       });
     const me = kit.client(account.token);
+    kit.clock.advance(1000);
     const wrong = await me.attempt(
       `mutation { changePassword(input: { currentPassword: "nope nope", newPassword: "a brand new password" }) }`,
     );

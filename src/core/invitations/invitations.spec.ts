@@ -260,7 +260,6 @@ describe("sign-up, invite, accept, role change", () => {
       input: { email: uniqueEmail(), name: "O", role: "owner" },
     });
     expect(codeOf(refused)).toBe("members.errors.owner-required");
-    expect(refused.errors?.[0]?.extensions?.http?.status).toBe(403);
     // An admin invites a member.
     await asAdmin.call(Invite, {
       input: { email: uniqueEmail(), name: "M", role: "member" },

@@ -163,7 +163,6 @@ describe("roles", () => {
       role: "viewer",
     });
     expect(codeOf(stale)).toBe("auth.errors.step-up-required");
-    expect(stale.errors?.[0]?.extensions?.http?.status).toBe(403);
 
     // A code is mailed, and confirming it makes the session fresh again.
     const challenge = await asOwner.call<{

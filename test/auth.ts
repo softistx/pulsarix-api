@@ -161,7 +161,9 @@ export async function ownerWithOrganisation(kit: AuthApp, name = "North Star") {
     `mutation($input: CreateOrganisationInput!) {
       createOrganisation(input: $input) { role organisation { id slug } }
     }`,
-    { input: { name } },
+    {
+      input: { name, slug: `org-${Date.now().toString(36)}-${(counter += 1)}` },
+    },
   );
   return { owner, organisation: data.createOrganisation.organisation };
 }
