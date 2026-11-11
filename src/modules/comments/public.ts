@@ -6,3 +6,4 @@ export {
   type CommentChangeHandler,
   registerCommentChange,
 } from "./comments.usage";
+export { withoutMarkers } from "./mentions";

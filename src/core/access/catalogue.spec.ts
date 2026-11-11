@@ -29,6 +29,7 @@ describe("the access catalogue, built from the manifests", () => {
       "attachment:read",
       "attachment:write",
       "attachment:delete",
+      "intake:manage",
     ]);
     expect(access.permissionsOf("owner")).toEqual(access.permissions);
   });

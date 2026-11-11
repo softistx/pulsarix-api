@@ -12,3 +12,8 @@ export function mentionedIds(body: string): string[] {
   }
   return [...seen];
 }
+
+// The body with each marker reduced to its label (`@Ada`): what is shown to
+// someone who must not learn the ids the markers carry (the tracking page).
+export const withoutMarkers = (body: string): string =>
+  body.replace(/@\[([^\]\n]*)\]\([^)\s]*\)/g, "@$1");

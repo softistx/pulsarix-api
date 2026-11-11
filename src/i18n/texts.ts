@@ -60,6 +60,24 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Only the author or an admin can change this comment.",
     "comments.errors.mention-not-member":
       "A mention names someone who is not a member of this organisation.",
+    "intake.errors.unknown-key": "This widget key does not exist.",
+    "intake.errors.origin-not-allowed":
+      "This site is not allowed to use this widget key.",
+    "intake.errors.key-disabled": "This widget is switched off.",
+    "intake.errors.too-many-requests":
+      "Too many requests. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "intake.errors.unavailable":
+      "Reports cannot be taken right now. Try again shortly.",
+    "intake.errors.persisted-only":
+      "Send a known operation by its id, with its variables.",
+    "intake.errors.unsupported-media": "Send the request as application/json.",
+    "intake.errors.too-fast":
+      "That was quick. Check your report and send it again.",
+    "intake.errors.key-not-found": "This widget key does not exist.",
+    "intake.errors.not-found": "This report does not exist.",
+    "intake.errors.report-decided": "This report has been decided already.",
+    "intake.errors.invalid-origin":
+      '"{origin}" is not an origin: use https://host[:port], with no path.',
     "attachments.errors.not-found": "This attachment does not exist.",
     "attachments.errors.too-many":
       "No more than {max} files can be attached here.",
@@ -144,6 +162,25 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Seul l'auteur ou un administrateur peut modifier ce commentaire.",
     "comments.errors.mention-not-member":
       "Une mention désigne quelqu'un qui n'est pas membre de cette organisation.",
+    "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",
+    "intake.errors.origin-not-allowed":
+      "Ce site n'est pas autorisé à utiliser cette clé de widget.",
+    "intake.errors.key-disabled": "Ce widget est désactivé.",
+    "intake.errors.too-many-requests":
+      "Trop de requêtes. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+    "intake.errors.unavailable":
+      "Les signalements ne peuvent pas être pris pour le moment. Réessayez bientôt.",
+    "intake.errors.persisted-only":
+      "Envoyez une opération connue par son id, avec ses variables.",
+    "intake.errors.unsupported-media":
+      "Envoyez la requête en application/json.",
+    "intake.errors.too-fast":
+      "C'était rapide. Relisez votre signalement et envoyez-le de nouveau.",
+    "intake.errors.key-not-found": "Cette clé de widget n'existe pas.",
+    "intake.errors.not-found": "Ce signalement n'existe pas.",
+    "intake.errors.report-decided": "Ce signalement a déjà été traité.",
+    "intake.errors.invalid-origin":
+      "« {origin} » n'est pas une origine : utilisez https://hôte[:port], sans chemin.",
     "attachments.errors.not-found": "Cette pièce jointe n'existe pas.",
     "attachments.errors.too-many":
       "On ne peut pas joindre plus de {max} fichiers ici.",

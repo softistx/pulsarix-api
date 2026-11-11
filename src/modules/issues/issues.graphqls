@@ -29,6 +29,8 @@ type Issue {
   rank: String!
   "The member who made it."
   reporterId: ID
+  "The client report it was accepted from, if any."
+  clientReportId: ID
   watcherIds: [ID!]!
   "Whether the viewer watches it."
   watching: Boolean!

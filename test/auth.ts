@@ -10,6 +10,7 @@ import { createApp } from "../src/app";
 import { coreMongo } from "../src/config/db";
 import { createAuth } from "../src/core/auth";
 import type { Media } from "../src/modules/attachments/attachments.storage";
+import type { PublicIntake } from "../src/modules/intake/intake.submit";
 import { type Http, http } from "./http";
 
 export const uiOrigin = "https://ui.pulsarix.test";
@@ -39,7 +40,11 @@ export const specPassword = "a long password";
 // The mails nobody waits for run in `auth.background`: a spec awaits its
 // `settled()` before it reads the outbox.
 export function authApp(
-  options: { mailer?: Mailer; media?: Media | undefined } = {},
+  options: {
+    mailer?: Mailer;
+    media?: Media | undefined;
+    intake?: PublicIntake;
+  } = {},
 ) {
   const clock = fixedClock(Date.now());
   const outbox: MemoryMailer = createMemoryMailer();
@@ -55,6 +60,7 @@ export function authApp(
   const app = createApp({
     auth,
     ...("media" in options && { media: options.media }),
+    ...(options.intake && { intake: options.intake }),
   });
   return {
     auth,

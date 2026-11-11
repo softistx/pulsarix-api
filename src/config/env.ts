@@ -80,6 +80,22 @@ export const env = defineEnv({
   REDIS_URL: orUnset(
     z.string().regex(/^rediss?:\/\/[^/]/, "not a redis:// or rediss:// URL"),
   ),
+  // TRUSTED_PROXIES: the proxies in front of the API, as addresses or CIDR
+  // ranges, comma separated (`172.16.0.0/12` for the docker network). The client
+  // address (the public endpoint's rate limits) is read from X-Forwarded-For
+  // past these proxies only; never trust a header beyond them. Unset, the
+  // address is the connection's: behind a proxy, every client shares one
+  // address and one rate limit.
+  TRUSTED_PROXIES: z
+    .string()
+    .transform((value) =>
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    )
+    .transform((list) => (list.length > 0 ? list : undefined))
+    .optional(),
   // S3_*: the S3-compatible store of the attachments. All optional: without
   // S3_BUCKET, S3_ACCESS_KEY and S3_SECRET_KEY the media routes answer 503
   // `attachments.errors.unavailable` and nothing else changes. An empty value

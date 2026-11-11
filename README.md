@@ -21,6 +21,9 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
   error codes in [CONTEXT.md](CONTEXT.md)). Texts are English by default, French with
   `Accept-Language: fr`.
 - `GET /health` and `GET /ready` are the probes; `POST /graphql` is the one entry point.
+- `POST /public/graphql` is the widget's endpoint (and the tracking page's): three persisted
+  operations, CORS per widget key, rate limits in Redis (503 without it), see "Public endpoint" in
+  [CONTEXT.md](CONTEXT.md). Behind a proxy set `TRUSTED_PROXIES`, or every client shares one address.
 - `bun run schema:print` writes `schema.graphql`, the committed contract the UI generates
   its client from.
 

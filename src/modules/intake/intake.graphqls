@@ -1,0 +1,134 @@
+"""
+A key the widget of a project is embedded with. The key is public by design: it
+reads its own configuration and sends reports for its project, nothing else.
+"""
+type WidgetKey {
+  id: ID!
+  projectId: ID!
+  "`pk_live_` and 32 characters: the value of `data-project-key`."
+  publicKey: String!
+  label: String!
+  "The sites (`https://host[:port]`) allowed to use it; the public endpoint answers CORS for these only."
+  allowedOrigins: [String!]!
+  "Off, the widget answers `enabled: false` and takes no report."
+  active: Boolean!
+  "When it was last used, to the minute; null if never."
+  lastUsedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input CreateWidgetKeyInput {
+  projectId: ID!
+  label: String! @constraint(minLength: 1, maxLength: 100)
+  allowedOrigins: [String!]!
+    @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+}
+
+"A field left out stays as it is; null is refused."
+input UpdateWidgetKeyInput {
+  label: String @constraint(minLength: 1, maxLength: 100)
+  allowedOrigins: [String!]
+    @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  active: Boolean
+}
+
+enum ClientReportState {
+  new
+  accepted
+  declined
+  closed
+}
+
+type ClientReportMetadata {
+  key: String!
+  value: String!
+}
+
+"""
+A report a reader sent through the widget. Everything in it is text from a
+stranger: show it as plain text, never as markup or links.
+"""
+type ClientReport {
+  id: ID!
+  projectId: ID!
+  title: String!
+  description: String!
+  "Null if none was given, or once erased (90 days after the report is closed or declined)."
+  email: String
+  state: ClientReportState!
+  "The issue an acceptance made."
+  issueId: ID
+  declineReason: String
+  pageUrl: String
+  userAgent: String
+  locale: String!
+  metadata: [ClientReportMetadata!]!
+  decidedBy: ID
+  decidedAt: DateTime
+  closedAt: DateTime
+  erasedAt: DateTime
+  createdAt: DateTime!
+}
+
+type ClientReportConnection {
+  nodes: [ClientReport!]!
+  "Pass it as `after` for the next page; null on the last."
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Query {
+  """
+  The widget keys of a project, oldest first; revoked ones are not listed.
+  Needs `intake:manage` (admin, owner). 404 `projects.errors.not-found`.
+  """
+  widgetKeys(projectId: ID!): [WidgetKey!]!
+  """
+  The project's client reports, newest first, paged by cursor (`first` 1 to
+  100, default 50), optionally of one `state`. Needs `issue:write` (those who
+  triage). 404 `projects.errors.not-found`.
+  """
+  clientReports(
+    projectId: ID!
+    state: ClientReportState
+    first: Int = 50
+    after: String
+  ): ClientReportConnection!
+}
+
+type Mutation {
+  """
+  Makes a key for a project. Needs `intake:manage` and a recent proof of
+  identity (403 `auth.errors.step-up-required`). 400
+  `intake.errors.invalid-origin` on `allowedOrigins`; 404
+  `projects.errors.not-found`.
+  """
+  createWidgetKey(input: CreateWidgetKeyInput!): WidgetKey!
+  "Needs `intake:manage`. 404 `intake.errors.key-not-found`."
+  updateWidgetKey(id: ID!, input: UpdateWidgetKeyInput!): WidgetKey!
+  """
+  Gives the key a new value; the old one stops working at once. Needs
+  `intake:manage` and a recent proof of identity.
+  """
+  rotateWidgetKey(id: ID!): WidgetKey!
+  """
+  Retires the key for good: it answers like an unknown one. Answers its id.
+  Needs `intake:manage`.
+  """
+  revokeWidgetKey(id: ID!): ID!
+  """
+  Accepts a new report: an issue is made from it in the project's Triage
+  status, linked both ways. Needs `issue:write`. 409
+  `intake.errors.report-decided`; 404 `intake.errors.not-found`.
+  """
+  acceptClientReport(id: ID!): ClientReport!
+  """
+  Declines a new report with a reason (kept for the team; the reporter sees
+  only the state). Needs `issue:write`. 409 `intake.errors.report-decided`.
+  """
+  declineClientReport(
+    id: ID!
+    reason: String! @constraint(minLength: 1, maxLength: 1000)
+  ): ClientReport!
+}
