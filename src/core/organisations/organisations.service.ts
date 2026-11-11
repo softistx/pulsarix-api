@@ -95,15 +95,33 @@ export class OrganisationsService {
     } catch (error) {
       throw tenancyFailure(error);
     }
-    await this.membership.assign(tenant._id.toHexString(), accountId, "owner");
-    const organisation: OrganisationDocument =
-      zone === tenant.timeZone
-        ? tenant
-        : await this.core.as(accountId).db.organisations.update(tenant._id, {
-            timeZone: zone,
-            version: tenant.version,
-          });
-    return { organisation, role: "owner" as const };
+    // The organisation is active as soon as it is provisioned, so a failure
+    // after this point (the owner's grant, the time zone) archives it: an active
+    // organisation nobody owns is unreachable.
+    try {
+      await this.membership.assign(
+        tenant._id.toHexString(),
+        accountId,
+        "owner",
+      );
+      const organisation: OrganisationDocument =
+        zone === tenant.timeZone
+          ? tenant
+          : await this.core.as(accountId).db.organisations.update(tenant._id, {
+              timeZone: zone,
+              version: tenant.version,
+            });
+      return { organisation, role: "owner" as const };
+    } catch (error) {
+      await this.core
+        .as(accountId)
+        .db.organisations.update(tenant._id, {
+          status: "archived",
+          version: tenant.version,
+        })
+        .catch(() => undefined);
+      throw error;
+    }
   }
 
   // Changes the name or the time zone. A field left out stays; null is refused

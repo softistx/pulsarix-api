@@ -17,6 +17,11 @@ export const uiOrigin = "https://ui.pulsarix.test";
 const totpKeys = "spec:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
 let counter = 0;
+
+const nextSlug = () => {
+  counter += 1;
+  return `org-${Date.now().toString(36)}-${counter}`;
+};
 // An e-mail address no other spec uses: janus's accounts live in the run's one
 // core database and specs do not clear them.
 export const uniqueEmail = (name = "ada") => {
@@ -162,7 +167,7 @@ export async function ownerWithOrganisation(kit: AuthApp, name = "North Star") {
       createOrganisation(input: $input) { role organisation { id slug } }
     }`,
     {
-      input: { name, slug: `org-${Date.now().toString(36)}-${(counter += 1)}` },
+      input: { name, slug: nextSlug() },
     },
   );
   return { owner, organisation: data.createOrganisation.organisation };

@@ -97,6 +97,7 @@ export class ViewerService {
   // QR code, answered once. A waiting secret is replaced; an active factor is
   // refused (disable it first).
   enrollSecondFactor() {
+    requireFresh(this.viewer, this.auth.clock);
     return authCall(() => this.users.secondFactor.enroll(this.viewer.id));
   }
 
