@@ -49,11 +49,11 @@ jobs:
           if command -v redis-server >/dev/null; then
             echo "bin=$(command -v redis-server)" >> "$GITHUB_OUTPUT"
             echo "build=false" >> "$GITHUB_OUTPUT"
-          elif command -v make >/dev/null && command -v cc >/dev/null; then
+          elif command -v make >/dev/null && { command -v cc >/dev/null || command -v gcc >/dev/null; }; then
             echo "bin=$HOME/redis-bin/redis-server" >> "$GITHUB_OUTPUT"
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::no redis-server, make or cc on this runner: the real-Redis specs are skipped"
+            echo "::warning::no redis-server, make or a C compiler on this runner: the real-Redis specs are skipped"
             echo "bin=" >> "$GITHUB_OUTPUT"
             echo "build=false" >> "$GITHUB_OUTPUT"
           fi
