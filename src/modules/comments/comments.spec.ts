@@ -121,6 +121,16 @@ describe("adding comments", () => {
     expect(none.comments.nodes).toEqual([]);
   });
 
+  test("more than 50 distinct mentions are refused", async () => {
+    const { asMember, issue } = await setup();
+    const body = Array.from({ length: 51 }, (_, i) => `@[a](id${i})`).join(" ");
+    expect(
+      codeOf(
+        await asMember.attempt(Add, { issueId: issue.id, input: { body } }),
+      ),
+    ).toBe("validation.errors.out-of-range");
+  });
+
   test("an empty body, an unknown issue and a viewer are refused", async () => {
     const { asMember, asViewer, issue } = await setup();
     expect(

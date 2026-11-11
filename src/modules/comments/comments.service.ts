@@ -28,6 +28,9 @@ export interface EditCommentInput {
 
 export const MAX_PAGE = 100;
 
+// Distinct mentions in one body: each costs a membership lookup.
+export const MAX_MENTIONS = 50;
+
 export interface CommentPage {
   nodes: CommentDocument[];
   endCursor: string | null;
@@ -60,8 +63,11 @@ export class CommentsService {
       throw invalid([{ path: "body", code: "validation.errors.required" }]);
     }
     const ids = mentionedIds(text);
-    const strangers: string[] = [];
-    for (const id of ids) if (!(await this.isMember(id))) strangers.push(id);
+    if (ids.length > MAX_MENTIONS) {
+      throw invalid([{ path: "body", code: "validation.errors.out-of-range" }]);
+    }
+    const known = await Promise.all(ids.map((id) => this.isMember(id)));
+    const strangers = ids.filter((_, i) => !known[i]);
     if (strangers.length > 0) throw mentionNotMember(strangers);
     return { body: text, mentionIds: ids };
   }

@@ -13,5 +13,11 @@ export const mentionNotMember = (ids: string[]) =>
   fail("comments.errors.mention-not-member", {
     status: 400,
     field: "body",
-    params: { count: ids.length, ids: ids.join(",") },
+    params: {
+      count: ids.length,
+      ids: ids
+        .slice(0, 5)
+        .map((id) => id.slice(0, 40))
+        .join(","),
+    },
   });
