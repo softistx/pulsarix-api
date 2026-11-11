@@ -29,3 +29,25 @@ export async function statusIsUsed(mongo: ProjectsMongo, statusId: string) {
   }
   return false;
 }
+
+// Tells something outside this module that a label is going, so that it stops
+// carrying it (the issues module removes the label from its issues). It runs
+// inside the deleting transaction.
+export type LabelRemoval = (
+  mongo: ProjectsMongo,
+  labelId: string,
+) => Promise<void>;
+
+const removals = new Set<LabelRemoval>();
+
+// Registers a removal; the returned function removes it.
+export function registerLabelRemoval(removal: LabelRemoval): () => void {
+  removals.add(removal);
+  return () => {
+    removals.delete(removal);
+  };
+}
+
+export async function labelRemoved(mongo: ProjectsMongo, labelId: string) {
+  for (const removal of removals) await removal(mongo, labelId);
+}

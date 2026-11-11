@@ -12,7 +12,12 @@ export { AccessCatalogueError } from "@alxia/access";
 // throws an `AccessCatalogueError` at boot when a permission is badly spelled
 // or a grant is wrong.
 export function accessOf(list: readonly Module[]): Access<Role> {
-  return createAccess(list, { roles, all: "owner" });
+  return createAccess(list, {
+    roles,
+    all: "owner",
+    // Beyond read and manage: issues are written by members, deleted by admins.
+    actions: ["write", "delete"],
+  });
 }
 
 // The port the tenancy and the guards read: the role an account holds in an

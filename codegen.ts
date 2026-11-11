@@ -34,6 +34,8 @@ const config: CodegenConfig = {
           Project: "@/modules/projects/projects.model#ProjectDocument",
           Status: "@/modules/projects/projects.model#StatusDocument",
           Label: "@/modules/projects/projects.model#LabelDocument",
+          Issue: "@/modules/issues/issues.model#IssueDocument",
+          IssueConnection: "@/modules/issues/issues.query#IssuePage",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",
         },

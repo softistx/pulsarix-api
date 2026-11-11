@@ -104,6 +104,24 @@ input ChangePasswordInput {
 """An ISO 3166-1 alpha-2 country code, such as FR."""
 scalar CountryCode @specifiedBy(url: "https://www.iso.org/iso-3166-country-codes.html")
 
+"""
+`statusId` defaults to the first Backlog status. `dueDate` may not precede
+`startDate`; `assigneeId` must be a member; labels and the parent belong to the
+project.
+"""
+input CreateIssueInput {
+  assigneeId: ID
+  description: String @constraint(maxLength: 50000)
+  dueDate: DateTime
+  labelIds: [ID!]
+  parentId: ID
+  priority: IssuePriority
+  projectId: ID!
+  startDate: DateTime
+  statusId: ID
+  title: String! @constraint(minLength: 1, maxLength: 200)
+}
+
 input CreateLabelInput {
   colour: String! @constraint(maxLength: 7)
   name: String! @constraint(minLength: 1, maxLength: 100)
@@ -221,6 +239,96 @@ input InviteMemberInput {
   email: String! @constraint(maxLength: 320)
   name: String! @constraint(minLength: 1, maxLength: 200)
   role: Role!
+}
+
+"""
+An issue of a project. Its `key` (`ABC-12`) is the project's key and its
+`number`, which counts from 1 with no gap.
+"""
+type Issue {
+  assigneeId: ID
+  createdAt: DateTime!
+  """Rich text, as the client wrote it."""
+  description: String!
+  dueDate: DateTime
+  id: ID!
+  key: String!
+  labelIds: [ID!]!
+  number: Int!
+  parentId: ID
+  priority: IssuePriority!
+  projectId: ID!
+  """
+  Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`.
+  """
+  rank: String!
+  """The member who made it."""
+  reporterId: ID
+  startDate: DateTime
+  statusId: ID!
+  title: String!
+  updatedAt: DateTime!
+  watcherIds: [ID!]!
+  """Whether the viewer watches it."""
+  watching: Boolean!
+}
+
+type IssueConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Issue!]!
+}
+
+"""Every given field narrows the list (they are combined with AND)."""
+input IssueFilter {
+  assigneeId: ID
+  """The issues whose status has one of these categories."""
+  categories: [StatusCategory!]
+  """Due on or after (for a calendar's range)."""
+  dueAfter: DateTime
+  dueBefore: DateTime
+  """The issues carrying ANY of these labels."""
+  labelIds: [ID!]
+  """The children of this issue."""
+  parentId: ID
+  priorities: [IssuePriority!]
+  reporterId: ID
+  """Only the issues with no parent; ignored with `parentId`."""
+  rootsOnly: Boolean
+  startAfter: DateTime
+  startBefore: DateTime
+  statusIds: [ID!]
+  """Part of the title, any case."""
+  text: String @constraint(maxLength: 200)
+  """Only the issues nobody is assigned to; ignored with `assigneeId`."""
+  unassigned: Boolean
+  """Only the issues the viewer watches."""
+  watching: Boolean
+}
+
+enum IssuePriority {
+  high
+  low
+  medium
+  none
+  urgent
+}
+
+input IssueSort {
+  direction: SortDirection! = asc
+  field: IssueSortField!
+}
+
+enum IssueSortField {
+  createdAt
+  dueDate
+  number
+  priority
+  rank
+  startDate
+  title
+  updatedAt
 }
 
 """Any JSON value."""
@@ -354,6 +462,12 @@ type Mutation {
   minutes. 400 `auth.errors.invalid-code` or `auth.errors.invalid-token`.
   """
   confirmStepUp(challenge: String! @constraint(maxLength: 200), code: String! @constraint(maxLength: 20)): Boolean!
+  """
+  Makes an issue at the end of its status. Needs `issue:write`. 404
+  `projects.errors.not-found`; 400 `validation.errors.invalid-input`
+  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`).
+  """
+  createIssue(input: CreateIssueInput!): Issue!
   """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
   createLabel(input: CreateLabelInput!): Label!
   """
@@ -375,6 +489,10 @@ type Mutation {
   409 `projects.errors.status-name-taken`.
   """
   createStatus(input: CreateStatusInput!): Status!
+  """
+  Deletes an issue; its children lose their parent. Answers its id. Needs `issue:delete` (admin, owner).
+  """
+  deleteIssue(id: ID!): ID!
   """Deletes a label. Answers its id. Needs `project:manage`."""
   deleteLabel(id: ID!): ID!
   """
@@ -402,6 +520,14 @@ type Mutation {
   that is a member already.
   """
   inviteMember(input: InviteMemberInput!): Invitation!
+  """
+  Puts the issue in a status, right after `beforeId` and right before
+  `afterId` (the issues that end up above and below it; both optional, both in
+  that status). With neither it goes to the end. Only this issue is written.
+  409 `issues.errors.bad-placement` when a neighbour is elsewhere or the two
+  are not in order. Needs `issue:write`.
+  """
+  moveIssue(afterId: ID, beforeId: ID, id: ID!, statusId: ID!): Issue!
   """
   Opens the session with a recovery code instead of the app's code; the code is
   spent. Same refusals as `confirmSecondFactor`.
@@ -474,6 +600,13 @@ type Mutation {
   signUp(input: SignUpInput!): SignInPayload!
   """Brings an archived project back. Needs `project:manage`."""
   unarchiveProject(id: ID!): Project!
+  """Removes the viewer from the watchers; repeatable. Needs `issue:write`."""
+  unwatchIssue(id: ID!): Issue!
+  """
+  Changes the given fields. Needs `issue:write`. 404 `issues.errors.not-found`;
+  409 `issues.errors.parent-cycle`.
+  """
+  updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
   """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
   updateLabel(id: ID!, input: UpdateLabelInput!): Label!
   """
@@ -491,6 +624,8 @@ type Mutation {
   `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input`.
   """
   updateViewer(input: UpdateViewerInput!): Viewer!
+  """Adds the viewer to the watchers; repeatable. Needs `issue:write`."""
+  watchIssue(id: ID!): Issue!
 }
 
 """An organisation the viewer is a member of, with their role there."""
@@ -615,6 +750,16 @@ type Query {
   Organisation admins and owners only (`member:manage`).
   """
   invitations(status: InvitationStatus): [Invitation!]!
+  """
+  One issue by its key (any case). 404 `issues.errors.not-found`. Needs `issue:read`.
+  """
+  issue(key: String!): Issue!
+  """
+  The issues of a project, paged by cursor (`first` 1 to 100, default 50;
+  default sort `number` ascending). Needs `issue:read`. 400
+  `validation.errors.invalid-input` on `projectId`, `first` or `after`.
+  """
+  issues(after: String, filter: IssueFilter, first: Int = 50, projectId: ID!, sort: IssueSort): IssueConnection!
   """
   The request's organisation's members, by name. Any member
   (`member:read`).
@@ -752,6 +897,8 @@ its `orderBy`, so a cursor page across a sort neither skips nor repeats a row.
 enum SortDirection {
   ASC
   DESC
+  asc
+  desc
 }
 
 """A step of a project's workflow."""
@@ -819,6 +966,22 @@ scalar UUIDv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 
 """A version 7 (time-ordered) UUID."""
 scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
+
+"""
+A field left out stays as it is. Null clears `assigneeId`, `parentId`,
+`startDate` and `dueDate`, and is refused for the others. The status changes
+with `moveIssue`.
+"""
+input UpdateIssueInput {
+  assigneeId: ID
+  description: String @constraint(maxLength: 50000)
+  dueDate: DateTime
+  labelIds: [ID!]
+  parentId: ID
+  priority: IssuePriority
+  startDate: DateTime
+  title: String @constraint(minLength: 1, maxLength: 200)
+}
 
 """A field left out stays as it is; null is refused."""
 input UpdateLabelInput {
