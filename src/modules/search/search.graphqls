@@ -20,7 +20,7 @@ type Query {
   and members (name, e-mail) of the request's organisation, ranked best match
   first, at most `first` per kind (1 to 50, default 10). `kinds` defaults to
   every kind the viewer may read (`issue:read`, `project:read`, `member:read`;
-  an empty list means the same),
+  an empty list means the same);
   naming a kind the viewer may not read is 403 `auth.errors.forbidden`. An
   issue key (`ABC-12`) comes first. 400 `validation.errors.invalid-input` on an
   empty or over-long `query` (200 characters) or on `first`.
