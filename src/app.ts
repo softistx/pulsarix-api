@@ -8,6 +8,7 @@ import {
   coreMongo,
   tenancyOf,
 } from "./config/db";
+import { serverMedia } from "./config/media";
 import { realtime } from "./config/redis";
 import { type Access, accessOf, type Membership } from "./core/access";
 import type { Auth } from "./core/auth";
@@ -18,6 +19,11 @@ import { type BaseOptions, createBase } from "./http/context";
 import { clientHeader } from "./http/csrf";
 import { graphqlPlugins } from "./http/graphql-plugins";
 import { schema } from "./http/schema";
+import { mediaPipeline } from "./modules/attachments/attachments.routes";
+import {
+  type Media,
+  useMedia,
+} from "./modules/attachments/attachments.storage";
 import { modules } from "./modules/registry";
 
 // The largest body /graphql reads.
@@ -54,12 +60,22 @@ export function createApp(
     tenancy?: AppTenancy;
     // The schema served (the registry's by default).
     schema?: typeof schema;
+    // The file store of the attachments (src/config/media.ts by default, none
+    // without S3_*); a spec gives its own, or none.
+    media?: Media | undefined;
   } = {},
 ) {
   const auth = options.auth ?? serverAuth();
   const membership = options.membership ?? auth.membership;
   const access = options.access ?? accessOf(modules);
   const tenancy = options.tenancy ?? tenancyOf(membership);
+  const media = "media" in options ? options.media : serverMedia;
+  useMedia(media);
+  const pipeline = mediaPipeline({
+    media,
+    access,
+    scopeOf: (request, viewer) => requestScope(tenancy, request, viewer),
+  });
   return (
     createBase({
       ...options,
@@ -69,6 +85,10 @@ export function createApp(
       // A body past 100 KiB is refused (413) before it is read, for /graphql
       // below: a query is a few kilobytes (alxia's production guide, "Cap the body").
       .bodyLimit(BODY_LIMIT)
+      // The file routes, beside /graphql (src/modules/attachments): the same
+      // CSRF header, Bearer token and `x-organization-id`. Without S3_* they
+      // answer 503.
+      .group((group) => group.use(pipeline.guard).plugin(pipeline.routes))
       .plugin((app) =>
         graphql(app, {
           schema: options.schema ?? schema,

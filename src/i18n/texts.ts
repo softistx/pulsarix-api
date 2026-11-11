@@ -58,6 +58,18 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Only the author or an admin can change this comment.",
     "comments.errors.mention-not-member":
       "A mention names someone who is not a member of this organisation.",
+    "attachments.errors.not-found": "This attachment does not exist.",
+    "attachments.errors.too-many":
+      "No more than {max} files can be attached here.",
+    "attachments.errors.too-large":
+      "{reason, select, pixels {This picture is too large: at most {max} megapixels.} other {This file is too large: at most {max} MB.}}",
+    "attachments.errors.unsupported-type":
+      "Only JPEG, PNG and WebP pictures and PDF files can be attached.",
+    "attachments.errors.undecodable": "This file is empty or cannot be read.",
+    "attachments.errors.too-small":
+      "This picture is too small: its shortest side must be at least {min} pixels.",
+    "attachments.errors.unavailable":
+      "File storage is temporarily unavailable. Try again shortly.",
     "members.errors.not-found": "This member does not exist.",
     "members.errors.last-owner":
       "An organisation keeps at least one owner. Name another owner first.",
@@ -128,6 +140,18 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Seul l'auteur ou un administrateur peut modifier ce commentaire.",
     "comments.errors.mention-not-member":
       "Une mention désigne quelqu'un qui n'est pas membre de cette organisation.",
+    "attachments.errors.not-found": "Cette pièce jointe n'existe pas.",
+    "attachments.errors.too-many":
+      "On ne peut pas joindre plus de {max} fichiers ici.",
+    "attachments.errors.too-large":
+      "{reason, select, pixels {Cette image est trop grande : {max} mégapixels au plus.} other {Ce fichier est trop volumineux : {max} Mo au plus.}}",
+    "attachments.errors.unsupported-type":
+      "Seuls les images JPEG, PNG et WebP et les fichiers PDF peuvent être joints.",
+    "attachments.errors.undecodable": "Ce fichier est vide ou illisible.",
+    "attachments.errors.too-small":
+      "Cette image est trop petite : son plus petit côté doit faire au moins {min} pixels.",
+    "attachments.errors.unavailable":
+      "Le stockage des fichiers est momentanément indisponible. Réessayez dans un instant.",
     "members.errors.not-found": "Ce membre n'existe pas.",
     "members.errors.last-owner":
       "Une organisation garde au moins un propriétaire. Nommez d'abord un autre propriétaire.",

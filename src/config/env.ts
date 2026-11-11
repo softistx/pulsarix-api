@@ -17,13 +17,17 @@ const orUnset = (schema: z.ZodType<string, string>) =>
         .pipe(schema.optional())
         .optional();
 
+const unsetIfEmpty = z
+  .string()
+  .transform((value) => value || undefined)
+  .optional();
+
 const smtpUrl = z
   .string()
   .regex(/^smtps?:\/\/[^/]/, "not an smtp:// or smtps:// URL");
 
 // Read once, at import: a malformed variable stops the process before it
 // listens. `.env.example` lists them; Bun loads `.env` on every command.
-// The S3 variables arrive with the slice that first uses them.
 export const env = defineEnv({
   // mongodb:// or mongodb+srv://. Transactions need a replica set:
   // docker-compose.yml starts a one-node one. The URI names no database: the
@@ -76,6 +80,19 @@ export const env = defineEnv({
   REDIS_URL: orUnset(
     z.string().regex(/^rediss?:\/\/[^/]/, "not a redis:// or rediss:// URL"),
   ),
+  // S3_*: the S3-compatible store of the attachments. All optional: without
+  // S3_BUCKET, S3_ACCESS_KEY and S3_SECRET_KEY the media routes answer 503
+  // `attachments.errors.unavailable` and nothing else changes. An empty value
+  // is unset. docker-compose.yml's MinIO listens on http://localhost:9002.
+  S3_ENDPOINT: z
+    .string()
+    .transform((value) => value || undefined)
+    .pipe(z.url({ protocol: /^https?$/ }).optional())
+    .optional(),
+  S3_REGION: unsetIfEmpty,
+  S3_BUCKET: unsetIfEmpty,
+  S3_ACCESS_KEY: unsetIfEmpty,
+  S3_SECRET_KEY: unsetIfEmpty,
   // An empty PORT= is unset, not port 0.
   PORT: z.preprocess(
     (value) => (value === "" ? undefined : value),

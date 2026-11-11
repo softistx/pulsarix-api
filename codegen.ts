@@ -38,6 +38,8 @@ const config: CodegenConfig = {
           IssueConnection: "@/modules/issues/issues.query#IssuePage",
           Comment: "@/modules/comments/comments.model#CommentDocument",
           CommentConnection: "@/modules/comments/comments.service#CommentPage",
+          Attachment:
+            "@/modules/attachments/attachments.model#AttachmentDocument",
           Activity: "@/modules/activity/activity.model#ActivityDocument",
           ActivityConnection:
             "@/modules/activity/activity.service#ActivityPage",
