@@ -213,6 +213,9 @@ describe("the activity journal", () => {
       after: page.activity.endCursor,
     });
     expect(rest.activity.nodes).toHaveLength(1);
+    expect(
+      codeOf(await asOwner.attempt(Activity, { projectId: "0".repeat(24) })),
+    ).toBe("projects.errors.not-found");
     expect(codeOf(await asOwner.attempt(Activity, {}))).toBe(
       "validation.errors.invalid-input",
     );

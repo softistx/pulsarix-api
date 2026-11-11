@@ -51,7 +51,9 @@ export const openProjectBoard = async (ctx: Context, projectId: string) => {
     throw projectNotFound();
   }
   return bounded(
-    realtime.channels.projectBoard.stream(`${organisationId}:${projectId}`),
+    realtime.channels.projectBoard.stream(
+      `${organisationId}:${project.toHexString()}`,
+    ),
     holds,
   );
 };
@@ -61,7 +63,9 @@ export const openIssueChanged = async (ctx: Context, issueId: string) => {
   const issue = idOrInvalid(issueId, "issueId");
   if (!(await mongo.db.issues.exists({ _id: issue }))) throw issueNotFound();
   return bounded(
-    realtime.channels.issueChanged.stream(`${organisationId}:${issueId}`),
+    realtime.channels.issueChanged.stream(
+      `${organisationId}:${issue.toHexString()}`,
+    ),
     holds,
   );
 };
@@ -86,7 +90,7 @@ export const openClientReports = async (ctx: Context, projectId: string) => {
   }
   return bounded(
     realtime.channels.clientReportReceived.stream(
-      `${organisationId}:${projectId}`,
+      `${organisationId}:${project.toHexString()}`,
     ),
     holds,
   );

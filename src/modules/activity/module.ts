@@ -11,7 +11,7 @@ import "./activity.journal";
 // its own: who may read an issue may read its history).
 export const activityModule = defineModule({
   name: "activity",
-  dependsOn: ["access", "organisations", "issues", "comments"],
+  dependsOn: ["access", "organisations", "projects", "issues", "comments"],
   collections: { activities },
   typeDefs: [activityTypeDefs],
   resolvers: activityResolvers as never,

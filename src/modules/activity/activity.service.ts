@@ -3,6 +3,7 @@ import type { ModuleMongo } from "../../config/db";
 import type { FieldChange } from "../../core/shared/changes";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
+import { projectNotFound } from "../projects/projects.errors";
 import type { ActivityDocument, ActivityVerb } from "./activity.model";
 
 export type ActivityMongo = ModuleMongo<"activity">;
@@ -55,6 +56,16 @@ export class ActivityService {
       throw invalid([
         { path: "first", code: "validation.errors.out-of-range" },
       ]);
+    }
+    // An unknown project is a 404; an issue is not looked up, so the history
+    // of a deleted one stays readable.
+    if (
+      scope.projectId &&
+      !(await this.mongo.db.projects.exists({
+        _id: idOrInvalid(scope.projectId, "projectId"),
+      }))
+    ) {
+      throw projectNotFound();
     }
     const cursor = after ? idOrInvalid(after, "after") : null;
     const found = await this.mongo.db.activities.findMany({

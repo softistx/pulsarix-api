@@ -75,7 +75,8 @@ type Query {
   The journal of a project or of one issue (exactly one of `projectId` and
   `issueId`), newest first, paged by cursor (`first` 1 to 100, default 50).
   Needs `issue:read`; 400 `validation.errors.invalid` when neither or both are
-  given; 404 `projects.errors.not-found` / `issues.errors.not-found`.
+  given; 404 `projects.errors.not-found` for an unknown project (the history of a
+  deleted issue stays readable).
   """
   activity(
     projectId: ID
