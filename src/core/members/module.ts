@@ -12,7 +12,7 @@ export const membersModule = defineModule({
   coreCollections: { memberLocks },
   typeDefs: [membersTypeDefs],
   resolvers: membersResolvers as never,
-  permissions: ["member:read", "member:manage"],
+  permissions: ["member:read", "member:manage", "member:assign_owner"],
   defaultGrants: {
     admin: ["member:read", "member:manage"],
     member: ["member:read"],

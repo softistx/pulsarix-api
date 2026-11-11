@@ -25,6 +25,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "A second factor is already active. Disable it first.",
     "auth.errors.second-factor-not-enrolled":
       "No second factor is being set up. Start again.",
+    "auth.errors.second-factor-required":
+      "This organisation requires a second factor. Set one up to continue.",
     "tenancy.errors.organization-required":
       "Name the organisation in the {header} header.",
     "tenancy.errors.unknown-organization": "This organisation does not exist.",
@@ -107,6 +109,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Un second facteur est déjà actif. Désactivez-le d'abord.",
     "auth.errors.second-factor-not-enrolled":
       "Aucun second facteur n'est en cours de configuration. Recommencez.",
+    "auth.errors.second-factor-required":
+      "Cette organisation exige un second facteur. Configurez-en un pour continuer.",
     "tenancy.errors.organization-required":
       "Indiquez l'organisation dans l'en-tête {header}.",
     "tenancy.errors.unknown-organization": "Cette organisation n'existe pas.",

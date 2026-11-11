@@ -16,7 +16,7 @@ export function accessOf(list: readonly Module[]): Access<Role> {
     roles,
     all: "owner",
     // Beyond read and manage: issues are written by members, deleted by admins.
-    actions: ["write", "delete"],
+    actions: ["write", "delete", "assign_owner"],
   });
 }
 

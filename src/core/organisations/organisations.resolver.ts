@@ -34,9 +34,21 @@ export const organisations: Resolvers = {
         input,
       );
     },
+    setSecondFactorRequired: async (_, { required }, ctx) => {
+      const { tenant } = await requirePermission(ctx, "organisation:manage");
+      const viewer = requireViewer(ctx);
+      ctx.services.requireFresh(viewer);
+      return ctx.services.organisations.setSecondFactorRequired(
+        viewer,
+        tenant,
+        required,
+      );
+    },
   },
   Organisation: {
     id: (organisation) => organisation.id,
+    requireSecondFactor: (organisation) =>
+      organisation.requireSecondFactor ?? false,
     // The viewer's role in THIS organisation, never the request's scope.
     viewerPermissions: async (organisation, _, ctx) => [
       ...ctx.access.permissionsOf(await ctx.memberships.in(organisation.id)),

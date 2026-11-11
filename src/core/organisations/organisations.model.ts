@@ -45,6 +45,9 @@ export const organisations = defineCollection({
     slug: organisationSlug,
     timeZone: timeZone.default("UTC"),
     status: organisationStatus.default("provisioning"),
+    // Every member must have an active TOTP second factor (A1b): one without it
+    // reads nothing of the organisation until they enrol.
+    requireSecondFactor: z.boolean().default(false),
   }),
   timestamps: true,
   softDelete: true,
