@@ -6,6 +6,7 @@ import { membersModule } from "../core/members/module";
 import { organisationsModule } from "../core/organisations/module";
 import { system } from "../core/system/module";
 import { activityModule } from "./activity/module";
+import { attachmentsModule } from "./attachments/module";
 import { commentsModule } from "./comments/module";
 import { issuesModule } from "./issues/module";
 import { notificationsModule } from "./notifications/module";
@@ -23,6 +24,7 @@ const registered = [
   projectsModule,
   issuesModule,
   commentsModule,
+  attachmentsModule,
   activityModule,
   notificationsModule,
 ] as const;
