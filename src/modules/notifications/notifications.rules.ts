@@ -1,5 +1,5 @@
 import type { FieldChange } from "../../core/shared/changes";
-import type { ActivityVerb } from "../activity/activity.model";
+import type { ActivityVerb } from "../activity/public";
 import type { NotificationKind } from "./notifications.model";
 
 // What a notification is decided from: the journal row's verb, who acted, the

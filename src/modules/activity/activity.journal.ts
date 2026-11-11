@@ -52,13 +52,17 @@ registerIssueChange(async (mongo, change) => {
     comment: null,
     changes: change.changes,
   });
-  const later: AfterCommit = async () => {
-    await Promise.all([
-      realtime.channels.projectBoard.publish(event),
-      realtime.channels.issueChanged.publish(event),
+  // Each piece fails alone: a lost publish does not skip the notifications.
+  const later: AfterCommit = () =>
+    runAfterCommit([
+      async () => {
+        await Promise.all([
+          realtime.channels.projectBoard.publish(event),
+          realtime.channels.issueChanged.publish(event),
+        ]);
+      },
+      ...downstream,
     ]);
-    await runAfterCommit(downstream);
-  };
   return later;
 });
 
@@ -85,9 +89,10 @@ registerCommentChange(
       mongo as unknown as ActivityMongo,
       { activity, organisationId, issue, comment, changes: [] },
     );
-    return async () => {
-      await realtime.channels.issueChanged.publish(event);
-      await runAfterCommit(downstream);
-    };
+    return () =>
+      runAfterCommit([
+        () => realtime.channels.issueChanged.publish(event).then(() => {}),
+        ...downstream,
+      ]);
   },
 );

@@ -1,5 +1,8 @@
 import { realtime } from "../../config/redis";
-import type { AfterCommit } from "../../core/shared/after-commit";
+import {
+  type AfterCommit,
+  runAfterCommit,
+} from "../../core/shared/after-commit";
 import type { ActivityRecorded } from "../activity/public";
 import { scheduleDigest } from "./notifications.digest";
 import type { NotificationKind } from "./notifications.model";
@@ -37,6 +40,8 @@ export async function recordNotifications(
     kind,
     dedupeKey: dedupeKey(kind),
   }));
+  // A concurrent transaction inserting the same row is a write conflict, which
+  // the writer retries (retryWriteConflicts), and the retry finds the row here.
   const known = await mongo.db.notifications.findMany({
     filter: {
       $or: wanted.map(({ recipientId, dedupeKey }) => ({
@@ -67,24 +72,25 @@ export async function recordNotifications(
       commentId: comment?._id ?? null,
     })),
   );
-  const events = await Promise.all(
-    created.map(async (row) => ({
-      organisationId,
-      memberId: row.recipientId,
-      notificationId: row.id,
-      kind: row.kind,
-      unreadCount: await mongo.db.notifications.count({
-        recipientId: row.recipientId,
-        readAt: null,
+  // After the commit, each piece alone: the count is read from committed
+  // state, so concurrent events do not publish a count lacking each other.
+  return () =>
+    runAfterCommit(
+      created.map((row) => async () => {
+        const unreadCount = await mongo.db.notifications.count({
+          recipientId: row.recipientId,
+          readAt: null,
+        });
+        await Promise.allSettled([
+          realtime.channels.notificationReceived.publish({
+            organisationId,
+            memberId: row.recipientId,
+            notificationId: row.id,
+            kind: row.kind,
+            unreadCount,
+          }),
+          scheduleDigest(organisationId, row.recipientId),
+        ]);
       }),
-    })),
-  );
-  return async () => {
-    await Promise.allSettled(
-      events.flatMap((event) => [
-        realtime.channels.notificationReceived.publish(event),
-        scheduleDigest(organisationId, event.memberId),
-      ]),
     );
-  };
 }
