@@ -1,10 +1,14 @@
 import { realtime } from "../../config/redis";
-import type { AfterCommit } from "../../core/shared/after-commit";
+import {
+  type AfterCommit,
+  runAfterCommit,
+} from "../../core/shared/after-commit";
 import { registerCommentChange } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
 import type { IssueEventPayload } from "./activity.channels";
 import type { ActivityDocument } from "./activity.model";
 import { type ActivityMongo, recordActivity } from "./activity.service";
+import { activityRecorded } from "./activity.usage";
 
 // The issue events go out after the commit, from the row the journal wrote.
 const eventOf = (
@@ -41,12 +45,24 @@ registerIssueChange(async (mongo, change) => {
     statusId: issue.statusId.toHexString(),
     rank: issue.rank,
   });
-  const later: AfterCommit = async () => {
-    await Promise.all([
-      realtime.channels.projectBoard.publish(event),
-      realtime.channels.issueChanged.publish(event),
+  const downstream = await activityRecorded(mongo as unknown as ActivityMongo, {
+    activity,
+    organisationId,
+    issue,
+    comment: null,
+    changes: change.changes,
+  });
+  // Each piece fails alone: a lost publish does not skip the notifications.
+  const later: AfterCommit = () =>
+    runAfterCommit([
+      async () => {
+        await Promise.all([
+          realtime.channels.projectBoard.publish(event),
+          realtime.channels.issueChanged.publish(event),
+        ]);
+      },
+      ...downstream,
     ]);
-  };
   return later;
 });
 
@@ -69,8 +85,14 @@ registerCommentChange(
       statusId: null,
       rank: null,
     });
-    return async () => {
-      await realtime.channels.issueChanged.publish(event);
-    };
+    const downstream = await activityRecorded(
+      mongo as unknown as ActivityMongo,
+      { activity, organisationId, issue, comment, changes: [] },
+    );
+    return () =>
+      runAfterCommit([
+        () => realtime.channels.issueChanged.publish(event).then(() => {}),
+        ...downstream,
+      ]);
   },
 );
