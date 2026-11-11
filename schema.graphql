@@ -643,6 +643,12 @@ type Mutation {
   """
   inviteMember(input: InviteMemberInput!): Invitation!
   """
+  Marks the given notifications of the viewer as read (an unknown or foreign
+  id is ignored; at most 200), or every unread one when `ids` is left out.
+  Answers the unread count left. Needs organisation membership.
+  """
+  markNotificationsRead(ids: [ID!]): Int!
+  """
   Puts the issue in a status, right after `beforeId` and right before
   `afterId` (the issues that end up above and below it; both optional, both in
   that status). With neither it goes to the end. Only this issue is written.
@@ -784,11 +790,50 @@ scalar NonPositiveFloat
 """An integer from -2147483648 to 0."""
 scalar NonPositiveInt
 
+"""
+A notification of the viewer, in the organisation of `x-organization-id`. The
+issue's key and title are those at the time, so the row reads after the issue
+is gone.
+"""
+type Notification {
+  """The journal row (`activity`) the notification comes from."""
+  activityId: ID!
+  """Who did it (never the viewer)."""
+  actorId: ID!
+  """The comment, for a mention."""
+  commentId: ID
+  createdAt: DateTime!
+  id: ID!
+  issueId: ID!
+  issueKey: String!
+  issueTitle: String!
+  kind: NotificationKind!
+  projectId: ID!
+  """When the viewer read it; null while unread."""
+  readAt: DateTime
+}
+
+type NotificationConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Notification!]!
+}
+
 """A new notification of the viewer, and their unread count."""
 type NotificationEvent {
   kind: String!
   notificationId: ID!
   unreadCount: Int!
+}
+
+enum NotificationKind {
+  """An issue was assigned to the viewer."""
+  assigned
+  """The viewer was mentioned in a comment."""
+  mention
+  """An issue the viewer watches changed or was commented."""
+  watchedChange
 }
 
 """A MongoDB ObjectId: 24 hexadecimal digits."""
@@ -914,6 +959,12 @@ type Query {
   """
   myOrganisations: [MyOrganisation!]!
   """
+  The viewer's own notifications, newest first, paged by cursor (`first` 1 to
+  100, default 50); `unread: true` keeps the unread ones. Needs organisation
+  membership.
+  """
+  notifications(after: String, first: Int = 50, unread: Boolean): NotificationConnection!
+  """
   The organisation the request names in `x-organization-id` (its id or slug).
   Any member. 401 `auth.errors.unauthenticated`, 400
   `tenancy.errors.organization-required`, 404 `tenancy.errors.unknown-organization`
@@ -930,6 +981,10 @@ type Query {
   Any member (`project:read`).
   """
   projects(includeArchived: Boolean = false): [Project!]!
+  """
+  How many notifications the viewer has not read. Needs organisation membership.
+  """
+  unreadNotificationCount: Int!
   version: String!
   """The signed-in account, or null when anonymous."""
   viewer: Viewer

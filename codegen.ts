@@ -41,6 +41,10 @@ const config: CodegenConfig = {
           Activity: "@/modules/activity/activity.model#ActivityDocument",
           ActivityConnection:
             "@/modules/activity/activity.service#ActivityPage",
+          Notification:
+            "@/modules/notifications/notifications.model#NotificationDocument",
+          NotificationConnection:
+            "@/modules/notifications/notifications.service#NotificationPage",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",
         },

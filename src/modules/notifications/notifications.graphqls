@@ -1,0 +1,62 @@
+enum NotificationKind {
+  "The viewer was mentioned in a comment."
+  mention
+  "An issue was assigned to the viewer."
+  assigned
+  "An issue the viewer watches changed or was commented."
+  watchedChange
+}
+
+"""
+A notification of the viewer, in the organisation of `x-organization-id`. The
+issue's key and title are those at the time, so the row reads after the issue
+is gone.
+"""
+type Notification {
+  id: ID!
+  kind: NotificationKind!
+  "The journal row (`activity`) the notification comes from."
+  activityId: ID!
+  projectId: ID!
+  issueId: ID!
+  issueKey: String!
+  issueTitle: String!
+  "Who did it (never the viewer)."
+  actorId: ID!
+  "The comment, for a mention."
+  commentId: ID
+  "When the viewer read it; null while unread."
+  readAt: DateTime
+  createdAt: DateTime!
+}
+
+type NotificationConnection {
+  nodes: [Notification!]!
+  "Pass it as `after` for the next page; null on the last."
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Query {
+  """
+  The viewer's own notifications, newest first, paged by cursor (`first` 1 to
+  100, default 50); `unread: true` keeps the unread ones. Needs organisation
+  membership.
+  """
+  notifications(
+    unread: Boolean
+    first: Int = 50
+    after: String
+  ): NotificationConnection!
+  "How many notifications the viewer has not read. Needs organisation membership."
+  unreadNotificationCount: Int!
+}
+
+type Mutation {
+  """
+  Marks the given notifications of the viewer as read (an unknown or foreign
+  id is ignored; at most 200), or every unread one when `ids` is left out.
+  Answers the unread count left. Needs organisation membership.
+  """
+  markNotificationsRead(ids: [ID!]): Int!
+}

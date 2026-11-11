@@ -73,4 +73,39 @@ describe("across API instances", () => {
     },
     15_000,
   );
+
+  real(
+    "the digest queue is wired: one job per id, run by a worker, absent without Redis",
+    async () => {
+      expect((await openRealtime(undefined)).queues).toBeUndefined();
+      redis = await startTestRedis({ binary });
+      const realtime = await openRealtime(redis.uri, () => {});
+      const queue = realtime.queues?.notificationDigest;
+      if (!queue) throw new Error("no digest queue");
+      const job = { organisationId: "o1", recipientId: "r1" };
+      // The client connects in the background: add once it has.
+      const add = async (): Promise<Awaited<ReturnType<typeof queue.add>>> => {
+        for (let tries = 0; ; tries++) {
+          try {
+            return await queue.add(job, { id: "digest:o1:r1:1" });
+          } catch (error) {
+            if (tries >= 50) throw error;
+            await Bun.sleep(100);
+          }
+        }
+      };
+      const first = await add();
+      const again = await queue.add(job, { id: "digest:o1:r1:1" });
+      expect([first.deduplicated, again.deduplicated]).toEqual([false, true]);
+      const seen: unknown[] = [];
+      const worker = queue.work(async ({ data }) => {
+        seen.push(data);
+      });
+      await first.finished({ timeout: "5s" });
+      expect(seen).toEqual([job]);
+      await worker.close();
+      await realtime.close();
+    },
+    15_000,
+  );
 });
