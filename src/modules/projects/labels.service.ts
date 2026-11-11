@@ -1,12 +1,18 @@
 import { ConflictError, toObjectId } from "@softistx/mongo";
-import { type FieldIssue, invalid, required } from "../../core/shared/errors";
+import {
+  exhausted,
+  type FieldIssue,
+  invalid,
+  required,
+} from "../../core/shared/errors";
+import { retryWriteConflicts } from "../../core/shared/locked";
 import {
   labelNameTaken,
   labelNotFound,
   projectNotFound,
 } from "./projects.errors";
 import { colour, type LabelDocument } from "./projects.model";
-import type { ProjectsMongo } from "./projects.usage";
+import { labelRemoved, type ProjectsMongo } from "./projects.usage";
 
 export interface CreateLabelInput {
   projectId: string;
@@ -83,11 +89,18 @@ export class LabelsService {
     }
   }
 
-  // Answers the label's id. The issues module (A3) removes it from the issues
-  // that carry it.
+  // Answers the label's id. The issues that carry it let it go in the same
+  // transaction (`registerLabelRemoval`).
   async delete(id: string): Promise<string> {
     const label = await this.byId(id);
-    await this.mongo.db.labels.hardDelete(label._id);
+    await retryWriteConflicts(
+      () =>
+        this.mongo.transaction(async (tx) => {
+          await labelRemoved(tx, label.id);
+          await tx.db.labels.hardDelete(label._id);
+        }),
+      exhausted,
+    );
     return label.id;
   }
 }

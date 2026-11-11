@@ -1,5 +1,4 @@
 import { ConflictError, toObjectId, toObjectIds } from "@softistx/mongo";
-import type { ObjectId } from "mongodb";
 import {
   exhausted,
   type FieldIssue,
@@ -8,11 +7,11 @@ import {
 } from "../../core/shared/errors";
 import { retryWriteConflicts } from "../../core/shared/locked";
 import {
-  projectNotFound,
   statusInUse,
   statusNameTaken,
   statusNotFound,
 } from "./projects.errors";
+import { lockProject } from "./projects.lock";
 import type { StatusCategory, StatusDocument } from "./projects.model";
 import { colour } from "./projects.model";
 import { type ProjectsMongo, statusIsUsed } from "./projects.usage";
@@ -28,15 +27,6 @@ export interface UpdateStatusInput {
   name?: string | null;
   category?: StatusCategory | null;
   colour?: string | null;
-}
-
-// Locks the project for the transaction: raising its version makes two
-// transactions on the same workflow conflict, the loser running again. Refuses
-// (404) a project that does not exist.
-async function lockProject(tx: ProjectsMongo, projectId: ObjectId) {
-  const project = await tx.db.projects.findById(projectId);
-  if (!project) throw projectNotFound();
-  await tx.db.projects.update(projectId, { name: project.name });
 }
 
 // The workflow of the organisation's projects: their statuses, in order.

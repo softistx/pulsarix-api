@@ -1,0 +1,171 @@
+enum IssuePriority {
+  none
+  low
+  medium
+  high
+  urgent
+}
+
+"""
+An issue of a project. Its `key` (`ABC-12`) is the project's key and its
+`number`, which counts from 1 with no gap.
+"""
+type Issue {
+  id: ID!
+  projectId: ID!
+  number: Int!
+  key: String!
+  title: String!
+  "Rich text, as the client wrote it."
+  description: String!
+  statusId: ID!
+  priority: IssuePriority!
+  assigneeId: ID
+  labelIds: [ID!]!
+  parentId: ID
+  startDate: DateTime
+  dueDate: DateTime
+  "Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`."
+  rank: String!
+  "The member who made it."
+  reporterId: ID
+  watcherIds: [ID!]!
+  "Whether the viewer watches it."
+  watching: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type IssueConnection {
+  nodes: [Issue!]!
+  "Pass it as `after` for the next page; null on the last."
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+"Every given field narrows the list (they are combined with AND)."
+input IssueFilter {
+  statusIds: [ID!]
+  "The issues whose status has one of these categories."
+  categories: [StatusCategory!]
+  priorities: [IssuePriority!]
+  assigneeId: ID
+  "Only the issues nobody is assigned to; ignored with `assigneeId`."
+  unassigned: Boolean
+  "The issues carrying ANY of these labels."
+  labelIds: [ID!]
+  "The children of this issue."
+  parentId: ID
+  "Only the issues with no parent; ignored with `parentId`."
+  rootsOnly: Boolean
+  reporterId: ID
+  "Only the issues the viewer watches."
+  watching: Boolean
+  "Part of the title, any case."
+  text: String @constraint(maxLength: 200)
+  startAfter: DateTime
+  startBefore: DateTime
+  "Due on or after (for a calendar's range)."
+  dueAfter: DateTime
+  dueBefore: DateTime
+}
+
+enum IssueSortField {
+  rank
+  number
+  title
+  priority
+  dueDate
+  startDate
+  createdAt
+  updatedAt
+}
+
+enum SortDirection {
+  asc
+  desc
+}
+
+input IssueSort {
+  field: IssueSortField!
+  direction: SortDirection! = asc
+}
+
+"""
+`statusId` defaults to the first Backlog status. `dueDate` may not precede
+`startDate`; `assigneeId` must be a member; labels and the parent belong to the
+project.
+"""
+input CreateIssueInput {
+  projectId: ID!
+  title: String! @constraint(minLength: 1, maxLength: 200)
+  description: String @constraint(maxLength: 50000)
+  statusId: ID
+  priority: IssuePriority
+  assigneeId: ID
+  labelIds: [ID!]
+  parentId: ID
+  startDate: DateTime
+  dueDate: DateTime
+}
+
+"""
+A field left out stays as it is. Null clears `assigneeId`, `parentId`,
+`startDate` and `dueDate`, and is refused for the others. The status changes
+with `moveIssue`.
+"""
+input UpdateIssueInput {
+  title: String @constraint(minLength: 1, maxLength: 200)
+  description: String @constraint(maxLength: 50000)
+  priority: IssuePriority
+  assigneeId: ID
+  labelIds: [ID!]
+  parentId: ID
+  startDate: DateTime
+  dueDate: DateTime
+}
+
+type Query {
+  """
+  The issues of a project, paged by cursor (`first` 1 to 100, default 50;
+  default sort `number` ascending). Needs `issue:read`. 400
+  `validation.errors.invalid-input` on `projectId`, `first` or `after`.
+  """
+  issues(
+    projectId: ID!
+    filter: IssueFilter
+    sort: IssueSort
+    first: Int = 50
+    after: String
+  ): IssueConnection!
+  "One issue by its key (any case). 404 `issues.errors.not-found`. Needs `issue:read`."
+  issue(key: String!): Issue!
+}
+
+type Mutation {
+  """
+  Makes an issue at the end of its status. Needs `issue:write`. 404
+  `projects.errors.not-found`; 400 `validation.errors.invalid-input`
+  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`).
+  """
+  createIssue(input: CreateIssueInput!): Issue!
+  """
+  Changes the given fields. Needs `issue:write`. 404 `issues.errors.not-found`;
+  409 `issues.errors.parent-cycle`.
+  """
+  updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
+  """
+  Puts the issue in a status, right after `beforeId` and right before
+  `afterId` (the issues that end up above and below it; both optional, both in
+  that status). With neither it goes to the end. Only this issue is written.
+  409 `issues.errors.bad-placement` when a neighbour is elsewhere or the two
+  are not in order. Needs `issue:write`.
+  """
+  moveIssue(id: ID!, statusId: ID!, beforeId: ID, afterId: ID): Issue!
+  "Deletes an issue; its children lose their parent. Answers its id. Needs `issue:delete` (admin, owner)."
+  deleteIssue(id: ID!): ID!
+  "Adds the viewer to the watchers; repeatable. Needs `issue:write`."
+  watchIssue(id: ID!): Issue!
+  "Removes the viewer from the watchers; repeatable. Needs `issue:write`."
+  unwatchIssue(id: ID!): Issue!
+}

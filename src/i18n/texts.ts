@@ -48,6 +48,11 @@ export const texts: Record<Locale, Record<string, string>> = {
     "projects.errors.label-not-found": "This label does not exist.",
     "projects.errors.label-name-taken":
       'This project already has a label named "{name}".',
+    "issues.errors.not-found": "This issue does not exist.",
+    "issues.errors.parent-cycle":
+      "An issue cannot be its own parent, nor the parent of one of its parents.",
+    "issues.errors.bad-placement":
+      "The issues named as neighbours must be in that status, in order.",
     "members.errors.not-found": "This member does not exist.",
     "members.errors.last-owner":
       "An organisation keeps at least one owner. Name another owner first.",
@@ -108,6 +113,11 @@ export const texts: Record<Locale, Record<string, string>> = {
     "projects.errors.label-not-found": "Ce libellé n'existe pas.",
     "projects.errors.label-name-taken":
       'Ce projet a déjà un libellé nommé "{name}".',
+    "issues.errors.not-found": "Ce ticket n'existe pas.",
+    "issues.errors.parent-cycle":
+      "Un ticket ne peut pas être son propre parent, ni le parent d'un de ses parents.",
+    "issues.errors.bad-placement":
+      "Les tickets voisins doivent être dans ce statut, dans l'ordre.",
     "members.errors.not-found": "Ce membre n'existe pas.",
     "members.errors.last-owner":
       "Une organisation garde au moins un propriétaire. Nommez d'abord un autre propriétaire.",
