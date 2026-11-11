@@ -64,6 +64,13 @@ export const issues = defineCollection({
     { key: { parentId: 1 }, name: "issues_parentId" },
     { key: { labelIds: 1 }, name: "issues_labelIds" },
     { key: { projectId: 1, dueDate: 1 }, name: "issues_projectIdDueDate" },
+    // Search (A8): no stemming nor stop words, so French and English alike.
+    {
+      key: { title: "text", key: "text", description: "text" },
+      weights: { title: 10, key: 10, description: 1 },
+      default_language: "none",
+      name: "issues_text",
+    },
   ],
 });
 export type IssueDocument = ReadDocumentOf<typeof issues>;
