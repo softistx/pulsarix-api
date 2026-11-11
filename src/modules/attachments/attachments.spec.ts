@@ -126,6 +126,27 @@ const attach = async (
   };
 };
 
+// A valid one-page PDF (offsets computed), small enough to draw in a spec.
+const onePagePdf = (): Uint8Array => {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] /Contents 4 0 R >>",
+    "<< /Length 40 >>\nstream\n0.2 0.4 0.8 rg 20 20 160 260 re f\nendstream",
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const o of offsets) out += `${String(o).padStart(10, "0")} 00000 n \n`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
+};
+
 const read = (world: World, token: string | null, path: string) =>
   call(kit.app, path, { token, organisation: world.organisation.id });
 
@@ -175,7 +196,42 @@ describe("uploading", () => {
     expect([decoded.width, decoded.height]).toEqual([256, 256]);
   }, 60_000);
 
-  test("a PDF is stored as it is, with no preview", async () => {
+  test("a PDF gets a WebP preview of its first page, served to readers only", async () => {
+    const w = await setup();
+    const stored = await attach(
+      w,
+      w.member.token,
+      "issue",
+      w.issue.id,
+      onePagePdf(),
+      { name: "page.pdf" },
+    );
+    expect(stored.previewKey).toBe("256");
+    const { attachments } = await w
+      .as(w.viewer.token)
+      .call<{ attachments: Attachment[] }>(List, {
+        ownerType: "issue",
+        ownerId: w.issue.id,
+      });
+    expect(attachments[0]?.previewUrl).toBe(
+      `/media/attachments/${stored.key}/256`,
+    );
+    const preview = await read(
+      w,
+      w.viewer.token,
+      attachments[0]?.previewUrl ?? "",
+    );
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get("content-type")).toBe("image/webp");
+    const decoded = await new Bun.Image(await preview.arrayBuffer()).metadata();
+    expect(decoded.width).toBeGreaterThan(0);
+    expect(decoded.width).toBeLessThanOrEqual(256);
+    expect(decoded.height).toBeLessThanOrEqual(256);
+    const anonymous = await read(w, null, attachments[0]?.previewUrl ?? "");
+    expect(anonymous.status).toBe(401);
+  }, 60_000);
+
+  test("a PDF that cannot be drawn is stored as it is, with no preview", async () => {
     const w = await setup();
     const stored = await attach(
       w,

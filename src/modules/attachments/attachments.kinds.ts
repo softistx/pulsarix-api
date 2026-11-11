@@ -1,5 +1,7 @@
 import { defineMediaKind } from "@alxia/media";
 import { withImageRendition } from "@alxia/media/image";
+import { ImageError } from "@softistx/image";
+import { renderPdfFirstPage } from "@softistx/image/pdf";
 import type { ScopedRequestScope } from "../../http/context";
 import type { OwnerType } from "./attachments.model";
 
@@ -61,12 +63,34 @@ export const attachmentKind = defineMediaKind<MediaAccess>({
   sizes: images.sizes,
   renditions: {
     ...images.renditions,
-    // Temporary, until @softistx/image#390
-    // A thumbnail for pictures; a PDF is stored as it is, with no preview
-    // (nothing in the in-house packages renders a PDF page).
-    make: (file) =>
-      file.contentType === "application/pdf"
-        ? Promise.resolve([])
-        : images.renditions.make(file),
+    // Pictures get the square thumbnail; a PDF gets its first page, fitted in
+    // the same square. A PDF that cannot be drawn (damaged, encrypted) is
+    // still stored, with no preview.
+    make: async (file) => {
+      if (file.contentType !== "application/pdf") {
+        return images.renditions.make(file);
+      }
+      try {
+        const page = await renderPdfFirstPage(file.bytes, {
+          width: thumbnailSide,
+          height: thumbnailSide,
+          format: "webp",
+          maxBytes,
+          maxPixels,
+        });
+        return [
+          {
+            size: previewSize,
+            contentType: page.contentType,
+            bytes: page.bytes,
+          },
+        ];
+      } catch (error) {
+        if (error instanceof ImageError && error.code === "UNDECODABLE") {
+          return [];
+        }
+        throw error;
+      }
+    },
   },
 });
