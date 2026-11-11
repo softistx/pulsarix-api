@@ -1,0 +1,49 @@
+name: CI
+
+# Pull requests into develop and feat/v1 only: a push run would re-check the commit its PR
+# just checked. One job: `bun run verify` (generate, schema check, lint, typecheck, tests,
+# production build). Browser tests never run in CI. The extra matrices, when there are any,
+# run on a nightly schedule on develop.
+on:
+  pull_request:
+    branches: [develop, feat/v1]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # The organisation's self-hosted runners. The job needs nothing from the runner's
+    # environment: Node (graphql-codegen runs on it) and Bun are set up here.
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      # Restored here, saved by an explicit step with its own timeout (actions/cache's post
+      # step has no timeout and can hang the job).
+      - uses: actions/cache/restore@v4
+        id: cache-bun
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
+      - run: bun install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+      - run: bun run verify
+      - name: Save bun install cache
+        if: ${{ !cancelled() && steps.cache-bun.outputs.cache-hit != 'true' }}
+        timeout-minutes: 5
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ steps.cache-bun.outputs.cache-primary-key }}

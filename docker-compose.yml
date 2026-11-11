@@ -1,0 +1,73 @@
+# Development services, started by `bun run dev` (`bun run services:up`). Host ports come
+# from .env and default to the values below, which differ from operix-api's so both stacks can
+# run together. Nothing here is a deployment.
+#
+# MongoDB: a one-node replica set (transactions need one) at
+# mongodb://localhost:27018/?replicaSet=rs0&directConnection=true.
+# Redis: redis://localhost:6380 (rate limits, queues, pub/sub).
+# Mailpit: SMTP smtp://localhost:1026, messages at http://localhost:8026.
+# MinIO: S3 API http://localhost:9002, console http://localhost:9003, pulsarix-dev / pulsarix-dev-secret.
+name: pulsarix-api
+services:
+  mongo:
+    image: mongo:8
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "${MONGO_PORT:-27018}:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) }; quit(db.hello().isWritablePrimary ? 0 : 1)"
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 5s
+
+  redis:
+    image: redis:7.4
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1026}:1025"
+      - "${MAILPIT_WEB_PORT:-8026}:8025"
+
+  # Chainguard's builds of the MinIO server and client (Docker Hub and quay.io no longer
+  # publish MinIO), pinned by digest, as operix-api does.
+  minio:
+    image: cgr.dev/chainguard/minio@sha256:268d68a2a3b6fc65f905a61f84d7eab6345ce6bff14f551e2b028ec31e6a1341
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: pulsarix-dev
+      MINIO_ROOT_PASSWORD: pulsarix-dev-secret
+    ports:
+      - "${S3_PORT:-9002}:9000"
+      - "${S3_CONSOLE_PORT:-9003}:9001"
+    volumes:
+      - minio-data:/data
+
+  # One-shot: creates the private bucket and exits.
+  media-bucket:
+    image: cgr.dev/chainguard/minio-client@sha256:59f1924e417b6fcfdc0aca321e3bdebe8a56fd0efa7da80037d5eb65a203d687
+    depends_on:
+      - minio
+    environment:
+      MC_HOST_local: http://pulsarix-dev:pulsarix-dev-secret@minio:9000
+    command: ["mb", "--ignore-existing", "local/pulsarix-media"]
+    restart: on-failure
+
+volumes:
+  mongo-data:
+  minio-data:

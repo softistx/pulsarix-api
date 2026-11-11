@@ -1,0 +1,3 @@
+# @softistx/* comes from GitHub Packages (from A1 on); the token is read from the environment.
+[install.scopes]
+"@softistx" = { url = "https://npm.pkg.github.com/", token = "$GITHUB_TOKEN" }
