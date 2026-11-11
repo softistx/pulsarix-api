@@ -4,8 +4,8 @@ import type {
   UpdateOrganisationInput,
 } from "@/generated/graphql/resolvers";
 import type { AppTenancy, CoreMongo } from "../../config/db";
-import type { JanusMembership } from "../auth";
-import { type FieldIssue, invalid, required } from "../shared/errors";
+import type { JanusMembership, Viewer } from "../auth";
+import { type FieldIssue, fail, invalid, required } from "../shared/errors";
 import { tenancyFailure } from "../tenancy";
 import {
   type OrganisationDocument,
@@ -144,6 +144,23 @@ export class OrganisationsService {
     return this.core.as(actor).db.organisations.update(organisation._id, {
       ...(name && { name }),
       ...(zone && { timeZone: zone }),
+      version: organisation.version,
+    });
+  }
+
+  // Requires (or stops requiring) a second factor of every member. Turning it
+  // on needs the actor's own second factor, so the actor is not locked out.
+  async setSecondFactorRequired(
+    actor: Viewer,
+    organisation: OrganisationDocument,
+    required: boolean,
+  ): Promise<OrganisationDocument> {
+    if (required && !actor.hasSecondFactor) {
+      throw fail("auth.errors.second-factor-not-enrolled", { status: 409 });
+    }
+    if (organisation.requireSecondFactor === required) return organisation;
+    return this.core.as(actor.id).db.organisations.update(organisation._id, {
+      requireSecondFactor: required,
       version: organisation.version,
     });
   }

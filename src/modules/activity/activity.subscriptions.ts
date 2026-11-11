@@ -1,6 +1,7 @@
 import { boundedStream } from "@alxia/graphql";
 import { realtime } from "../../config/redis";
 import {
+  enforceSecondFactor,
   requireMember,
   requirePermission,
   requireViewer,
@@ -27,7 +28,8 @@ async function open(ctx: Context, permission: Permission | null) {
   const scope = permission
     ? await requirePermission(ctx, permission)
     : await requireMember(ctx);
-  const viewerId = requireViewer(ctx).id;
+  const viewer = requireViewer(ctx);
+  const viewerId = viewer.id;
   const organisationId = scope.tenant._id.toHexString();
   const holds = async () => {
     const role = await ctx.services.roleOf(organisationId, viewerId);
@@ -37,6 +39,12 @@ async function open(ctx: Context, permission: Permission | null) {
     ) {
       throw new Error("no longer allowed");
     }
+    // The organisation may have started requiring a second factor since.
+    const current = await scope.core.db.organisations.findById(
+      scope.tenant._id,
+    );
+    if (!current) throw new Error("no longer allowed");
+    enforceSecondFactor(viewer, { member: role, tenant: current });
   };
   return { mongo: scope.mongo, viewerId, organisationId, holds };
 }

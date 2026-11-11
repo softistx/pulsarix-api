@@ -1,4 +1,5 @@
 import * as access from "@alxia/access";
+import type { Viewer } from "../auth/viewer";
 import { fail } from "../shared/errors";
 
 // The guards of @alxia/access, each refusal thrown as this API's coded error
@@ -25,14 +26,49 @@ export const requireViewer: typeof access.requireViewer = (ctx) => {
   }
 };
 export const can: typeof access.can = access.withRefusals(refuse, access.can);
-export const requireMember: typeof access.requireMember = access.withRefusals(
-  refuse,
-  access.requireMember,
+// The organisation's second-factor requirement (A1b): once an organisation
+// requires one, a member without an active TOTP reads nothing of it until they
+// enrol (403 `auth.errors.second-factor-required`). Every guard that resolves
+// the scope applies it, so no resolver can forget it; `enrollSecondFactor` and
+// `activateSecondFactor` need no scope, so enrolment stays open.
+type GatedScope = {
+  member: unknown;
+  tenant: { requireSecondFactor?: boolean };
+};
+
+export function enforceSecondFactor(
+  viewer: { hasSecondFactor?: boolean } | null,
+  scope: GatedScope,
+) {
+  if (scope.tenant.requireSecondFactor && !viewer?.hasSecondFactor) {
+    throw fail("auth.errors.second-factor-required", { status: 403 });
+  }
+}
+
+// Wraps a guard, keeping its signature: the scope it returns is checked.
+function gated<G extends (...args: never[]) => Promise<GatedScope>>(
+  guard: G,
+): G {
+  const wrapped = async (...args: unknown[]) => {
+    const scope = await (
+      guard as unknown as (...a: unknown[]) => Promise<GatedScope>
+    )(...args);
+    const [ctx] = args as [{ viewer: Viewer | null }];
+    enforceSecondFactor(ctx.viewer, scope);
+    return scope;
+  };
+  return wrapped as unknown as G;
+}
+
+export const requireMember = gated(
+  access.withRefusals(refuse, access.requireMember),
 );
-export const requirePermission: typeof access.requirePermission =
-  access.withRefusals(refuse, access.requirePermission);
-export const requireAnyPermission: typeof access.requireAnyPermission =
-  access.withRefusals(refuse, access.requireAnyPermission);
+export const requirePermission = gated(
+  access.withRefusals(refuse, access.requirePermission),
+);
+export const requireAnyPermission = gated(
+  access.withRefusals(refuse, access.requireAnyPermission),
+);
 export const requireSelf: typeof access.requireSelf = access.withRefusals(
   refuse,
   access.requireSelf,

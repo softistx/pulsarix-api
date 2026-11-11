@@ -6,6 +6,12 @@ type Organisation {
   slug: String!
   "An IANA time zone name, such as `Europe/Paris`; dates are shown in it."
   timeZone: String!
+  """
+  Whether every member must have a TOTP second factor. A member without one is
+  refused every read of the organisation (403 `auth.errors.second-factor-required`)
+  until they enrol (`enrollSecondFactor`, `activateSecondFactor`).
+  """
+  requireSecondFactor: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
   """
@@ -71,4 +77,12 @@ type Mutation {
   `organisation:manage` (admin, owner): 403 `auth.errors.forbidden` otherwise.
   """
   updateOrganisation(input: UpdateOrganisationInput!): Organisation!
+  """
+  Turns the second-factor requirement of the request's organisation on or off.
+  Needs `organisation:manage` (admin, owner) and a recent proof of identity (403
+  `auth.errors.step-up-required`). Turning it on needs the viewer's own second
+  factor to be active (409 `auth.errors.second-factor-not-enrolled`), so the
+  admin does not lock themselves out.
+  """
+  setSecondFactorRequired(required: Boolean!): Organisation!
 }

@@ -747,6 +747,14 @@ type Mutation {
   """
   revokeInvitation(id: ID!): Invitation!
   """
+  Turns the second-factor requirement of the request's organisation on or off.
+  Needs `organisation:manage` (admin, owner) and a recent proof of identity (403
+  `auth.errors.step-up-required`). Turning it on needs the viewer's own second
+  factor to be active (409 `auth.errors.second-factor-not-enrolled`), so the
+  admin does not lock themselves out.
+  """
+  setSecondFactorRequired(required: Boolean!): Organisation!
+  """
   Signs in with a password. 401 `auth.errors.invalid-credentials` for a wrong
   e-mail or password (the same answer for an unknown account); 429
   `auth.errors.too-many-attempts` (with `retryAfter`, in seconds) after ten wrong
@@ -883,6 +891,12 @@ type Organisation {
   createdAt: DateTime!
   id: ID!
   name: String!
+  """
+  Whether every member must have a TOTP second factor. A member without one is
+  refused every read of the organisation (403 `auth.errors.second-factor-required`)
+  until they enrol (`enrollSecondFactor`, `activateSecondFactor`).
+  """
+  requireSecondFactor: Boolean!
   """
   Names the organisation in URLs; set when it is created and never changed.
   """

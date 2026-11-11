@@ -17,6 +17,7 @@ export const auth = defineCodes("auth", [
   "invalid-code",
   "second-factor-active",
   "second-factor-not-enrolled",
+  "second-factor-required",
 ]);
 
 // Which organisation a request is about: the header, the registry, the slug.

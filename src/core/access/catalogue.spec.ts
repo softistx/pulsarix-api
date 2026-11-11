@@ -17,6 +17,7 @@ describe("the access catalogue, built from the manifests", () => {
       "organisation:manage",
       "member:read",
       "member:manage",
+      "member:assign_owner",
       "project:read",
       "project:manage",
       "issue:read",
@@ -33,7 +34,10 @@ describe("the access catalogue, built from the manifests", () => {
   });
 
   test("the admin manages, the member and the viewer read", () => {
-    expect(access.permissionsOf("admin")).toEqual(access.permissions);
+    // Only the owner assigns the owner role (members.errors.owner-required).
+    expect(access.permissionsOf("admin")).toEqual(
+      access.permissions.filter((code) => code !== "member:assign_owner"),
+    );
     expect(access.permissionsOf("member")).toEqual([
       "organisation:read",
       "member:read",
