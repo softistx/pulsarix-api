@@ -46,7 +46,9 @@ describe("the live channels", () => {
 const binary =
   Bun.env["REDIS_BIN"] ??
   "node_modules/.cache/redis-memory-server/redis-binaries/stable/redis-server";
-const real = existsSync(binary) ? test : test.skip;
+// CI provides the binary (ci.yml) and sets CI: a missing one fails the spec there instead of
+// skipping it silently.
+const real = existsSync(binary) || Bun.env["CI"] ? test : test.skip;
 
 describe("across API instances", () => {
   let redis: TestRedis | undefined;

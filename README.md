@@ -27,6 +27,11 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 - `bun run schema:print` writes `schema.graphql`, the committed contract the UI generates
   its client from.
 
+## Deployment
+
+`docs/deployment.md` is the runbook: the staging stack in `deploy/` (compose, `deploy.ts` with a
+`--dry-run`, nightly backups, restore and drill) and the API `Dockerfile`.
+
 ## Checks
 
 `bun run verify` is the green bar: generate, `schema:print --check`, `biome ci`,

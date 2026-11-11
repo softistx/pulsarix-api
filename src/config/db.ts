@@ -28,9 +28,11 @@ const connection = await connectMongo(env.MONGO_URI, {
 });
 
 // Development and tests create the validators and indexes before a collection's
-// first use; in production a deployment step (`db:sync`, with the dbAdmin
-// role) will.
-const autoSync = Bun.env.NODE_ENV !== "production";
+// first use. In production they do not, unless MONGO_AUTO_SYNC=true (deploy/: the
+// API's Mongo user holds the dbAdmin role, so each organisation database made
+// at runtime gets its validators and indexes on first use).
+const autoSync =
+  Bun.env.NODE_ENV !== "production" || Bun.env["MONGO_AUTO_SYNC"] === "true";
 
 // The core database: the organisation registry, the member locks, the
 // invitations and janus's own collections (users, sessions, tokens,
