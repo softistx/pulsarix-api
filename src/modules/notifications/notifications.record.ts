@@ -1,3 +1,4 @@
+import { tenancy } from "../../config/db";
 import { realtime } from "../../config/redis";
 import {
   type AfterCommit,
@@ -77,7 +78,11 @@ export async function recordNotifications(
   return () =>
     runAfterCommit(
       created.map((row) => async () => {
-        const unreadCount = await mongo.db.notifications.count({
+        // The transaction's handle is closed by now: a fresh one.
+        const after = (await tenancy.databaseOf(
+          organisationId,
+        )) as unknown as NotificationsMongo;
+        const unreadCount = await after.db.notifications.count({
           recipientId: row.recipientId,
           readAt: null,
         });
