@@ -591,6 +591,49 @@ describe("listing issues", () => {
   });
 });
 
+describe("paging on optional fields", () => {
+  test("a due-date sort pages through set and null dates, each issue once, and a cursor is bound to its list", async () => {
+    const t = await withProject();
+    for (const [title, dueDate] of [
+      ["a", "2026-03-03T00:00:00Z"],
+      ["b", null],
+      ["c", "2026-03-01T00:00:00Z"],
+      ["d", null],
+      ["e", "2026-03-02T00:00:00Z"],
+    ] as const) {
+      await t.make(title, dueDate ? { dueDate } : {});
+    }
+    for (const direction of ["asc", "desc"]) {
+      const seen: string[] = [];
+      let after: string | null = null;
+      do {
+        const page: Listing = await t.asOwner.call<Listing>(List, {
+          projectId: t.project.id,
+          first: 2,
+          after,
+          sort: { field: "dueDate", direction },
+        });
+        seen.push(...page.issues.nodes.map((n) => n.title));
+        after = page.issues.endCursor;
+      } while (after);
+      expect([...seen].sort()).toEqual(["a", "b", "c", "d", "e"]);
+    }
+    const first = await t.asOwner.call<Listing>(List, {
+      projectId: t.project.id,
+      first: 2,
+      sort: { field: "dueDate", direction: "asc" },
+    });
+    const other = await t.asOwner.attempt(List, {
+      projectId: t.project.id,
+      first: 2,
+      after: first.issues.endCursor,
+      sort: { field: "dueDate", direction: "asc" },
+      filter: { priorities: ["low"] },
+    });
+    expect(codeOf(other)).toBe("validation.errors.invalid-input");
+  });
+});
+
 describe("issues and the workflow", () => {
   test("a status with issues cannot be deleted; an emptied one can", async () => {
     const t = await withProject();

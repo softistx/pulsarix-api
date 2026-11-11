@@ -133,7 +133,7 @@ export async function listIssues(
       direction: sort.direction,
       limit,
       after: args.after ?? null,
-      scope: `${projectId.toHexString()}:${sort.field}`,
+      scope: `${projectId.toHexString()}:${JSON.stringify([f, sort])}`,
     });
     return {
       nodes: page.items,
