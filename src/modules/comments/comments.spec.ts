@@ -128,7 +128,7 @@ describe("adding comments", () => {
       codeOf(
         await asMember.attempt(Add, { issueId: issue.id, input: { body } }),
       ),
-    ).toBe("validation.errors.out-of-range");
+    ).toBe("validation.errors.invalid-input");
   });
 
   test("an empty body, an unknown issue and a viewer are refused", async () => {
