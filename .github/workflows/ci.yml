@@ -38,7 +38,35 @@ jobs:
       - run: bun install --frozen-lockfile
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+      # A9's Redis-backed specs (the intake limits, the live channels across instances) run
+      # over a real server, found at $REDIS_BIN. Use the runner's own redis-server when it
+      # has one, else build the pinned release once and cache the binary (no service
+      # container: the job stays one job and needs no Docker on the runner).
+      - id: redis-bin
+        run: |
+          if command -v redis-server >/dev/null; then
+            echo "bin=$(command -v redis-server)" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "bin=$HOME/redis-bin/redis-server" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/cache@v4
+        id: cache-redis
+        if: ${{ steps.redis-bin.outputs.build == 'true' }}
+        with:
+          path: ~/redis-bin
+          key: redis-7.4.1-${{ runner.os }}-${{ runner.arch }}
+      - name: Build Redis 7.4.1
+        if: ${{ steps.redis-bin.outputs.build == 'true' && steps.cache-redis.outputs.cache-hit != 'true' }}
+        run: |
+          curl -fsSL https://download.redis.io/releases/redis-7.4.1.tar.gz | tar xz -C "$RUNNER_TEMP"
+          make -C "$RUNNER_TEMP/redis-7.4.1" -j2 BUILD_TLS=no
+          mkdir -p ~/redis-bin
+          cp "$RUNNER_TEMP/redis-7.4.1/src/redis-server" ~/redis-bin/redis-server
       - run: bun run verify
+        env:
+          REDIS_BIN: ${{ steps.redis-bin.outputs.bin }}
       - name: Save bun install cache
         if: ${{ !cancelled() && steps.cache-bun.outputs.cache-hit != 'true' }}
         timeout-minutes: 5
