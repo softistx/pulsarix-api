@@ -20,7 +20,7 @@ for (const [name, number] of [
 }
 
 /** Runs a package script to its end; a signal received meanwhile exits 128 + its number. */
-export async function script(name: string): Promise<number> {
+async function script(name: string): Promise<number> {
   if (signalled) process.exit(128 + signalled);
   child = Bun.spawn(["bun", "run", name], {
     cwd: root,
