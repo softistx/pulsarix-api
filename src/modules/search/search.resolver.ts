@@ -1,5 +1,5 @@
-import type { Resolvers } from "@/generated/graphql/resolvers";
 import type { Permission } from "@alxia/access";
+import type { Resolvers } from "@/generated/graphql/resolvers";
 import {
   can,
   requireMember,

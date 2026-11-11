@@ -1,6 +1,6 @@
 import { defineModule } from "@alxia/modules";
-import { searchResolvers } from "./search.resolver";
 import searchTypeDefs from "./search.graphqls" with { type: "text" };
+import { searchResolvers } from "./search.resolver";
 
 // Search over issues, projects and members. It owns no collection: the text
 // indexes sit on the issues and projects collections, and it guards nothing
