@@ -21,7 +21,19 @@ const config: CodegenConfig = {
         useTypeImports: true,
         useIndexSignature: true,
         enumsAsTypes: true,
-        mappers: {},
+        mappers: {
+          Viewer: "@/core/auth/viewer#ViewerModel",
+          Organisation:
+            "@/core/organisations/organisations.model#OrganisationDocument",
+          Member: "@/core/members/members.service#MemberView",
+          Invitation: "@/core/invitations/invitations.issue#InvitationDocument",
+          MyOrganisation:
+            "@/core/organisations/organisations.model#MyOrganisationView",
+          SignInPayload: "@/core/accounts/accounts.utils#SignInResult",
+          Session: "@/core/accounts/accounts.utils#SessionPayload",
+          AcceptInvitationPayload:
+            "@/core/invitations/invitations.acceptance#AcceptedInvitation",
+        },
       },
     },
     "src/generated/graphql/zod.ts": {

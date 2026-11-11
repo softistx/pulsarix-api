@@ -1,18 +1,135 @@
-import { alxia, health } from "@alxia/core";
+import { health } from "@alxia/core";
 import { graphql } from "@alxia/graphql";
-import { env } from "./config/env";
+import { viewerMemberships } from "@alxia/tenancy";
+import { serverAuth } from "./config/auth";
+import {
+  type AppTenancy,
+  closeDatabases,
+  coreMongo,
+  tenancyOf,
+} from "./config/db";
+import { type Access, accessOf, type Membership } from "./core/access";
+import type { Auth } from "./core/auth";
+import { janusViewer, type Viewer } from "./core/auth/viewer";
+import { services } from "./core/services";
+import { requestScope } from "./core/tenancy";
+import { type BaseOptions, createBase } from "./http/context";
+import { clientHeader } from "./http/csrf";
+import { graphqlPlugins } from "./http/graphql-plugins";
 import { schema } from "./http/schema";
+import { modules } from "./modules/registry";
 
-// GET /health (liveness) and GET /ready (readiness), then POST and GET
-// /graphql, the one entry point. /ready has no dependency to check yet: the
-// Mongo, Redis and catalogue checks join it with the slice that adds each.
-export function createApp() {
-  return alxia()
-    .decorate({ env })
-    .plugin(health({ checks: {} }))
-    .plugin((app) => graphql(app, { schema, context: () => ({}) }));
+// The largest body /graphql reads.
+export const BODY_LIMIT = 100 * 1024;
+
+// The probes (GET /health, GET /ready), then POST and GET /graphql, the one
+// entry point, behind the base's middlewares. /graphql refuses a request
+// without `x-pulsarix-client` (src/http/csrf.ts), which Apollo Sandbox is
+// given. /ready answers 503 while MongoDB does not: the core database answers
+// a ping.
+//
+// `auth` is janus (src/core/auth) on the core database: the viewer is read from
+// its sessions (`Authorization: Bearer <janus token>`) unless a spec gives its
+// own `resolveViewer`, and a member's role from its relations unless a spec
+// gives its own `membership`. `access` is the role -> permission catalogue
+// built from the modules' manifests.
+//
+// `context` builds, per request, the kernel's services and the request's
+// `scope`, which resolves the organisation of `x-organization-id` (and the
+// viewer's role in it) only when a guard asks (src/core/access/guards.ts), so
+// no request pays for it that does not need it.
+export function createApp(
+  options: BaseOptions & {
+    auth?: Auth;
+    // The membership reads (janus's by default): the roles the guards ask for.
+    // A spec gives its own.
+    membership?: Membership;
+    // The access catalogue (built from the registry by default); a spec gives
+    // the catalogue of a sample module list.
+    access?: Access;
+    // The tenancy store of the requests (`tenancyOf` over `membership` by
+    // default, src/config/db.ts); a spec that needs other collections gives its
+    // own. The app closes it with itself.
+    tenancy?: AppTenancy;
+    // The schema served (the registry's by default).
+    schema?: typeof schema;
+  } = {},
+) {
+  const auth = options.auth ?? serverAuth();
+  const membership = options.membership ?? auth.membership;
+  const access = options.access ?? accessOf(modules);
+  const tenancy = options.tenancy ?? tenancyOf(membership);
+  return (
+    createBase({
+      ...options,
+      resolveViewer: options.resolveViewer ?? janusViewer(auth),
+    })
+      .plugin(probes())
+      // A body past 100 KiB is refused (413) before it is read, for /graphql
+      // below: a query is a few kilobytes (alxia's production guide, "Cap the body").
+      .bodyLimit(BODY_LIMIT)
+      .plugin((app) =>
+        graphql(app, {
+          schema: options.schema ?? schema,
+          context: graphqlContext({ auth, membership, access, tenancy }),
+          plugins: graphqlPlugins,
+          ide: "apollo-sandbox",
+          sandbox: { initialHeaders: { [clientHeader]: "apollo-sandbox" } },
+        }),
+      )
+      .onStop(async () => {
+        await tenancy.close();
+        await closeDatabases();
+      })
+  );
 }
 
+// The per-request context: the kernel's services, the access catalogue, the
+// viewer's memberships and the request's tenant scope.
+type ContextDeps = {
+  auth: Auth;
+  membership: Membership;
+  access: Access;
+  tenancy: AppTenancy;
+};
+
+export function graphqlContext({
+  auth,
+  membership,
+  access,
+  tenancy,
+}: ContextDeps) {
+  return ({
+    request,
+    viewer,
+  }: {
+    request: Request;
+    viewer: Viewer | null;
+  }) => ({
+    services: services({ auth, core: coreMongo, tenancy, request }),
+    access,
+    memberships: viewerMemberships(
+      (organisationId, accountId) =>
+        membership.roleOf(organisationId, accountId),
+      viewer,
+    ),
+    scope: requestScope(tenancy, request, viewer),
+  });
+}
+
+// /health and /ready: Mongo answers a ping within a second.
+function probes() {
+  return health({
+    checks: {
+      mongo: async () =>
+        Object.values(await coreMongo.ping({ timeoutMS: 1_000 })).every(
+          (result) => result.ok,
+        ),
+    },
+  });
+}
+
+// The app the server runs.
 export const app = createApp();
 
 export type App = typeof app;

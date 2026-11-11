@@ -14,6 +14,12 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 - `cp .env.example .env`, then `bun run dev`: starts the Docker services (Mongo replica set,
   Redis, Mailpit, MinIO) and the API in watch mode. `bun run dev:api` is the API alone;
   `bun run services:down` stops the services.
+- Every `/graphql` request carries `x-pulsarix-client` (any value); a request about an
+  organisation names it in `x-organization-id` (its id or slug) and the session token in
+  `Authorization: Bearer`. The operations: sign-up, sign-in, second factor (TOTP), magic link,
+  reset, `createOrganisation`, members, invitations, step-up (see `schema.graphql` and the
+  error codes in [CONTEXT.md](CONTEXT.md)). Texts are English by default, French with
+  `Accept-Language: fr`.
 - `GET /health` and `GET /ready` are the probes; `POST /graphql` is the one entry point.
 - `bun run schema:print` writes `schema.graphql`, the committed contract the UI generates
   its client from.
@@ -21,6 +27,7 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 ## Checks
 
 `bun run verify` is the green bar: generate, `schema:print --check`, `biome ci`,
-`context:check`, `bun check`, `bun test`, production build. CI runs it on pull requests
+`context:check`, `bun check`, `bun test`, production build. The specs need no Docker: they
+start an in-memory MongoDB replica set (`test/setup.ts`). CI runs it on pull requests
 into `develop` and `feat/v1`. Layout: `src/core/` (kernel), `src/modules/` (business
 modules, listed only in `src/modules/registry.ts`).

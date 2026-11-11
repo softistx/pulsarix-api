@@ -7,7 +7,10 @@ const graphql = (query: string) =>
   app.fetch(
     new Request("http://localhost/graphql", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-pulsarix-client": "spec",
+      },
       body: JSON.stringify({ query }),
     }),
   );
@@ -18,7 +21,7 @@ describe("probes", () => {
     expect(response.status).toBe(200);
   });
 
-  test("GET /ready answers 200 while it has no dependency", async () => {
+  test("GET /ready answers 200 while MongoDB answers", async () => {
     const response = await app.fetch(new Request("http://localhost/ready"));
     expect(response.status).toBe(200);
   });

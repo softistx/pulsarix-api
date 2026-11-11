@@ -21,7 +21,8 @@
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "~/*": ["./test/*"]
     }
   },
   "include": ["src", "test", "scripts", "codegen.ts"]

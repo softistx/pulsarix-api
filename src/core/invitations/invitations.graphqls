@@ -1,0 +1,84 @@
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+"""
+An organisation's invitation of an e-mail address to join it with a role. Its
+link (valid 7 days, mailed to the address) accepts it.
+"""
+type Invitation {
+  id: ID!
+  email: EmailAddress!
+  "How the invitee is greeted, and what a new account is called."
+  name: String!
+  role: Role!
+  "PENDING past `expiresAt` can no longer be accepted: resend it."
+  status: InvitationStatus!
+  expiresAt: DateTime!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+What accepting an invitation answers: the new session, or `linked` (no
+session) when the account already signs in with a password. A session is
+SECOND_FACTOR_REQUIRED for an account with a second factor.
+"""
+type AcceptInvitationPayload {
+  linked: Boolean!
+  signIn: SignInPayload
+}
+
+input InviteMemberInput {
+  email: String! @constraint(maxLength: 320)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  role: Role!
+}
+
+type Query {
+  """
+  The request's organisation's invitations, newest first, at most 100.
+  Organisation admins and owners only (`member:manage`).
+  """
+  invitations(status: InvitationStatus): [Invitation!]!
+}
+
+type Mutation {
+  """
+  Invites an e-mail address to the request's organisation with a role, and
+  mails the link (in the request's language). Inviting an address again
+  replaces its pending invitation. Needs `member:manage`; only an owner invites
+  an owner (403 `members.errors.owner-required`). 409
+  `invitations.errors.address-already-member` when the address holds an account
+  that is a member already.
+  """
+  inviteMember(input: InviteMemberInput!): Invitation!
+  """
+  Accepts an invitation with the token of its link (`/invitations/accept`):
+  makes or finds the account of the invitation's e-mail, gives it the
+  invitation's role in the organisation, and signs it in (`signIn`), or answers
+  `linked` for an account that already signs in with a password (sign in as
+  usual). A new account, and an account whose e-mail was never proved, needs
+  `password`. Anonymous. 400 `invitations.errors.invalid` for a token unknown,
+  spent, revoked or expired; 400 `validation.errors.invalid-input` (a
+  `required` issue on `password`); 409 `invitations.errors.already-member`.
+  """
+  acceptInvitation(
+    token: String! @constraint(maxLength: 200)
+    password: String @constraint(maxLength: 1024)
+  ): AcceptInvitationPayload!
+  """
+  Sends a pending invitation again, with a new link valid 7 days (the old one
+  ends). Needs `member:manage`. 404 `invitations.errors.not-found`; 409
+  `invitations.errors.not-pending` for one accepted or revoked, 409
+  `invitations.errors.address-already-member` when its address became a member.
+  """
+  resendInvitation(id: ID!): Invitation!
+  """
+  Revokes a pending invitation: its link no longer works. Needs `member:manage`.
+  404 `invitations.errors.not-found`; 409 `invitations.errors.not-pending`.
+  """
+  revokeInvitation(id: ID!): Invitation!
+}

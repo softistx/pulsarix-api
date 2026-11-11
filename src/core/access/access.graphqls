@@ -1,0 +1,11 @@
+"""
+What a member is in an organisation (CONTEXT.md, Role). The values are the
+stored role codes; the roles are built in (plan Q13) and the permissions each
+holds come from the module manifests. From the most to the least privileged.
+"""
+enum Role {
+  owner
+  admin
+  member
+  viewer
+}

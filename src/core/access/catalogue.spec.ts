@@ -1,0 +1,46 @@
+import { describe, expect, test } from "bun:test";
+import { defineModule } from "@alxia/modules";
+import { modules } from "../../modules/registry";
+import { accessOf } from "./catalogue";
+import { roles } from "./roles";
+
+describe("the access catalogue, built from the manifests", () => {
+  const access = accessOf(modules);
+
+  test("the roles are the four of the plan, most privileged first", () => {
+    expect(roles).toEqual(["owner", "admin", "member", "viewer"]);
+  });
+
+  test("the owner holds every declared permission", () => {
+    expect(access.permissions).toEqual([
+      "organisation:read",
+      "organisation:manage",
+      "member:read",
+      "member:manage",
+    ]);
+    expect(access.permissionsOf("owner")).toEqual(access.permissions);
+  });
+
+  test("the admin manages, the member and the viewer read", () => {
+    expect(access.permissionsOf("admin")).toEqual(access.permissions);
+    expect(access.permissionsOf("member")).toEqual([
+      "organisation:read",
+      "member:read",
+    ]);
+    expect(access.permissionsOf("viewer")).toEqual([
+      "organisation:read",
+      "member:read",
+    ]);
+    expect(access.permissionsOf(null)).toEqual([]);
+    expect(access.roleCan("member", "member:manage")).toBe(false);
+  });
+
+  test("a grant to an unknown role is refused at boot", () => {
+    const bad = defineModule({
+      name: "bad",
+      permissions: ["bad:read"],
+      defaultGrants: { editor: ["bad:read"] },
+    });
+    expect(() => accessOf([bad])).toThrow();
+  });
+});
