@@ -31,6 +31,9 @@ const config: CodegenConfig = {
             "@/core/organisations/organisations.model#MyOrganisationView",
           SignInPayload: "@/core/accounts/accounts.utils#SignInResult",
           Session: "@/core/accounts/accounts.utils#SessionPayload",
+          Project: "@/modules/projects/projects.model#ProjectDocument",
+          Status: "@/modules/projects/projects.model#StatusDocument",
+          Label: "@/modules/projects/projects.model#LabelDocument",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",
         },

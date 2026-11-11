@@ -172,3 +172,32 @@ export async function ownerWithOrganisation(kit: AuthApp, name = "North Star") {
   );
   return { owner, organisation: data.createOrganisation.organisation };
 }
+
+const Invite = `mutation($input: InviteMemberInput!) { inviteMember(input: $input) { id } }`;
+const Accept = `mutation($token: String!, $password: String) {
+  acceptInvitation(token: $token, password: $password) { signIn { session { token viewer { id } } } }
+}`;
+
+// A member of the organisation with `role`, invited by the owner and accepted
+// through the API: their id and session token.
+export async function memberWith(
+  kit: AuthApp,
+  organisation: string,
+  ownerToken: string,
+  role: "owner" | "admin" | "member" | "viewer",
+) {
+  const email = uniqueEmail(role);
+  await kit.client(ownerToken, { organisation }).call(Invite, {
+    input: { email, name: role, role },
+  });
+  const accepted = await kit.client().call<{
+    acceptInvitation: {
+      signIn: { session: { token: string; viewer: { id: string } } };
+    };
+  }>(Accept, {
+    token: tokenSent(kit, email, "invitation"),
+    password: specPassword,
+  });
+  const { token, viewer } = accepted.acceptInvitation.signIn.session;
+  return { id: viewer.id, token };
+}

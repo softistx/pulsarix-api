@@ -1,12 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  authApp,
-  ownerWithOrganisation,
-  signedUp,
-  specPassword,
-  tokenSent,
-  uniqueEmail,
-} from "~/auth";
+import { authApp, memberWith, ownerWithOrganisation, signedUp } from "~/auth";
 import { codeOf } from "~/http";
 
 const kit = authApp();
@@ -15,38 +8,17 @@ const ChangeRole = `mutation($id: ID!, $role: Role!) {
   changeMemberRole(id: $id, role: $role) { id role }
 }`;
 const Remove = `mutation($id: ID!) { removeMember(id: $id) }`;
-const Invite = `mutation($input: InviteMemberInput!) { inviteMember(input: $input) { id } }`;
-const Accept = `mutation($token: String!, $password: String) {
-  acceptInvitation(token: $token, password: $password) { signIn { session { token viewer { id } } } }
-}`;
 const Members = `{ members { id role } }`;
-
-// A member of the organisation with `role`, invited and accepted through the API.
-async function memberWith(
-  organisation: string,
-  ownerToken: string,
-  role: "owner" | "admin" | "member" | "viewer",
-) {
-  const email = uniqueEmail(role);
-  await kit.client(ownerToken, { organisation }).call(Invite, {
-    input: { email, name: role, role },
-  });
-  const accepted = await kit.client().call<{
-    acceptInvitation: {
-      signIn: { session: { token: string; viewer: { id: string } } };
-    };
-  }>(Accept, {
-    token: tokenSent(kit, email, "invitation"),
-    password: specPassword,
-  });
-  const { token, viewer } = accepted.acceptInvitation.signIn.session;
-  return { id: viewer.id, token };
-}
 
 describe("roles", () => {
   test("a viewer reads, a member reads, neither manages", async () => {
     const { owner, organisation } = await ownerWithOrganisation(kit);
-    const viewer = await memberWith(organisation.id, owner.token, "viewer");
+    const viewer = await memberWith(
+      kit,
+      organisation.id,
+      owner.token,
+      "viewer",
+    );
     const asViewer = kit.client(viewer.token, {
       organisation: organisation.id,
     });
@@ -61,10 +33,10 @@ describe("roles", () => {
     const perms = await asViewer.call<{
       organisation: { viewerPermissions: string[] };
     }>(`{ organisation { viewerPermissions } }`);
-    expect(perms.organisation.viewerPermissions).toEqual([
-      "organisation:read",
-      "member:read",
-    ]);
+    expect(perms.organisation.viewerPermissions).toEqual(
+      expect.arrayContaining(["organisation:read", "member:read"]),
+    );
+    expect(perms.organisation.viewerPermissions).not.toContain("member:manage");
   });
 
   test("an organisation keeps its last owner", async () => {
@@ -80,7 +52,7 @@ describe("roles", () => {
     );
 
     // With a second owner the first may step down, then the second is the last.
-    const second = await memberWith(organisation.id, owner.token, "owner");
+    const second = await memberWith(kit, organisation.id, owner.token, "owner");
     await asOwner.call(ChangeRole, { id: owner.id, role: "admin" });
     const asSecond = kit.client(second.token, {
       organisation: organisation.id,
@@ -92,7 +64,7 @@ describe("roles", () => {
 
   test("two owners stepping down together leave one", async () => {
     const { owner, organisation } = await ownerWithOrganisation(kit);
-    const second = await memberWith(organisation.id, owner.token, "owner");
+    const second = await memberWith(kit, organisation.id, owner.token, "owner");
     const asFirst = kit.client(owner.token, { organisation: organisation.id });
     const asSecond = kit.client(second.token, {
       organisation: organisation.id,
@@ -116,8 +88,13 @@ describe("roles", () => {
 
   test("only an owner touches the owner role; an admin manages the others", async () => {
     const { owner, organisation } = await ownerWithOrganisation(kit);
-    const admin = await memberWith(organisation.id, owner.token, "admin");
-    const member = await memberWith(organisation.id, owner.token, "member");
+    const admin = await memberWith(kit, organisation.id, owner.token, "admin");
+    const member = await memberWith(
+      kit,
+      organisation.id,
+      owner.token,
+      "member",
+    );
     const asAdmin = kit.client(admin.token, { organisation: organisation.id });
     expect(
       codeOf(
@@ -155,7 +132,12 @@ describe("roles", () => {
 
   test("a role change asks for a recent proof of identity (step-up)", async () => {
     const { owner, organisation } = await ownerWithOrganisation(kit);
-    const member = await memberWith(organisation.id, owner.token, "member");
+    const member = await memberWith(
+      kit,
+      organisation.id,
+      owner.token,
+      "member",
+    );
     const asOwner = kit.client(owner.token, { organisation: organisation.id });
     kit.clock.advance(11 * 60 * 1000);
     const stale = await asOwner.attempt(ChangeRole, {

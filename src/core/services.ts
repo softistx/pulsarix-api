@@ -32,6 +32,10 @@ export function services(deps: {
       deps.tenancy,
       deps.auth.membership,
     ),
+    // The role an account holds in an organisation, null for a non-member (a
+    // business module checks that an account it is given belongs there).
+    roleOf: (organisationId: string, accountId: string) =>
+      deps.auth.membership.roleOf(organisationId, accountId),
     // Anonymous, from a mail's link.
     acceptance: new AcceptanceService(deps.core, deps.auth, localeOfRequest()),
     // Built once a guard resolved the organisation (src/core/access/guards.ts),

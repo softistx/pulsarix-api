@@ -37,6 +37,17 @@ export const texts: Record<Locale, Record<string, string>> = {
     "validation.errors.too-long":
       "At most {max, plural, one {# character} other {# characters}} are allowed.",
     "validation.errors.out-of-range": "This value is out of range.",
+    "projects.errors.not-found": "This project does not exist.",
+    "projects.errors.key-taken":
+      'The key "{key}" is already used by a project.',
+    "projects.errors.status-not-found": "This status does not exist.",
+    "projects.errors.status-name-taken":
+      'This project already has a status named "{name}".',
+    "projects.errors.status-in-use":
+      "Issues still use this status. Move them to another status first.",
+    "projects.errors.label-not-found": "This label does not exist.",
+    "projects.errors.label-name-taken":
+      'This project already has a label named "{name}".',
     "members.errors.not-found": "This member does not exist.",
     "members.errors.last-owner":
       "An organisation keeps at least one owner. Name another owner first.",
@@ -86,6 +97,17 @@ export const texts: Record<Locale, Record<string, string>> = {
     "validation.errors.too-long":
       "{max, plural, one {# caractère} other {# caractères}} au maximum.",
     "validation.errors.out-of-range": "Cette valeur est hors limites.",
+    "projects.errors.not-found": "Ce projet n'existe pas.",
+    "projects.errors.key-taken":
+      'La clé "{key}" est déjà utilisée par un projet.',
+    "projects.errors.status-not-found": "Ce statut n'existe pas.",
+    "projects.errors.status-name-taken":
+      'Ce projet a déjà un statut nommé "{name}".',
+    "projects.errors.status-in-use":
+      "Des tickets utilisent encore ce statut. Déplacez-les d'abord vers un autre statut.",
+    "projects.errors.label-not-found": "Ce libellé n'existe pas.",
+    "projects.errors.label-name-taken":
+      'Ce projet a déjà un libellé nommé "{name}".',
     "members.errors.not-found": "Ce membre n'existe pas.",
     "members.errors.last-owner":
       "Une organisation garde au moins un propriétaire. Nommez d'abord un autre propriétaire.",
