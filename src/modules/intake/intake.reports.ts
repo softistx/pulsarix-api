@@ -1,4 +1,5 @@
 import { OptimisticLockError } from "@softistx/mongo";
+import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
@@ -99,6 +100,7 @@ export class ReportsService {
   async accept(id: string): Promise<ClientReportDocument> {
     const report = await this.byId(id);
     const claimed = await this.claim(report, "accepted");
+    let issueId: ObjectId | null = null;
     try {
       const triage = await this.mongo.db.statuses.findFirst({
         projectId: report.projectId,
@@ -111,15 +113,22 @@ export class ReportsService {
         statusId: triage?.id ?? null,
         clientReportId: report._id,
       });
+      issueId = issue._id;
       return await this.mongo.db.clientReports.update(claimed._id, {
-        issueId: issue._id,
+        issueId,
       });
     } catch (error) {
-      await this.mongo.db.clientReports.update(claimed._id, {
-        state: "new",
-        decidedBy: null,
-        decidedAt: null,
-      });
+      // Once the issue exists the report stays accepted (the issue carries
+      // `clientReportId`); only a failed creation puts it back to new.
+      if (!issueId) {
+        await this.mongo.db.clientReports
+          .update(claimed._id, {
+            state: "new",
+            decidedBy: null,
+            decidedAt: null,
+          })
+          .catch(() => undefined);
+      }
       throw error;
     }
   }

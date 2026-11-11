@@ -8,6 +8,7 @@ import {
   intakeKit,
 } from "~/intake";
 import { coreMongo, tenancy } from "../../config/db";
+import { addressKey } from "./intake.routes";
 import type { Caller } from "./intake.submit";
 
 const trackingToken = (kit: IntakeKit) => {
@@ -191,6 +192,12 @@ describe("a foreign origin is refused", () => {
       expect(refused.status).toBe(403);
       expect(refused.headers.get("access-control-allow-origin")).toBeNull();
     }
+    // A switched-off key still passes the preflight, so the widget reads `enabled: false`.
+    await kit.asOwner.call(
+      `mutation($id: ID!, $input: UpdateWidgetKeyInput!) { updateWidgetKey(id: $id, input: $input) { id } }`,
+      { id: kit.key.id, input: { active: false } },
+    );
+    expect((await preflight(kit.site)).status).toBe(204);
     // A revoked key allows nothing any more.
     await kit.asOwner.call(`mutation($id: ID!) { revokeWidgetKey(id: $id) }`, {
       id: kit.key.id,
@@ -576,4 +583,11 @@ describe("over the limits the answer is 429", () => {
     });
     expect((await kit.config()).response.status).toBe(503);
   });
+});
+
+test("IPv6 clients are limited by their /64", () => {
+  expect(addressKey("2001:db8:1:2:3:4:5:6")).toBe("2001:db8:1:2::/64");
+  expect(addressKey("2001:DB8::1")).toBe("2001:db8:0:0::/64");
+  expect(addressKey("203.0.113.7")).toBe("203.0.113.7");
+  expect(addressKey(undefined)).toBe("unknown");
 });

@@ -178,11 +178,58 @@ input ChangePasswordInput {
   newPassword: String! @constraint(maxLength: 1024)
 }
 
+"""
+A report a reader sent through the widget. Everything in it is text from a
+stranger: show it as plain text, never as markup or links.
+"""
+type ClientReport {
+  closedAt: DateTime
+  createdAt: DateTime!
+  decidedAt: DateTime
+  decidedBy: ID
+  declineReason: String
+  description: String!
+  """
+  Null if none was given, or once erased (90 days after the report is closed or declined).
+  """
+  email: String
+  erasedAt: DateTime
+  id: ID!
+  """The issue an acceptance made."""
+  issueId: ID
+  locale: String!
+  metadata: [ClientReportMetadata!]!
+  pageUrl: String
+  projectId: ID!
+  state: ClientReportState!
+  title: String!
+  userAgent: String
+}
+
+type ClientReportConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [ClientReport!]!
+}
+
 """A new client report of a project."""
 type ClientReportEvent {
   at: DateTime!
   reportId: ID!
   title: String!
+}
+
+type ClientReportMetadata {
+  key: String!
+  value: String!
+}
+
+enum ClientReportState {
+  accepted
+  closed
+  declined
+  new
 }
 
 """
@@ -262,6 +309,12 @@ input CreateStatusInput {
   category: StatusCategory!
   colour: String! @constraint(maxLength: 7)
   name: String! @constraint(minLength: 1, maxLength: 100)
+  projectId: ID!
+}
+
+input CreateWidgetKeyInput {
+  allowedOrigins: [String!]! @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  label: String! @constraint(minLength: 1, maxLength: 100)
   projectId: ID!
 }
 
@@ -364,6 +417,8 @@ An issue of a project. Its `key` (`ABC-12`) is the project's key and its
 """
 type Issue {
   assigneeId: ID
+  """The client report it was accepted from, if any."""
+  clientReportId: ID
   createdAt: DateTime!
   """Rich text, as the client wrote it."""
   description: String!
@@ -544,6 +599,12 @@ type Member {
 
 type Mutation {
   """
+  Accepts a new report: an issue is made from it in the project's Triage
+  status, linked both ways. Needs `issue:write`. 409
+  `intake.errors.report-decided`; 404 `intake.errors.not-found`.
+  """
+  acceptClientReport(id: ID!): ClientReport!
+  """
   Accepts an invitation with the token of its link (`/invitations/accept`):
   makes or finds the account of the invitation's e-mail, gives it the
   invitation's role in the organisation, and signs it in (`signIn`), or answers
@@ -632,6 +693,18 @@ type Mutation {
   409 `projects.errors.status-name-taken`.
   """
   createStatus(input: CreateStatusInput!): Status!
+  """
+  Makes a key for a project. Needs `intake:manage` and a recent proof of
+  identity (403 `auth.errors.step-up-required`). 400
+  `intake.errors.invalid-origin` on `allowedOrigins`; 404
+  `projects.errors.not-found`.
+  """
+  createWidgetKey(input: CreateWidgetKeyInput!): WidgetKey!
+  """
+  Declines a new report with a reason (kept for the team; the reporter sees
+  only the state). Needs `issue:write`. 409 `intake.errors.report-decided`.
+  """
+  declineClientReport(id: ID!, reason: String! @constraint(minLength: 1, maxLength: 1000)): ClientReport!
   """
   Deletes a file and its thumbnail; answers its id. Needs `attachment:write`
   and being the uploader, or `attachment:delete`; otherwise 404
@@ -747,6 +820,16 @@ type Mutation {
   """
   revokeInvitation(id: ID!): Invitation!
   """
+  Retires the key for good: it answers like an unknown one. Answers its id.
+  Needs `intake:manage`.
+  """
+  revokeWidgetKey(id: ID!): ID!
+  """
+  Gives the key a new value; the old one stops working at once. Needs
+  `intake:manage` and a recent proof of identity.
+  """
+  rotateWidgetKey(id: ID!): WidgetKey!
+  """
   Turns the second-factor requirement of the request's organisation on or off.
   Needs `organisation:manage` (admin, owner) and a recent proof of identity (403
   `auth.errors.step-up-required`). Turning it on needs the viewer's own second
@@ -797,6 +880,8 @@ type Mutation {
   `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input`.
   """
   updateViewer(input: UpdateViewerInput!): Viewer!
+  """Needs `intake:manage`. 404 `intake.errors.key-not-found`."""
+  updateWidgetKey(id: ID!, input: UpdateWidgetKeyInput!): WidgetKey!
   """Adds the viewer to the watchers; repeatable. Needs `issue:write`."""
   watchIssue(id: ID!): Issue!
 }
@@ -984,6 +1069,12 @@ type Query {
   """
   attachments(ownerId: ID!, ownerType: AttachmentOwnerType!): [Attachment!]!
   """
+  The project's client reports, newest first, paged by cursor (`first` 1 to
+  100, default 50), optionally of one `state`. Needs `issue:write` (those who
+  triage). 404 `projects.errors.not-found`.
+  """
+  clientReports(after: String, first: Int = 50, projectId: ID!, state: ClientReportState): ClientReportConnection!
+  """
   The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
   default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
   """
@@ -1055,6 +1146,11 @@ type Query {
   version: String!
   """The signed-in account, or null when anonymous."""
   viewer: Viewer
+  """
+  The widget keys of a project, oldest first; revoked ones are not listed.
+  Needs `intake:manage` (admin, owner). 404 `projects.errors.not-found`.
+  """
+  widgetKeys(projectId: ID!): [WidgetKey!]!
 }
 
 """A CSS rgb() color, such as rgb(255, 0, 0)."""
@@ -1326,6 +1422,13 @@ input UpdateViewerInput {
   name: String @constraint(minLength: 1, maxLength: 200)
 }
 
+"""A field left out stays as it is; null is refused."""
+input UpdateWidgetKeyInput {
+  active: Boolean
+  allowedOrigins: [String!] @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  label: String @constraint(minLength: 1, maxLength: 100)
+}
+
 """A UTC offset from -12:00 to +14:00, such as +05:30."""
 scalar UtcOffset
 
@@ -1354,6 +1457,28 @@ type Viewer {
 
 """No value: always null."""
 scalar Void
+
+"""
+A key the widget of a project is embedded with. The key is public by design: it
+reads its own configuration and sends reports for its project, nothing else.
+"""
+type WidgetKey {
+  """Off, the widget answers `enabled: false` and takes no report."""
+  active: Boolean!
+  """
+  The sites (`https://host[:port]`) allowed to use it; the public endpoint answers CORS for these only.
+  """
+  allowedOrigins: [String!]!
+  createdAt: DateTime!
+  id: ID!
+  label: String!
+  """When it was last used, to the minute; null if never."""
+  lastUsedAt: DateTime
+  projectId: ID!
+  """`pk_live_` and 32 characters: the value of `data-project-key`."""
+  publicKey: String!
+  updatedAt: DateTime!
+}
 
 """An xid: 20 characters of lowercase base32hex."""
 scalar XID @specifiedBy(url: "https://github.com/rs/xid")

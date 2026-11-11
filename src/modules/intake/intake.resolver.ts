@@ -1,19 +1,18 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { coreMongo } from "../../config/db";
 import { requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
 import { IssuesService } from "../issues/public";
-import { WidgetKeysService } from "./intake.keys";
+import { type KeysCore, WidgetKeysService } from "./intake.keys";
 import { ReportsService } from "./intake.reports";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
 // recent proof of identity (plan §11, "step-up for key creation").
 async function keysOf(ctx: Context, fresh = false) {
-  const { mongo, tenant } = await requirePermission(ctx, "intake:manage");
+  const { mongo, tenant, core } = await requirePermission(ctx, "intake:manage");
   const viewer = requireViewer(ctx);
   if (fresh) ctx.services.requireFresh(viewer);
   return new WidgetKeysService(
-    coreMongo.as(viewer.id),
+    (core as never as { as: (id: string) => KeysCore }).as(viewer.id),
     mongo as never,
     tenant._id.toHexString(),
   );

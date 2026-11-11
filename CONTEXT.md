@@ -84,7 +84,7 @@ any other key is 400 `intake.errors.persisted-only`. The body is JSON only (415 
   hour; per organisation 300 per hour; tracking reads 30 per 10 minutes per address. Over a limit: 429
   `intake.errors.too-many-requests` with `Retry-After`. Without Redis (or if it fails) the endpoint
   answers 503 `intake.errors.unavailable`: it never runs unmetered. The address is `TRUSTED_PROXIES`'
-  reading of `X-Forwarded-For`; unset, it is the connection's.
+  reading of `X-Forwarded-For`; unset, it is the connection's; an IPv6 address counts by its /64. The UI server's tracking reads share one bucket per client only if it appends the client's address to `X-Forwarded-For` from inside `TRUSTED_PROXIES`.
 - **Anti-abuse** (Q10): the honeypot field `website` (told it worked, nothing kept), a minimum fill time
   (`filledInMs`, 400 `intake.errors.too-fast`), the length limits, control characters stripped, and the
   tracking mail repeats nothing the sender typed.

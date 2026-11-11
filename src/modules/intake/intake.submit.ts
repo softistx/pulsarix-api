@@ -235,7 +235,6 @@ export class PublicIntake {
     await this.guardAddress(ip);
     return this.deps.core.db.widgetKeys.exists({
       allowedOrigins: origin,
-      active: true,
       revokedAt: null,
     });
   }
