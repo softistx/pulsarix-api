@@ -1,6 +1,7 @@
 schema {
   query: Query
   mutation: Mutation
+  subscription: Subscription
 }
 
 """
@@ -79,6 +80,47 @@ type AcceptInvitationPayload {
   signIn: SignInPayload
 }
 
+"""
+A row of the append-only journal of a project's issues. It outlives the issue
+it names (`issueKey` is the issue's key at that time).
+"""
+type Activity {
+  actorId: ID!
+  at: DateTime!
+  changes: [ActivityChange!]!
+  id: ID!
+  issueId: ID
+  issueKey: String
+  projectId: ID!
+  verb: ActivityVerb!
+}
+
+"""
+One field a change touched. Values are text, `null` for none; a list is JSON text; a long text is cut.
+"""
+type ActivityChange {
+  field: String!
+  from: String
+  to: String
+}
+
+type ActivityConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Activity!]!
+}
+
+enum ActivityVerb {
+  commentDeleted
+  commentEdited
+  commented
+  created
+  deleted
+  moved
+  updated
+}
+
 input AddCommentInput {
   body: String! @constraint(minLength: 1, maxLength: 20000)
   """Default false."""
@@ -105,6 +147,13 @@ scalar CIDRv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
 input ChangePasswordInput {
   currentPassword: String! @constraint(maxLength: 1024)
   newPassword: String! @constraint(maxLength: 1024)
+}
+
+"""A new client report of a project."""
+type ClientReportEvent {
+  at: DateTime!
+  reportId: ID!
+  title: String!
 }
 
 """
@@ -317,6 +366,25 @@ type IssueConnection {
   endCursor: String
   hasNextPage: Boolean!
   nodes: [Issue!]!
+}
+
+"""
+What the board and an issue's page are told live. Refetch the issue (or the
+activity row `activityId`) after a gap: nothing is replayed.
+"""
+type IssueEvent {
+  activityId: ID!
+  actorId: ID!
+  at: DateTime!
+  """The fields the change touched."""
+  fields: [String!]!
+  issueId: ID!
+  issueKey: String!
+  projectId: ID!
+  rank: String
+  """Where the issue stands: its status and rank (null for a comment)."""
+  statusId: ID
+  verb: ActivityVerb!
 }
 
 """Every given field narrows the list (they are combined with AND)."""
@@ -716,6 +784,13 @@ scalar NonPositiveFloat
 """An integer from -2147483648 to 0."""
 scalar NonPositiveInt
 
+"""A new notification of the viewer, and their unread count."""
+type NotificationEvent {
+  kind: String!
+  notificationId: ID!
+  unreadCount: Int!
+}
+
 """A MongoDB ObjectId: 24 hexadecimal digits."""
 scalar ObjectID @specifiedBy(url: "https://www.mongodb.com/docs/manual/reference/method/ObjectId/")
 
@@ -799,6 +874,14 @@ enum ProjectVisibility {
 }
 
 type Query {
+  """
+  The journal of a project or of one issue (exactly one of `projectId` and
+  `issueId`), newest first, paged by cursor (`first` 1 to 100, default 50).
+  Needs `issue:read`; 400 `validation.errors.invalid` when neither or both are
+  given; 404 `projects.errors.not-found` for an unknown project (the history of a
+  deleted issue stays readable).
+  """
+  activity(after: String, first: Int = 50, issueId: ID, projectId: ID): ActivityConnection!
   """
   The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
   default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
@@ -998,6 +1081,30 @@ type StepUpChallenge {
 enum StepUpVia {
   APP
   EMAIL
+}
+
+"""
+Live events over server-sent events (`Accept: text/event-stream`). Each opens
+only for a viewer who may read what it names, in the organisation of
+`x-organization-id`, and is checked again every 30 seconds: a viewer who lost
+the right is cut off. A stream ends after 15 minutes without an event or after
+an hour; the client reconnects and refetches.
+"""
+type Subscription {
+  """
+  New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
+  """
+  clientReportReceived(projectId: ID!): ClientReportEvent!
+  """
+  Field changes and comments of one issue. Needs `issue:read`; 404 `issues.errors.not-found`.
+  """
+  issueChanged(issueId: ID!): IssueEvent!
+  """The viewer's own notifications. Needs organisation membership."""
+  notificationReceived: NotificationEvent!
+  """
+  Issues of a project created, updated, moved or deleted. Needs `issue:read`; 404 `projects.errors.not-found`.
+  """
+  projectBoard(projectId: ID!): IssueEvent!
 }
 
 """A time of day with its offset, such as 10:15:30Z (RFC 3339 full-time)."""

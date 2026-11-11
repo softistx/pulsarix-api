@@ -23,7 +23,7 @@ const smtpUrl = z
 
 // Read once, at import: a malformed variable stops the process before it
 // listens. `.env.example` lists them; Bun loads `.env` on every command.
-// The Redis and S3 variables arrive with the slice that first uses each.
+// The S3 variables arrive with the slice that first uses them.
 export const env = defineEnv({
   // mongodb:// or mongodb+srv://. Transactions need a replica set:
   // docker-compose.yml starts a one-node one. The URI names no database: the
@@ -68,6 +68,13 @@ export const env = defineEnv({
   TOTP_KEYS: inProduction(
     z.string().min(1),
     "dev:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  ),
+  // REDIS_URL: redis:// or rediss://. The live events (subscriptions) cross
+  // API instances through it. Required in production; unset elsewhere, they
+  // stay in the one process. docker-compose.yml's Redis listens on
+  // redis://localhost:6380.
+  REDIS_URL: orUnset(
+    z.string().regex(/^rediss?:\/\/[^/]/, "not a redis:// or rediss:// URL"),
   ),
   // An empty PORT= is unset, not port 0.
   PORT: z.preprocess(

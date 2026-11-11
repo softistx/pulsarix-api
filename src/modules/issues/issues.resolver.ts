@@ -19,6 +19,7 @@ async function scoped(ctx: Context, permission: Permission) {
         (await ctx.services.roleOf(tenant._id.toHexString(), accountId)) !==
         null,
       viewerId,
+      tenant._id.toHexString(),
     ),
   };
 }

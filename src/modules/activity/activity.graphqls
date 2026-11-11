@@ -1,0 +1,105 @@
+enum ActivityVerb {
+  created
+  updated
+  moved
+  deleted
+  commented
+  commentEdited
+  commentDeleted
+}
+
+"One field a change touched. Values are text, `null` for none; a list is JSON text; a long text is cut."
+type ActivityChange {
+  field: String!
+  from: String
+  to: String
+}
+
+"""
+A row of the append-only journal of a project's issues. It outlives the issue
+it names (`issueKey` is the issue's key at that time).
+"""
+type Activity {
+  id: ID!
+  projectId: ID!
+  issueId: ID
+  issueKey: String
+  actorId: ID!
+  verb: ActivityVerb!
+  changes: [ActivityChange!]!
+  at: DateTime!
+}
+
+type ActivityConnection {
+  nodes: [Activity!]!
+  "Pass it as `after` for the next page; null on the last."
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+"""
+What the board and an issue's page are told live. Refetch the issue (or the
+activity row `activityId`) after a gap: nothing is replayed.
+"""
+type IssueEvent {
+  activityId: ID!
+  verb: ActivityVerb!
+  projectId: ID!
+  issueId: ID!
+  issueKey: String!
+  actorId: ID!
+  "The fields the change touched."
+  fields: [String!]!
+  "Where the issue stands: its status and rank (null for a comment)."
+  statusId: ID
+  rank: String
+  at: DateTime!
+}
+
+"A new notification of the viewer, and their unread count."
+type NotificationEvent {
+  notificationId: ID!
+  kind: String!
+  unreadCount: Int!
+}
+
+"A new client report of a project."
+type ClientReportEvent {
+  reportId: ID!
+  title: String!
+  at: DateTime!
+}
+
+type Query {
+  """
+  The journal of a project or of one issue (exactly one of `projectId` and
+  `issueId`), newest first, paged by cursor (`first` 1 to 100, default 50).
+  Needs `issue:read`; 400 `validation.errors.invalid` when neither or both are
+  given; 404 `projects.errors.not-found` for an unknown project (the history of a
+  deleted issue stays readable).
+  """
+  activity(
+    projectId: ID
+    issueId: ID
+    first: Int = 50
+    after: String
+  ): ActivityConnection!
+}
+
+"""
+Live events over server-sent events (`Accept: text/event-stream`). Each opens
+only for a viewer who may read what it names, in the organisation of
+`x-organization-id`, and is checked again every 30 seconds: a viewer who lost
+the right is cut off. A stream ends after 15 minutes without an event or after
+an hour; the client reconnects and refetches.
+"""
+type Subscription {
+  "Issues of a project created, updated, moved or deleted. Needs `issue:read`; 404 `projects.errors.not-found`."
+  projectBoard(projectId: ID!): IssueEvent!
+  "Field changes and comments of one issue. Needs `issue:read`; 404 `issues.errors.not-found`."
+  issueChanged(issueId: ID!): IssueEvent!
+  "The viewer's own notifications. Needs organisation membership."
+  notificationReceived: NotificationEvent!
+  "New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`."
+  clientReportReceived(projectId: ID!): ClientReportEvent!
+}
