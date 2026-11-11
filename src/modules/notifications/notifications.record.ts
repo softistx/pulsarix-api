@@ -1,4 +1,3 @@
-import { tenancy } from "../../config/db";
 import { realtime } from "../../config/redis";
 import {
   type AfterCommit,
@@ -79,6 +78,8 @@ export async function recordNotifications(
     runAfterCommit(
       created.map((row) => async () => {
         // The transaction's handle is closed by now: a fresh one.
+        // (Imported here: loading the schema must not open MongoDB.)
+        const { tenancy } = await import("../../config/db");
         const after = (await tenancy.databaseOf(
           organisationId,
         )) as unknown as NotificationsMongo;
