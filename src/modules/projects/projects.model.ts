@@ -45,7 +45,16 @@ export const projects = defineCollection({
   timestamps: true,
   optimisticLock: true,
   actors,
-  indexes: [{ key: { key: 1 }, unique: true, name: "projects_keyUnique" }],
+  indexes: [
+    { key: { key: 1 }, unique: true, name: "projects_keyUnique" },
+    // Search (A8): no stemming nor stop words, so French and English alike.
+    {
+      key: { key: "text", name: "text", description: "text" },
+      weights: { key: 10, name: 10, description: 1 },
+      default_language: "none",
+      name: "projects_text",
+    },
+  ],
 });
 export type ProjectDocument = ReadDocumentOf<typeof projects>;
 

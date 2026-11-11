@@ -11,6 +11,7 @@ import { commentsModule } from "./comments/module";
 import { issuesModule } from "./issues/module";
 import { notificationsModule } from "./notifications/module";
 import { projectsModule } from "./projects/module";
+import { searchModule } from "./search/module";
 
 // THE list of modules: adding one is one line here. Dependency order is
 // computed (`resolveModules`), not written.
@@ -27,6 +28,7 @@ const registered = [
   attachmentsModule,
   activityModule,
   notificationsModule,
+  searchModule,
 ] as const;
 
 export const modules: readonly Module[] = resolveModules(registered);

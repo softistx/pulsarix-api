@@ -1024,6 +1024,17 @@ type Query {
   """
   projects(includeArchived: Boolean = false): [Project!]!
   """
+  Searches issues (title, key, description), projects (key, name, description)
+  and members (name, e-mail) of the request's organisation, ranked best match
+  first, at most `first` per kind (1 to 50, default 10). `kinds` defaults to
+  every kind the viewer may read (`issue:read`, `project:read`, `member:read`;
+  an empty list means the same);
+  naming a kind the viewer may not read is 403 `auth.errors.forbidden`. An
+  issue key (`ABC-12`) comes first. 400 `validation.errors.invalid-input` on an
+  empty or over-long `query` (200 characters) or on `first`.
+  """
+  search(first: Int = 10, kinds: [SearchKind!], query: String!): SearchResults!
+  """
   How many notifications the viewer has not read. Needs organisation membership.
   """
   unreadNotificationCount: Int!
@@ -1065,6 +1076,22 @@ scalar SHA512 @specifiedBy(url: "https://csrc.nist.gov/pubs/fips/180-4/upd1/fina
 
 """An integer from -9007199254740991 to 9007199254740991."""
 scalar SafeInt
+
+enum SearchKind {
+  issue
+  member
+  project
+}
+
+"""
+What a search found, one list per kind, each best match first. A kind the
+search left out, or the viewer may not read, is an empty list.
+"""
+type SearchResults {
+  issues: [Issue!]!
+  members: [Member!]!
+  projects: [Project!]!
+}
 
 """
 A password was right but the account's second factor is active: no session
