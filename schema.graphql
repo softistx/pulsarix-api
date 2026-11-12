@@ -140,7 +140,9 @@ type Attachment {
   mime: String!
   ownerId: ID!
   ownerType: AttachmentOwnerType!
-  """A 256 px square thumbnail, for a picture; null for a PDF."""
+  """
+  A 256 px square thumbnail: a picture's, or a PDF's first page (WebP); null when none could be made.
+  """
   previewUrl: String
   """Bytes."""
   size: Int!
@@ -1088,6 +1090,11 @@ type Query {
   One issue by its key (any case). 404 `issues.errors.not-found`. Needs `issue:read`.
   """
   issue(key: String!): Issue!
+  """
+  The files of an issue and of all its comments, oldest first, in one query.
+  Needs `attachment:read`. 404 `issues.errors.not-found`.
+  """
+  issueAttachments(issueId: ID!): [Attachment!]!
   """
   The issues of a project, paged by cursor (`first` 1 to 100, default 50;
   default sort `number` ascending). Needs `issue:read`. 400

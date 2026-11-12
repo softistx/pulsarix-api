@@ -19,7 +19,7 @@ type Attachment {
   size: Int!
   "The file, relative to the API: `GET` it with the Bearer token and the organisation header."
   url: String!
-  "A 256 px square thumbnail, for a picture; null for a PDF."
+  "A 256 px square thumbnail: a picture's, or a PDF's first page (WebP); null when none could be made."
   previewUrl: String
   uploadedBy: ID!
   createdAt: DateTime!
@@ -31,6 +31,11 @@ type Query {
   404 `issues.errors.not-found` or `comments.errors.not-found`.
   """
   attachments(ownerType: AttachmentOwnerType!, ownerId: ID!): [Attachment!]!
+  """
+  The files of an issue and of all its comments, oldest first, in one query.
+  Needs `attachment:read`. 404 `issues.errors.not-found`.
+  """
+  issueAttachments(issueId: ID!): [Attachment!]!
 }
 
 type Mutation {

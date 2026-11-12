@@ -59,7 +59,11 @@ Files do not go through GraphQL. The routes sit beside `/graphql` and need the s
 | `GET /media/attachments/<key>` and `/<key>/256`                                                                   | `attachment:read`                                                               | the file (or the thumbnail), with Range, ETag and `Content-Security-Policy: sandbox`; 404 for a key no record of the organisation carries                                                                                                                                       |
 
 `attachments(ownerType, ownerId)` lists the files with their `url` and `previewUrl`;
-`deleteAttachment(id)` removes one (its uploader, or `attachment:delete`).
+`issueAttachments(issueId)` lists the files of an issue and of all its comments in one query;
+`deleteAttachment(id)` removes one (its uploader, or `attachment:delete`). An upload and a delete are
+journalled in the issue's activity as an `updated` row with one change, field `attachment` (`to` the
+file name for an upload, `from` it for a delete), so the issue's watchers are notified like any
+other change.
 
 ## Public endpoint
 
