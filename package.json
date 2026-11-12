@@ -37,7 +37,7 @@
     "@nxgt/graphql-scalars": "^0.7.1",
     "@nxgt/graphql-validation": "^0.8.1",
     "@softistx/image": "^0.6.0",
-    "@softistx/janus": "^0.58.0",
+    "@softistx/janus": "^0.58.1",
     "@softistx/janus-mail": "^0.25.11",
     "@softistx/janus-mongo": "^0.24.1",
     "@softistx/mail": "^1.5.0",
