@@ -697,4 +697,32 @@ describe("activity and issueAttachments", () => {
       activity.nodes.filter((r) => r.verb === "updated").map((r) => r.changes),
     ).toEqual([[{ field: "attachment", from: null, to: "c.pdf" }]]);
   }, 60_000);
+
+  test("a refused upload leaves no activity row", async () => {
+    const w = await setup();
+    const refused = await upload(
+      w,
+      w.member.token,
+      "issue",
+      w.issue.id,
+      pdf(),
+      {
+        name: null,
+      },
+    );
+    expect(refused.status).toBe(400);
+    const { activity } = await w
+      .as(w.viewer.token)
+      .call<{ activity: { nodes: Row[] } }>(Activity, { issueId: w.issue.id });
+    expect(activity.nodes.filter((r) => r.verb === "updated")).toEqual([]);
+  }, 60_000);
+
+  test("issueAttachments is refused to a stranger of the organisation", async () => {
+    const w = await setup();
+    const foreign = await ownerWithOrganisation(kit, "Elsewhere");
+    const answer = await kit
+      .client(foreign.owner.token, { organisation: w.organisation.id })
+      .attempt(IssueFiles, { issueId: w.issue.id });
+    expect(codeOf(answer)).toBe("tenancy.errors.unknown-organization");
+  });
 });
