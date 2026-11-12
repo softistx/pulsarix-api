@@ -15,6 +15,7 @@ export function serverAuth() {
     uiOrigin: env.UI_ORIGIN,
     mailFrom: env.MAIL_FROM,
     totpKeys: env.TOTP_KEYS,
+    magicLink: env.PULSARIX_MAGIC_LINK,
   });
   return built;
 }

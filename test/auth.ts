@@ -44,6 +44,7 @@ export function authApp(
     mailer?: Mailer;
     media?: Media | undefined;
     intake?: PublicIntake;
+    magicLink?: boolean;
   } = {},
 ) {
   const clock = fixedClock(Date.now());
@@ -56,6 +57,7 @@ export function authApp(
     uiOrigin,
     mailFrom: "noreply@pulsarix.test",
     totpKeys,
+    magicLink: options.magicLink ?? false,
   });
   const app = createApp({
     auth,

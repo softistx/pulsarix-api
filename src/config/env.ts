@@ -109,6 +109,17 @@ export const env = defineEnv({
   S3_BUCKET: unsetIfEmpty,
   S3_ACCESS_KEY: unsetIfEmpty,
   S3_SECRET_KEY: unsetIfEmpty,
+  // PULSARIX_MAGIC_LINK: sign-in by a link sent by e-mail. Off by default: off,
+  // `requestMagicLink` answers true and sends nothing (the answer for an
+  // unknown address), `confirmMagicLink` is refused 503 `auth.errors.unavailable`,
+  // and `authConfig.magicLink` is false. 1, true, yes or on turns it on.
+  PULSARIX_MAGIC_LINK: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
+    z
+      .enum(["", "0", "false", "no", "off", "1", "true", "yes", "on"])
+      .default("")
+      .transform((value) => ["1", "true", "yes", "on"].includes(value)),
+  ),
   // An empty PORT= is unset, not port 0.
   PORT: z.preprocess(
     (value) => (value === "" ? undefined : value),

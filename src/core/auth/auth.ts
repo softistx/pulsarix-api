@@ -28,6 +28,8 @@ export interface AuthOptions {
   mailFrom: string;
   // The sealing keys of the second factor, `id:key,id:key` (env TOTP_KEYS).
   totpKeys: string;
+  // Sign-in by e-mailed link (env PULSARIX_MAGIC_LINK); off when left out.
+  magicLink?: boolean;
   // `fixedClock()` in tests: sessions and links expire by it.
   clock?: Clock;
   // scrypt at OWASP's cost by default; a test passes a cheap one.
@@ -77,6 +79,7 @@ export function createAuth(options: AuthOptions) {
     relations: store.relations,
     membership: janusMembership(permissions, store.relations),
     mail,
+    magicLink: options.magicLink ?? false,
     mailer: options.mailer,
     from,
     links,

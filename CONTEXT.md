@@ -47,6 +47,8 @@ back from a button: a mail scanner follows a link, so a GET never spends it.
 | `/auth/magic-link?token=`     | sign-in link   | `confirmMagicLink` |
 | `/auth/reset-password?token=` | password reset | `resetPassword`    |
 
+The sign-in link is behind `PULSARIX_MAGIC_LINK` (off by default; `.env.example`, `deploy/.env.example`). Off, `requestMagicLink` answers true and sends nothing, `confirmMagicLink` is refused 503 `auth.errors.unavailable`, and `authConfig { magicLink }` is false so the sign-in screen hides the option.
+
 ## File routes
 
 Files do not go through GraphQL. The routes sit beside `/graphql` and need the same headers
