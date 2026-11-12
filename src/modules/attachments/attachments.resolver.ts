@@ -23,6 +23,8 @@ export const attachmentsResolvers: Resolvers = {
   Query: {
     attachments: async (_, { ownerType, ownerId }, ctx) =>
       (await scoped(ctx, "attachment:read")).list(ownerType, ownerId),
+    issueAttachments: async (_, { issueId }, ctx) =>
+      (await scoped(ctx, "attachment:read")).listForIssue(issueId),
   },
   Mutation: {
     deleteAttachment: async (_, { id }, ctx) =>

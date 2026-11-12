@@ -6,6 +6,7 @@ export {
   type IssueChange,
   type IssueChangeHandler,
   type IssueRemoval,
+  issueChanged,
   issueRemoved,
   registerIssueChange,
   registerIssueRemoval,

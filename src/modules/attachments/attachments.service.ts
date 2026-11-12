@@ -1,8 +1,14 @@
 import type { ModuleMongo } from "../../config/db";
-import { invalid } from "../../core/shared/errors";
+import {
+  type AfterCommit,
+  runAfterCommit,
+} from "../../core/shared/after-commit";
+import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
+import { retryWriteConflicts } from "../../core/shared/locked";
 import { commentNotFound } from "../comments/comments.errors";
 import { issueNotFound } from "../issues/issues.errors";
+import { type IssueChange, issueChanged } from "../issues/public";
 import { attachmentNotFound, tooMany } from "./attachments.errors";
 import { maxPerOwner } from "./attachments.kinds";
 import type { AttachmentDocument, OwnerType } from "./attachments.model";
@@ -103,20 +109,91 @@ export class AttachmentsService {
     if (count >= maxPerOwner) throw tooMany(maxPerOwner);
   }
 
+  // Runs `work` in a transaction. What it reports is journalled on the issue
+  // inside it, as an `updated` change of the field `attachment` (the file name
+  // as `to` for an upload, as `from` for a delete), so the activity feed and
+  // the watchers' notifications follow the issue's other changes. The live
+  // events go out once it has committed.
+  private async journalled<T>(
+    issueId: string,
+    work: (
+      tx: AttachmentsMongo,
+      changed: (from: string | null, to: string | null) => Promise<void>,
+    ) => Promise<T>,
+    // An upload needs its issue (else the write rolls back and the route
+    // removes the stored file); a delete may find it gone with it.
+    issueRequired: boolean,
+  ): Promise<T> {
+    let later: AfterCommit[] = [];
+    const result = await retryWriteConflicts(
+      () =>
+        this.mongo.transaction(async (tx) => {
+          later = [];
+          const changed = async (from: string | null, to: string | null) => {
+            const issue = await tx.db.issues.findById(
+              idOrInvalid(issueId, "issueId"),
+            );
+            if (!issue) {
+              // The issue is going in the same transaction: its deletion is journalled.
+              if (issueRequired) throw issueNotFound();
+              return;
+            }
+            const change: IssueChange = {
+              verb: "updated",
+              issue,
+              changes: [{ field: "attachment", from, to }],
+              actorId: this.viewerId,
+              organisationId: this.organisationId,
+            };
+            // The transaction's mongo holds the issues and activity collections too.
+            later.push(
+              ...(await issueChanged(
+                tx as unknown as ModuleMongo<"issues">,
+                change,
+              )),
+            );
+          };
+          return work(tx as AttachmentsMongo, changed);
+        }),
+      exhausted,
+    );
+    await runAfterCommit(later);
+    return result;
+  }
+
+  // The files of an issue and of all its comments, oldest first.
+  async listForIssue(issueId: string): Promise<AttachmentDocument[]> {
+    const id = idOrInvalid(issueId, "issueId");
+    if (!(await this.mongo.db.issues.exists({ _id: id })))
+      throw issueNotFound();
+    return this.mongo.db.attachments.findMany({
+      filter: { issueId: id },
+      sort: { _id: 1 },
+    });
+  }
+
   // Records a file the upload route has just stored.
   async record(file: NewAttachment): Promise<AttachmentDocument> {
     await this.ensureRoom(file.owner);
-    return this.mongo.db.attachments.create({
-      ownerType: file.owner.ownerType,
-      ownerId: idOrInvalid(file.owner.ownerId, "ownerId"),
-      issueId: idOrInvalid(file.owner.issueId, "issueId"),
-      fileName: file.fileName,
-      mime: file.mime,
-      size: file.size,
-      storageKey: file.storageKey,
-      previewKey: file.previewKey,
-      uploadedBy: this.viewerId,
-    });
+    return this.journalled(
+      file.owner.issueId,
+      async (tx, changed) => {
+        const created = await tx.db.attachments.create({
+          ownerType: file.owner.ownerType,
+          ownerId: idOrInvalid(file.owner.ownerId, "ownerId"),
+          issueId: idOrInvalid(file.owner.issueId, "issueId"),
+          fileName: file.fileName,
+          mime: file.mime,
+          size: file.size,
+          storageKey: file.storageKey,
+          previewKey: file.previewKey,
+          uploadedBy: this.viewerId,
+        });
+        await changed(null, created.fileName);
+        return created;
+      },
+      true,
+    );
   }
 
   // Answers the attachment's id. Its uploader or a moderator deletes it; the
@@ -129,7 +206,14 @@ export class AttachmentsService {
     if (found.uploadedBy !== this.viewerId && !this.moderator) {
       throw attachmentNotFound();
     }
-    await this.mongo.db.attachments.hardDelete(found._id);
+    await this.journalled(
+      found.issueId.toHexString(),
+      async (tx, changed) => {
+        await tx.db.attachments.hardDelete(found._id);
+        await changed(found.fileName, null);
+      },
+      false,
+    );
     await purge(objectKeys(this.organisationId, found));
     return found.id;
   }
