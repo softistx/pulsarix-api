@@ -42,5 +42,27 @@ delete Bun.env["REDIS_URL"];
 afterAll(async () => {
   const { closeDatabases } = await import("../src/config/db");
   await closeDatabases();
-  await replSet.stop();
+  await discard(replSet);
 });
+
+// The server and its files are thrown away, so it is killed rather than shut
+// down: a clean shutdown ends with a WiredTiger checkpoint of every collection
+// and index the run made (thousands of organisation databases' tables), which
+// grows with the suite and the machine's load. Past 10 s, mongodb-memory-server
+// falls back to SIGKILL anyway ("A child-process didnt exit with signal
+// SIGINT"), and the hook overran bun's 15 s timeout. `stop` then only removes
+// the data directory and the killer process.
+async function discard(set: MongoMemoryReplSet) {
+  await Promise.all(
+    set.servers.map(async (server) => {
+      const mongod = server.instanceInfo?.instance.mongodProcess;
+      if (!mongod || mongod.exitCode !== null || mongod.signalCode !== null) {
+        return;
+      }
+      const exited = new Promise((resolve) => mongod.once("exit", resolve));
+      mongod.kill("SIGKILL");
+      await exited;
+    }),
+  );
+  await set.stop();
+}
