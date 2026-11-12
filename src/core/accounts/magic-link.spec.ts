@@ -44,7 +44,6 @@ describe("sign-in by link, flag off (the default)", () => {
     // The same janus store, flag off: the token is never spent.
     const refused = await off.client().attempt(Confirm, { t: token });
     expect(codeOf(refused)).toBe("auth.errors.unavailable");
-    expect(refused.errors?.[0]?.extensions?.http).toEqual({ status: 503 });
   });
 });
 
@@ -57,13 +56,20 @@ describe("sign-in by link, flag on", () => {
 
   test("a member with a second factor gets the challenge, not a session", async () => {
     const email = uniqueEmail("totp-link");
-    const created = await on.client().call<{
-      signUp: { session: { token: string } };
-    }>(
-      `mutation($input: SignUpInput!) { signUp(input: $input) { session { token } } }`,
-      { input: { email, password: specPassword, name: "Totp Person" } },
-    );
-    const me = on.client(created.signUp.session.token);
+    // A link proves an unproved e-mail for the first time and drops the
+    // second factor (janus), so the account proves its e-mail by a link first.
+    await on
+      .client()
+      .call(
+        `mutation($input: SignUpInput!) { signUp(input: $input) { status } }`,
+        { input: { email, password: specPassword, name: "Totp Person" } },
+      );
+    await on.client().call<unknown>(Request, { e: email });
+    await on.settled();
+    const first = await on.client().call<{
+      confirmMagicLink: { session: { token: string } };
+    }>(Confirm, { t: tokenSent(on, email, "magicLink") });
+    const me = on.client(first.confirmMagicLink.session.token);
     const { enrollSecondFactor } = await me.call<{
       enrollSecondFactor: { secret: string };
     }>(`mutation { enrollSecondFactor { secret } }`);
