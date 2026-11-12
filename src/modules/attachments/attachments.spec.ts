@@ -16,7 +16,9 @@ beforeAll(async () => {
   ({ s3, media } = await startMediaS3());
   kit = authApp({ media });
 }, 300_000);
-afterAll(() => s3.stop());
+// Stopping the store can take longer than the 5 s default under load; an
+// overrun would otherwise fail the next file's hooks, unnamed.
+afterAll(() => s3.stop(), 60_000);
 
 const CreateProject = `mutation($input: CreateProjectInput!) {
   createProject(input: $input) { id }
