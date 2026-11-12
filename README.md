@@ -16,7 +16,7 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
   `bun run services:down` stops the services.
 - Every `/graphql` request carries `x-pulsarix-client` (any value); a request about an
   organisation names it in `x-organization-id` (its id or slug) and the session token in
-  `Authorization: Bearer`. The operations: sign-up, sign-in, second factor (TOTP), magic link,
+  `Authorization: Bearer`. The operations: sign-up, sign-in, second factor (TOTP), magic link (behind `PULSARIX_MAGIC_LINK`, off by default; `authConfig { magicLink }` tells the UI),
   reset, `createOrganisation`, members, invitations, step-up (see `schema.graphql` and the
   error codes in [CONTEXT.md](CONTEXT.md)). Texts are English by default, French with
   `Accept-Language: fr`.

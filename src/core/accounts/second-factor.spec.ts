@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { authApp, specPassword, uniqueEmail } from "~/auth";
+import { authApp, proveEmail, specPassword, uniqueEmail } from "~/auth";
 import { codeOf } from "~/http";
 
 const kit = authApp();
@@ -30,6 +30,7 @@ async function accountWithSecondFactor() {
   const signedUp = await kit
     .client()
     .call<{ signUp: { session: { token: string } } }>(SignUp, { input });
+  await proveEmail(kit, email);
   const asAccount = kit.client(signedUp.signUp.session.token);
   const enrolment = await asAccount.call<{
     enrollSecondFactor: { secret: string; uri: string };
@@ -59,6 +60,32 @@ async function accountWithSecondFactor() {
 }
 
 describe("the TOTP second factor", () => {
+  test("it is set up after the e-mail is proved, not before", async () => {
+    const email = uniqueEmail("unproved");
+    const created = await kit.client().call<{
+      signUp: { session: { token: string } };
+    }>(SignUp, {
+      input: { email, password: specPassword, name: "Unproved Person" },
+    });
+    const me = kit.client(created.signUp.session.token);
+    const refused = await me.attempt(
+      `mutation { enrollSecondFactor { secret } }`,
+    );
+    expect(codeOf(refused)).toBe("auth.errors.email-unverified");
+    expect(
+      codeOf(
+        await me.attempt(
+          `mutation { activateSecondFactor(code: "123456") { codes } }`,
+        ),
+      ),
+    ).toBe("auth.errors.email-unverified");
+    await proveEmail(kit, email);
+    const enrolled = await me.call<{ enrollSecondFactor: { secret: string } }>(
+      `mutation { enrollSecondFactor { secret } }`,
+    );
+    expect(enrolled.enrollSecondFactor.secret).toBeTruthy();
+  });
+
   test("a sign-in asks for a code, and the right code opens the session", async () => {
     const account = await accountWithSecondFactor();
     expect(account.recoveryCodes).toHaveLength(10);
@@ -170,6 +197,7 @@ describe("the TOTP second factor", () => {
       .call<{ signUp: { session: { token: string } } }>(SignUp, {
         input: { email, password: specPassword, name: "Person" },
       });
+    await proveEmail(kit, email);
     const me = kit.client(signedUp.signUp.session.token);
     expect(
       codeOf(

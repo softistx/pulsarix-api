@@ -11,6 +11,10 @@ export interface Viewer {
   locale?: Locale | null;
   // Whether the account's TOTP second factor is active.
   hasSecondFactor: boolean;
+  // Whether the account's e-mail is proved (a link or an invitation proves it).
+  // A second factor is set up only after it: proving an e-mail for the first
+  // time drops the factor (janus).
+  emailVerified: boolean;
   // When the request's session ends; null when no session was read (a fake
   // in a spec).
   sessionExpiresAt: Date | null;
@@ -33,6 +37,7 @@ export const viewerOf = (
     name: string;
     locale?: Locale | undefined;
     hasSecondFactor?: boolean;
+    emailVerified?: boolean;
   },
   session?: { id?: string; expiresAt: Date; authenticatedAt?: Date },
 ): Viewer => ({
@@ -41,6 +46,7 @@ export const viewerOf = (
   name: user.name,
   locale: user.locale ?? null,
   hasSecondFactor: user.hasSecondFactor ?? false,
+  emailVerified: user.emailVerified ?? false,
   sessionExpiresAt: session?.expiresAt ?? null,
   authenticatedAt: session?.authenticatedAt ?? null,
   sessionId: session?.id ?? null,

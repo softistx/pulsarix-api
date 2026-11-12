@@ -1,7 +1,7 @@
 import { JanusError } from "@softistx/janus";
 import { isLocale, type Locale } from "../../i18n/locale";
 import type { Auth } from "../auth";
-import { invalid } from "../shared/errors";
+import { invalid, unavailable } from "../shared/errors";
 import { authCall, signInCall } from "./accounts.errors";
 import { sessionOf, signedIn } from "./accounts.utils";
 
@@ -22,6 +22,11 @@ export class SignInService {
     private readonly request: Request,
     private readonly locale: Locale,
   ) {}
+
+  // Whether sign-in by link is on (env PULSARIX_MAGIC_LINK).
+  get magicLink() {
+    return this.auth.magicLink;
+  }
 
   private get users() {
     return this.auth.accounts.user;
@@ -79,7 +84,10 @@ export class SignInService {
   // The lookup and the mail run in the background, so neither the answer nor
   // its time tells whether the account exists. The mail is written in the
   // account's language, else the request's.
+  // With the flag off (env PULSARIX_MAGIC_LINK) it answers true and does
+  // nothing, as for an unknown address.
   async requestMagicLink(email: string) {
+    if (!this.auth.magicLink) return true;
     const locale = this.locale;
     const prepared = await authCall(() => this.users.magicLink.prepare(email));
     this.auth.background.run("a sign-in link", async () => {
@@ -93,7 +101,9 @@ export class SignInService {
     return true;
   }
 
+  // Refused 503 `auth.errors.unavailable` with the flag off.
   confirmMagicLink(token: string) {
+    if (!this.auth.magicLink) throw unavailable();
     return signInCall(async () =>
       signedIn(await this.users.magicLink.confirm(token)),
     );

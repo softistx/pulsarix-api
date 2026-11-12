@@ -7,6 +7,7 @@ import { permissionsOfAccount, requireViewer } from "../access";
 export const accounts: Resolvers = {
   Query: {
     viewer: (_, __, ctx) => ctx.viewer,
+    authConfig: (_, __, ctx) => ({ magicLink: ctx.services.signIn.magicLink }),
   },
   Viewer: {
     language: ({ locale }) => (locale ? (locale === "en" ? "EN" : "FR") : null),

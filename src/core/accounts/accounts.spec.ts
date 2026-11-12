@@ -8,7 +8,7 @@ import {
 } from "~/auth";
 import { codeOf } from "~/http";
 
-const kit = authApp();
+const kit = authApp({ magicLink: true });
 
 const SignIn = `mutation($input: SignInInput!) {
   signIn(input: $input) { status session { token viewer { email name language permissions } } }

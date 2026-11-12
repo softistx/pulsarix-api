@@ -115,9 +115,17 @@ input ChangePasswordInput {
   newPassword: String! @constraint(maxLength: 1024)
 }
 
+"What a sign-in screen may offer; public, read before anyone is signed in."
+type AuthConfig {
+  "Sign-in by an e-mailed link is on (env PULSARIX_MAGIC_LINK, off by default)."
+  magicLink: Boolean!
+}
+
 type Query {
   "The signed-in account, or null when anonymous."
   viewer: Viewer
+  "The sign-in options this server offers. Anonymous."
+  authConfig: AuthConfig!
 }
 
 type Mutation {
@@ -157,7 +165,9 @@ type Mutation {
   """
   Starts setting up a second factor for the signed-in account: a new secret
   replaces a waiting one. 409 `auth.errors.second-factor-active` when one is
-  active already. It protects nothing until `activateSecondFactor`.
+  active already; 403 `auth.errors.email-unverified` while the account's e-mail
+  is not proved (a sign-in link proves it; proving it later would drop the
+  factor). It protects nothing until `activateSecondFactor`.
   """
   enrollSecondFactor: SecondFactorEnrolment!
   """
@@ -173,14 +183,16 @@ type Mutation {
   disableSecondFactor: Boolean!
   """
   Sends a sign-in link (`/auth/magic-link`). True once accepted, whether or not
-  the e-mail holds an account. 429 `auth.errors.too-many-attempts` (with
+  the e-mail holds an account, and when `authConfig.magicLink` is off (nothing is
+  sent). 429 `auth.errors.too-many-attempts` (with
   `retryAfter`) past five requests for one address in ten minutes.
   """
   requestMagicLink(email: String! @constraint(maxLength: 320)): Boolean!
   """
   The token of a sign-in link, posted by the page it opens (never on GET: mail
   scanners follow links). 400 `auth.errors.invalid-token`. An account with a
-  second factor gets SECOND_FACTOR_REQUIRED.
+  second factor gets SECOND_FACTOR_REQUIRED. 503 `auth.errors.unavailable` when
+  `authConfig.magicLink` is off.
   """
   confirmMagicLink(token: String! @constraint(maxLength: 200)): SignInPayload!
   """

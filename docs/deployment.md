@@ -68,6 +68,8 @@ token with `read:packages` (`$GITHUB_TOKEN`, `~/.config/pulsarix/github-token` o
 handed to BuildKit as a secret. Flags: `--env`, `--prefix` (a second stack), `--no-pull`, `--ui`,
 `--timeout`. A rerun with nothing changed recreates nothing.
 
+Sign-in by an e-mailed link is off unless `PULSARIX_MAGIC_LINK=true` in `deploy/.env`.
+
 Check: `docker compose -f deploy/docker-compose.yaml --env-file deploy/.env ps` shows every
 service healthy; `GET /ready` answers 200 inside the API container.
 
