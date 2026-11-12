@@ -10,6 +10,11 @@ import { fail, invalid, retryParams } from "../shared/errors";
 export const invalidCredentials = () =>
   fail("auth.errors.invalid-credentials", { status: 401 });
 
+// A second factor is set up after the e-mail is proved: proving it later (a
+// link) would drop the factor. 403, until the account signs in by a link.
+export const emailUnverified = () =>
+  fail("auth.errors.email-unverified", { status: 403 });
+
 export const invalidToken = () =>
   fail("auth.errors.invalid-token", { status: 400 });
 

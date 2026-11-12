@@ -25,6 +25,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "A second factor is already active. Disable it first.",
     "auth.errors.second-factor-not-enrolled":
       "No second factor is being set up. Start again.",
+    "auth.errors.email-unverified":
+      "Confirm your e-mail address before setting up a second factor: sign in with the link sent to you.",
     "auth.errors.second-factor-required":
       "This organisation requires a second factor. Set one up to continue.",
     "tenancy.errors.organization-required":
@@ -127,6 +129,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Un second facteur est déjà actif. Désactivez-le d'abord.",
     "auth.errors.second-factor-not-enrolled":
       "Aucun second facteur n'est en cours de configuration. Recommencez.",
+    "auth.errors.email-unverified":
+      "Confirmez votre adresse e-mail avant de configurer un second facteur : connectez-vous avec le lien qui vous a été envoyé.",
     "auth.errors.second-factor-required":
       "Cette organisation exige un second facteur. Configurez-en un pour continuer.",
     "tenancy.errors.organization-required":

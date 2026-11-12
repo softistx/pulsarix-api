@@ -753,7 +753,9 @@ type Mutation {
   """
   Starts setting up a second factor for the signed-in account: a new secret
   replaces a waiting one. 409 `auth.errors.second-factor-active` when one is
-  active already. It protects nothing until `activateSecondFactor`.
+  active already; 403 `auth.errors.email-unverified` while the account's e-mail
+  is not proved (a sign-in link proves it; proving it later would drop the
+  factor). It protects nothing until `activateSecondFactor`.
   """
   enrollSecondFactor: SecondFactorEnrolment!
   """

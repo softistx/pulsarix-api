@@ -213,5 +213,16 @@ export async function memberWith(
     password: specPassword,
   });
   const { token, viewer } = accepted.acceptInvitation.signIn.session;
-  return { id: viewer.id, token };
+  return { id: viewer.id, token, email };
+}
+
+// Proves an account's e-mail the way a mailed link does, server side: a second
+// factor is only set up after it (`auth.errors.email-unverified`).
+export async function proveEmail(kit: AuthApp, email: string) {
+  const users = kit.auth.accounts.user;
+  const user = await users.findByEmail(email);
+  if (!user) throw new Error(`no account for ${email}`);
+  if (user.emailVerified) return;
+  const { token } = await users.verifyEmail.send(user);
+  await users.verifyEmail.confirm(token);
 }

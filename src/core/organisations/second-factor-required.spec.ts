@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
+import { authApp, memberWith, ownerWithOrganisation, proveEmail } from "~/auth";
 import { codeOf } from "~/http";
 
 const kit = authApp();
@@ -11,8 +11,9 @@ const Read = `{ organisation { id requireSecondFactor viewerPermissions } }`;
 const Members = `{ members { id } }`;
 
 // Enrols and activates a TOTP second factor for the account holding `token`.
-async function enrol(token: string) {
-  const asAccount = kit.client(token);
+async function enrol(account: { token: string; email: string }) {
+  await proveEmail(kit, account.email);
+  const asAccount = kit.client(account.token);
   const { enrollSecondFactor } = await asAccount.call<{
     enrollSecondFactor: { secret: string };
   }>(`mutation { enrollSecondFactor { secret } }`);
@@ -31,7 +32,7 @@ describe("the second factor required per organisation", () => {
     expect(codeOf(await asOwner.attempt(Require, { required: true }))).toBe(
       "auth.errors.second-factor-not-enrolled",
     );
-    await enrol(owner.token);
+    await enrol(owner);
 
     // A stale session is asked for a step-up first.
     kit.clock.advance(11 * 60 * 1000);
@@ -64,7 +65,7 @@ describe("the second factor required per organisation", () => {
       ).organisation.requireSecondFactor,
     ).toBe(false);
 
-    await enrol(owner.token);
+    await enrol(owner);
     const on = await asOwner.call<{
       setSecondFactorRequired: { requireSecondFactor: boolean };
     }>(Require, { required: true });
@@ -96,7 +97,7 @@ describe("the second factor required per organisation", () => {
     expect(mine.myOrganisations[0]?.organisation.requireSecondFactor).toBe(
       true,
     );
-    await enrol(member.token);
+    await enrol(member);
     expect(
       (await asMember.call<{ organisation: { id: string } }>(Read)).organisation
         .id,
