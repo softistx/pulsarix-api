@@ -4,7 +4,7 @@ import type { Auth } from "../auth";
 import { requireFresh } from "../auth/fresh";
 import { type Viewer, viewerOf } from "../auth/viewer";
 import { invalid, required } from "../shared/errors";
-import { authCall, emailUnverified } from "./accounts.errors";
+import { authCall } from "./accounts.errors";
 
 // What the signed-in account does to itself: its name and language, its
 // password, its second factor, a step-up. Built for the request's viewer (a
@@ -93,16 +93,11 @@ export class ViewerService {
     return true;
   }
 
-  // 403 `auth.errors.email-unverified` while the e-mail is not proved.
-  private requireVerifiedEmail() {
-    if (!this.viewer.emailVerified) throw emailUnverified();
-  }
-
   // Starts a TOTP second factor: the secret and the otpauth URI to render as a
   // QR code, answered once. A waiting secret is replaced; an active factor is
-  // refused (disable it first).
+  // refused (disable it first). 403 `auth.errors.email-unverified` while the
+  // e-mail is not proved (janus's EMAIL_UNVERIFIED).
   enrollSecondFactor() {
-    this.requireVerifiedEmail();
     requireFresh(this.viewer, this.auth.clock);
     return authCall(() => this.users.secondFactor.enroll(this.viewer.id));
   }
@@ -110,7 +105,6 @@ export class ViewerService {
   // The first code the app shows: the factor is active from now on, and the
   // ten recovery codes are answered, once.
   activateSecondFactor(code: string) {
-    this.requireVerifiedEmail();
     return authCall(async () => {
       const { recoveryCodes } = await this.users.secondFactor.activate(
         this.viewer.id,

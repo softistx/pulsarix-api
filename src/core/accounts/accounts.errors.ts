@@ -10,8 +10,9 @@ import { fail, invalid, retryParams } from "../shared/errors";
 export const invalidCredentials = () =>
   fail("auth.errors.invalid-credentials", { status: 401 });
 
-// A second factor is set up after the e-mail is proved: proving it later (a
-// link) would drop the factor. 403, until the account signs in by a link.
+// A second factor or a passkey is set up after the e-mail is proved: proving
+// it later (a link) would drop it. janus refuses it itself (EMAIL_UNVERIFIED),
+// answered here as 403, until the e-mail is proved.
 export const emailUnverified = () =>
   fail("auth.errors.email-unverified", { status: 403 });
 
@@ -62,6 +63,8 @@ export function fromJanus(error: JanusError): GraphQLError | undefined {
     case "TOKEN_STALE":
     case "VERSION_CONFLICT":
       return invalidToken();
+    case "EMAIL_UNVERIFIED":
+      return emailUnverified();
     case "SECOND_FACTOR_ACTIVE":
       return fail("auth.errors.second-factor-active", { status: 409 });
     case "SECOND_FACTOR_NOT_ENROLLED":
