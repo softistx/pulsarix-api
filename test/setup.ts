@@ -39,19 +39,21 @@ delete Bun.env["REDIS_URL"];
   await syncMongoAdapter(dbOf(coreMongo));
 }
 
+// Its own timeout, not the specs' 15 s: removing the server's data directory
+// (thousands of organisation tables' files) takes 9 s after the four intake
+// specs alone on a loaded laptop, and more after the whole suite.
 afterAll(async () => {
   const { closeDatabases } = await import("../src/config/db");
   await closeDatabases();
   await discard(replSet);
-});
+}, 120_000);
 
 // The server and its files are thrown away, so it is killed rather than shut
 // down: a clean shutdown ends with a WiredTiger checkpoint of every collection
-// and index the run made (thousands of organisation databases' tables), which
-// grows with the suite and the machine's load. Past 10 s, mongodb-memory-server
-// falls back to SIGKILL anyway ("A child-process didnt exit with signal
-// SIGINT"), and the hook overran bun's 15 s timeout. `stop` then only removes
-// the data directory and the killer process.
+// and index the run made, which grows with the suite and the machine's load.
+// Past 10 s, mongodb-memory-server falls back to SIGKILL anyway ("A
+// child-process didnt exit with signal SIGINT"). `stop` then only stops the
+// killer process and removes the data directory.
 async function discard(set: MongoMemoryReplSet) {
   await Promise.all(
     set.servers.map(async (server) => {
