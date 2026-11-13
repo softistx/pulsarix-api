@@ -667,8 +667,7 @@ type Mutation {
   token issued to another account is refused and stays usable by its owner. 401
   `auth.errors.unauthenticated`; 400 `auth.errors.invalid-token` for a token
   unknown, expired, spent, issued to another account or to an address the
-  account no longer holds. An e-mail proved already confirms again without
-  change. The second factor and the password are kept.
+  account no longer holds. The second factor and the password are kept.
   """
   confirmEmailVerification(token: String! @constraint(maxLength: 200)): Viewer!
   """

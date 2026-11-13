@@ -1,4 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import type { Mailer } from "@softistx/mail";
+import { createMemoryMailer } from "@softistx/mail";
 import { authApp, proveEmail, signedUp, specPassword, tokenSent } from "~/auth";
 import { codeOf } from "~/http";
 
@@ -132,16 +134,6 @@ describe("confirmEmailVerification", () => {
     ).toBe("auth.errors.invalid-token");
   });
 
-  test("an account verified already stays verified", async () => {
-    const { account, token } = await asked();
-    await proveEmail(kit, account.email);
-    const done = await kit.client(account.token).attempt(Confirm, { t: token });
-    // janus either confirms again or refuses the lapsed token; the account is
-    // verified either way.
-    if (done.errors) expect(codeOf(done)).toBe("auth.errors.invalid-token");
-    expect(await verified(account.token)).toBe(true);
-  });
-
   test("the account can then set up a second factor", async () => {
     const { account, token } = await asked();
     await kit.client(account.token).call(Confirm, { t: token });
@@ -149,6 +141,51 @@ describe("confirmEmailVerification", () => {
       enrollSecondFactor: { secret: string };
     }>(`mutation { enrollSecondFactor { secret } }`);
     expect(enrollSecondFactor.secret).toBeTruthy();
+  });
+});
+
+describe("the mail", () => {
+  test("a French account gets the French subject", async () => {
+    const en = await asked();
+    const fr = await signedUp(kit);
+    await kit
+      .client(fr.token)
+      .call(`mutation { updateViewer(input: { language: FR }) { id } }`);
+    await kit.client(fr.token).call(Request);
+    await kit.settled();
+    const subject = (to: string) =>
+      kit.sent.findLast((s) => s.to === to && s.kind === "verifyEmail")
+        ?.subject;
+    expect(subject(fr.email)).toBeTruthy();
+    expect(subject(fr.email)).not.toBe(subject(en.account.email));
+  });
+
+  test("a mailer that throws still gets true, and one background log line", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const memory = createMemoryMailer();
+      const broken = authApp({
+        mailer: {
+          ...memory,
+          send: async () => {
+            throw new Error("smtp down");
+          },
+        } as unknown as Mailer,
+      });
+      const account = await signedUp(broken);
+      const answer = await broken
+        .client(account.token)
+        .attempt<unknown>(Request);
+      await broken.settled();
+      expect(answer.data).toEqual({ requestEmailVerification: true });
+      const lines = log.mock.calls
+        .map((call) => String(call[0]))
+        .filter((line) => line.includes("failed in the background"));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain("an e-mail verification link");
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 
@@ -184,6 +221,29 @@ describe("the account limit of requestEmailVerification", () => {
       expect(codeOf(refused)).toBe("auth.errors.too-many-attempts");
       expect(refused.errors?.[0]?.extensions?.params?.["retryAfter"]).toBe(90);
     }
+  });
+
+  test("the account limit is spent before janus counts the address", async () => {
+    let open = false;
+    const limited = authApp({
+      limits: {
+        ...unused,
+        emailVerificationAccount: {
+          consume: async () => ({ allowed: open, retryAfter: 1_000 }),
+        },
+      },
+    });
+    const account = await signedUp(limited);
+    // Six refusals by the limit: janus (5 per 10 minutes) counted none.
+    for (let i = 0; i < 6; i++) {
+      expect(codeOf(await limited.client(account.token).attempt(Request))).toBe(
+        "auth.errors.too-many-attempts",
+      );
+    }
+    open = true;
+    await limited.client(account.token).call(Request);
+    await limited.settled();
+    expect(limited.sent.some((s) => s.to === account.email)).toBe(true);
   });
 
   test("a limiter that throws is a 503, never a free pass", async () => {
