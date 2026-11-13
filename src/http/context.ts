@@ -1,9 +1,4 @@
-import {
-  alxia,
-  defineMiddleware,
-  forwardedIp,
-  type TrustedProxies,
-} from "@alxia/core";
+import { alxia, defineMiddleware } from "@alxia/core";
 import type { GraphQLContext } from "@alxia/graphql";
 import type { ViewerMemberships } from "@alxia/tenancy";
 import { StoreFailure } from "@softistx/janus";
@@ -18,6 +13,7 @@ import {
 import type { Services } from "../core/services";
 import { unavailable } from "../core/shared/errors";
 import { i18n } from "../i18n";
+import { clientIp } from "./client-ip";
 
 export type { Viewer } from "../core/auth/viewer";
 
@@ -65,36 +61,6 @@ export function createBase(options: BaseOptions = {}) {
       })
     : alxia();
   return base.decorate({ env }).use(i18n).use(requestIdOf).use(viewerOf);
-}
-
-export const PROXY_SECRET_HEADER = "x-pulsarix-proxy-secret";
-
-// The widget's endpoint: called by browsers through Traefik, never by the UI's
-// server, so it cannot carry the secret.
-const OPEN_PREFIX = "/public/";
-
-// The `ip` option behind proxies, passed straight to `alxia({ ip })`: it must
-// not be wrapped, or @alxia/proxy no longer strips the secret header. Under
-// /public/, TRUSTED_PROXIES alone. Elsewhere (/graphql, the media routes), with
-// `secret` (API_PROXY_SECRET), the forwarded address is honoured only on a
-// request that carries it in `x-pulsarix-proxy-secret`; any other request is the
-// connection's address. Without `secret`, TRUSTED_PROXIES alone everywhere.
-export function clientIp(options: {
-  trusted: TrustedProxies;
-  secret?: string | undefined;
-}) {
-  return forwardedIp({
-    trusted: options.trusted,
-    ...(options.secret
-      ? {
-          secret: {
-            header: PROXY_SECRET_HEADER,
-            value: options.secret,
-            appliesTo: (url: URL) => !url.pathname.startsWith(OPEN_PREFIX),
-          },
-        }
-      : {}),
-  });
 }
 
 export interface BaseOptions {
