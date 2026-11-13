@@ -1,4 +1,4 @@
-import type { AccountLimits } from "../accounts/accounts.limits";
+import type { AccountLimits } from "../accounts";
 import type { OrganisationLimits } from "../organisations";
 import type { IpLimits } from "./ip.limits";
 

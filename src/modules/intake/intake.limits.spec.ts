@@ -32,6 +32,7 @@ describe("the limits over Redis", () => {
       const limits = realtime.limits as unknown as IntakeLimits;
       expect(Object.keys(limits).sort()).toEqual([
         "acceptInvitationIp",
+        "emailVerificationAccount",
         "intakeEmail",
         "intakeIpKey",
         "intakeKey",
