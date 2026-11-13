@@ -1,0 +1,1511 @@
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+"""
+Validates an argument or an input field when the request arrives, before the resolver runs. A value that breaks a constraint is refused with a BAD_USER_INPUT error whose extensions list each issue with its path and the constraint that refused it; null and omitted values are not checked. Each argument below is one constraint, and they combine on one field.
+"""
+directive @constraint(
+  """
+  The string must contain this text (case-sensitive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  contains: String
+  """
+  The string must end with this text (case-sensitive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  endsWith: String
+  """
+  The number must be strictly less than this value (the value itself is refused). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to Int and Float values.
+  """
+  exclusiveMax: Float
+  """
+  The number must be strictly greater than this value (the value itself is refused). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to Int and Float values.
+  """
+  exclusiveMin: Float
+  """
+  The string must match this named format: byte, date, date-time, email, ipv4, ipv6, uri or uuid, or a format the server registered. An unknown name fails at server startup. Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  format: String
+  """
+  The number must be less than or equal to this value (inclusive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to Int and Float values.
+  """
+  max: Float
+  """
+  The list must hold at most this many items (inclusive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to list values.
+  """
+  maxItems: Int
+  """
+  The string must be at most this many characters long (UTF-16 code units, inclusive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  maxLength: Int
+  """
+  The number must be greater than or equal to this value (inclusive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to Int and Float values.
+  """
+  min: Float
+  """
+  The list must hold at least this many items (inclusive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to list values.
+  """
+  minItems: Int
+  """
+  The string must be at least this many characters long (UTF-16 code units, inclusive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  minLength: Int
+  """
+  The number must be a whole multiple of this value (for example 5 accepts 0, 5 and 10). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to Int and Float values.
+  """
+  multipleOf: Float
+  """
+  The string must not contain this text (case-sensitive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  notContains: String
+  """
+  The string must match this regular expression (JavaScript syntax, not anchored unless it uses ^ and $). An invalid expression fails at server startup. Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  pattern: String
+  """
+  The string must start with this text (case-sensitive). Refused otherwise with a BAD_USER_INPUT error naming the constraint. Applies to String and ID values.
+  """
+  startsWith: String
+) on ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
+
+"""
+What accepting an invitation answers: the new session, or `linked` (no
+session) when the account already signs in with a password. A session is
+SECOND_FACTOR_REQUIRED for an account with a second factor.
+"""
+type AcceptInvitationPayload {
+  linked: Boolean!
+  signIn: SignInPayload
+}
+
+"""
+A row of the append-only journal of a project's issues. It outlives the issue
+it names (`issueKey` is the issue's key at that time).
+"""
+type Activity {
+  actorId: ID!
+  at: DateTime!
+  changes: [ActivityChange!]!
+  id: ID!
+  issueId: ID
+  issueKey: String
+  projectId: ID!
+  verb: ActivityVerb!
+}
+
+"""
+One field a change touched. Values are text, `null` for none; a list is JSON text; a long text is cut.
+"""
+type ActivityChange {
+  field: String!
+  from: String
+  to: String
+}
+
+type ActivityConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Activity!]!
+}
+
+enum ActivityVerb {
+  commentDeleted
+  commentEdited
+  commented
+  created
+  deleted
+  moved
+  updated
+}
+
+input AddCommentInput {
+  body: String! @constraint(minLength: 1, maxLength: 20000)
+  """Default false."""
+  public: Boolean
+}
+
+"""
+A file on an issue or on one of its comments. The bytes are served by the
+media routes (`url`, `previewUrl`), to readers of the issue only.
+"""
+type Attachment {
+  createdAt: DateTime!
+  fileName: String!
+  id: ID!
+  """The issue the file belongs to (the comment's issue for a comment)."""
+  issueId: ID!
+  mime: String!
+  ownerId: ID!
+  ownerType: AttachmentOwnerType!
+  """
+  A 256 px square thumbnail: a picture's, or a PDF's first page (WebP); null when none could be made.
+  """
+  previewUrl: String
+  """Bytes."""
+  size: Int!
+  uploadedBy: ID!
+  """
+  The file, relative to the API: `GET` it with the Bearer token and the organisation header.
+  """
+  url: String!
+}
+
+enum AttachmentOwnerType {
+  comment
+  issue
+}
+
+"""
+What a sign-in screen may offer; public, read before anyone is signed in.
+"""
+type AuthConfig {
+  """
+  Sign-in by an e-mailed link is on (env PULSARIX_MAGIC_LINK, off by default).
+  """
+  magicLink: Boolean!
+}
+
+"""Standard base64 with padding, in its canonical spelling."""
+scalar Base64 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4648#section-4")
+
+"""URL-safe base64 without padding, in its canonical spelling."""
+scalar Base64URL @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4648#section-5")
+
+"""
+An integer of any size, as a decimal string (a safe-integer number is accepted as input).
+"""
+scalar BigInt
+
+"""An IPv4 block in CIDR notation, such as 10.0.0.0/8."""
+scalar CIDRv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4632")
+
+"""An IPv6 block in CIDR notation, such as 2001:db8::/32."""
+scalar CIDRv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
+
+input ChangePasswordInput {
+  currentPassword: String! @constraint(maxLength: 1024)
+  newPassword: String! @constraint(maxLength: 1024)
+}
+
+"""
+A report a reader sent through the widget. Everything in it is text from a
+stranger: show it as plain text, never as markup or links.
+"""
+type ClientReport {
+  closedAt: DateTime
+  createdAt: DateTime!
+  decidedAt: DateTime
+  decidedBy: ID
+  declineReason: String
+  description: String!
+  """
+  Null if none was given, or once erased (90 days after the report is closed or declined).
+  """
+  email: String
+  erasedAt: DateTime
+  id: ID!
+  """The issue an acceptance made."""
+  issueId: ID
+  locale: String!
+  metadata: [ClientReportMetadata!]!
+  pageUrl: String
+  projectId: ID!
+  state: ClientReportState!
+  title: String!
+  userAgent: String
+}
+
+type ClientReportConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [ClientReport!]!
+}
+
+"""A new client report of a project."""
+type ClientReportEvent {
+  at: DateTime!
+  reportId: ID!
+  title: String!
+}
+
+type ClientReportMetadata {
+  key: String!
+  value: String!
+}
+
+enum ClientReportState {
+  accepted
+  closed
+  declined
+  new
+}
+
+"""
+A comment on an issue. `body` is rich text with the `@[Label](id)` markers of
+the mention input; `mentionIds` are the members they name, checked by the
+server.
+"""
+type Comment {
+  authorId: ID!
+  body: String!
+  createdAt: DateTime!
+  """When the body or the flag was last changed; null if never."""
+  editedAt: DateTime
+  id: ID!
+  issueId: ID!
+  """The members the body mentions, in order of appearance."""
+  mentionIds: [ID!]!
+  """A reply the tracking page of a client report shows."""
+  public: Boolean!
+  updatedAt: DateTime!
+}
+
+type CommentConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Comment!]!
+}
+
+"""An ISO 3166-1 alpha-2 country code, such as FR."""
+scalar CountryCode @specifiedBy(url: "https://www.iso.org/iso-3166-country-codes.html")
+
+"""
+`statusId` defaults to the first Backlog status. `dueDate` may not precede
+`startDate`; `assigneeId` must be a member; labels and the parent belong to the
+project.
+"""
+input CreateIssueInput {
+  assigneeId: ID
+  description: String @constraint(maxLength: 50000)
+  dueDate: DateTime
+  labelIds: [ID!]
+  parentId: ID
+  priority: IssuePriority
+  projectId: ID!
+  startDate: DateTime
+  statusId: ID
+  title: String! @constraint(minLength: 1, maxLength: 200)
+}
+
+input CreateLabelInput {
+  colour: String! @constraint(maxLength: 7)
+  name: String! @constraint(minLength: 1, maxLength: 100)
+  projectId: ID!
+}
+
+"""
+`slug` is the organisation's address (lower case letters, digits and single
+hyphens, 2 to 63 characters); left out, it is made from the name. `timeZone`
+defaults to UTC.
+"""
+input CreateOrganisationInput {
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  slug: String @constraint(maxLength: 63)
+  timeZone: String @constraint(maxLength: 64)
+}
+
+"""`key` is stored in capitals. `leadId` must be a member."""
+input CreateProjectInput {
+  description: String @constraint(maxLength: 10000)
+  key: String! @constraint(minLength: 2, maxLength: 10)
+  leadId: ID
+  name: String! @constraint(minLength: 1, maxLength: 200)
+}
+
+input CreateStatusInput {
+  category: StatusCategory!
+  colour: String! @constraint(maxLength: 7)
+  name: String! @constraint(minLength: 1, maxLength: 100)
+  projectId: ID!
+}
+
+input CreateWidgetKeyInput {
+  allowedOrigins: [String!]! @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  label: String! @constraint(minLength: 1, maxLength: 100)
+  projectId: ID!
+}
+
+"""
+A cuid2: a lowercase letter, then lowercase letters and digits, 2 to 32 in all.
+"""
+scalar Cuid2 @specifiedBy(url: "https://github.com/paralleldrive/cuid2")
+
+"""An ISO 4217 currency code, such as EUR."""
+scalar Currency @specifiedBy(url: "https://www.iso.org/iso-4217-currency-codes.html")
+
+"""A calendar date, YYYY-MM-DD, with no time and no time zone."""
+scalar Date @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc3339#section-5.6")
+
+"""An instant: an RFC 3339 date-time with its offset."""
+scalar DateTime @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc3339")
+
+"""An ISO 8601 duration, such as P1DT2H or PT0.5S."""
+scalar Duration @specifiedBy(url: "https://www.iso.org/iso-8601-date-and-time-format.html")
+
+"""A field left out stays as it is."""
+input EditCommentInput {
+  body: String @constraint(minLength: 1, maxLength: 20000)
+  public: Boolean
+}
+
+"""An email address."""
+scalar EmailAddress
+
+"""One emoji, such as 👍."""
+scalar Emoji @specifiedBy(url: "https://www.unicode.org/reports/tr51/")
+
+"""A GUID: 8-4-4-4-12 hexadecimal digits, with no version check."""
+scalar GUID
+
+"""A CSS hsl() color, such as hsl(120, 100%, 50%)."""
+scalar HSL @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#the-hsl-notation")
+
+"""A CSS hsla() color, such as hsla(120, 100%, 50%, 0.5)."""
+scalar HSLA @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#the-hsl-notation")
+
+"""A CSS hexadecimal color, such as #ff0000."""
+scalar HexColorCode @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#hex-notation")
+
+"""A non-empty string of hexadecimal digits."""
+scalar Hexadecimal
+
+"""A host name, such as api.example.com."""
+scalar Hostname @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc1123")
+
+"""
+An International Bank Account Number, electronic form, such as FR1420041010050500013M02606.
+"""
+scalar IBAN @specifiedBy(url: "https://www.iso.org/standard/81090.html")
+
+"""An IPv4 or IPv6 address."""
+scalar IP @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
+
+"""An IPv4 address in dotted-quad form."""
+scalar IPv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc791")
+
+"""An IPv6 address."""
+scalar IPv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
+
+"""An ISBN-10 or ISBN-13, digits only, with its check digit verified."""
+scalar ISBN @specifiedBy(url: "https://www.isbn-international.org/content/isbn-users-manual/29")
+
+"""
+An organisation's invitation of an e-mail address to join it with a role. Its
+link (valid 7 days, mailed to the address) accepts it.
+"""
+type Invitation {
+  createdAt: DateTime!
+  email: EmailAddress!
+  expiresAt: DateTime!
+  id: ID!
+  """How the invitee is greeted, and what a new account is called."""
+  name: String!
+  role: Role!
+  """PENDING past `expiresAt` can no longer be accepted: resend it."""
+  status: InvitationStatus!
+  updatedAt: DateTime!
+}
+
+enum InvitationStatus {
+  ACCEPTED
+  PENDING
+  REVOKED
+}
+
+input InviteMemberInput {
+  email: String! @constraint(maxLength: 320)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  role: Role!
+}
+
+"""
+An issue of a project. Its `key` (`ABC-12`) is the project's key and its
+`number`, which counts from 1 with no gap.
+"""
+type Issue {
+  assigneeId: ID
+  """The client report it was accepted from, if any."""
+  clientReportId: ID
+  createdAt: DateTime!
+  """Rich text, as the client wrote it."""
+  description: String!
+  dueDate: DateTime
+  id: ID!
+  key: String!
+  labelIds: [ID!]!
+  number: Int!
+  parentId: ID
+  priority: IssuePriority!
+  projectId: ID!
+  """
+  Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`.
+  """
+  rank: String!
+  """The member who made it."""
+  reporterId: ID
+  startDate: DateTime
+  statusId: ID!
+  title: String!
+  updatedAt: DateTime!
+  watcherIds: [ID!]!
+  """Whether the viewer watches it."""
+  watching: Boolean!
+}
+
+type IssueConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Issue!]!
+}
+
+"""
+What the board and an issue's page are told live. Refetch the issue (or the
+activity row `activityId`) after a gap: nothing is replayed.
+"""
+type IssueEvent {
+  activityId: ID!
+  actorId: ID!
+  at: DateTime!
+  """The fields the change touched."""
+  fields: [String!]!
+  issueId: ID!
+  issueKey: String!
+  projectId: ID!
+  rank: String
+  """Where the issue stands: its status and rank (null for a comment)."""
+  statusId: ID
+  verb: ActivityVerb!
+}
+
+"""Every given field narrows the list (they are combined with AND)."""
+input IssueFilter {
+  assigneeId: ID
+  """The issues whose status has one of these categories."""
+  categories: [StatusCategory!]
+  """Due on or after (for a calendar's range)."""
+  dueAfter: DateTime
+  dueBefore: DateTime
+  """The issues carrying ANY of these labels."""
+  labelIds: [ID!]
+  """The children of this issue."""
+  parentId: ID
+  priorities: [IssuePriority!]
+  reporterId: ID
+  """Only the issues with no parent; ignored with `parentId`."""
+  rootsOnly: Boolean
+  startAfter: DateTime
+  startBefore: DateTime
+  statusIds: [ID!]
+  """Part of the title, any case."""
+  text: String @constraint(maxLength: 200)
+  """Only the issues nobody is assigned to; ignored with `assigneeId`."""
+  unassigned: Boolean
+  """Only the issues the viewer watches."""
+  watching: Boolean
+}
+
+enum IssuePriority {
+  high
+  low
+  medium
+  none
+  urgent
+}
+
+input IssueSort {
+  direction: SortDirection! = asc
+  field: IssueSortField!
+}
+
+enum IssueSortField {
+  createdAt
+  dueDate
+  number
+  priority
+  rank
+  startDate
+  title
+  updatedAt
+}
+
+"""Any JSON value."""
+scalar JSON @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc8259")
+
+"""A JSON object."""
+scalar JSONObject @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc8259#section-4")
+
+"""
+A signed JSON Web Token in compact form. Its signature is not verified.
+"""
+scalar JWT @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc7519")
+
+"""A KSUID: 27 characters of base62."""
+scalar KSUID @specifiedBy(url: "https://github.com/segmentio/ksuid")
+
+"""A tag a project puts on its issues."""
+type Label {
+  """`#rrggbb`."""
+  colour: String!
+  id: ID!
+  name: String!
+  projectId: ID!
+}
+
+"""The languages of mails and texts: English by default, French offered."""
+enum Language {
+  EN
+  FR
+}
+
+"""A latitude in decimal degrees, from -90 to 90."""
+scalar Latitude
+
+"""A date and a time with no offset, such as 2024-03-10T10:15:30."""
+scalar LocalDateTime
+
+"""A time of day with no offset, such as 10:15 or 10:15:30."""
+scalar LocalTime
+
+"""A BCP 47 language tag in canonical form, such as fr-FR."""
+scalar Locale @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc5646")
+
+"""
+A signed 64-bit integer, as a decimal string (a safe-integer number is accepted as input).
+"""
+scalar Long
+
+"""A longitude in decimal degrees, from -180 to 180."""
+scalar Longitude
+
+"""
+A MAC address: six hex pairs separated by colons (not the IEEE hyphen form).
+"""
+scalar MAC
+
+"""
+A person who works in the request's organisation: an account with one role there.
+"""
+type Member {
+  """False for a deactivated account, which can no longer sign in."""
+  active: Boolean!
+  conflict: Boolean!
+  email: EmailAddress!
+  """The account's id."""
+  id: ID!
+  """Whether this member is the signed-in account."""
+  isViewer: Boolean!
+  name: String!
+  """
+  Null when the account holds several roles in the organisation (`conflict`,
+  data written outside the API): it has no access until `changeMemberRole`
+  gives it one, or `removeMember` takes it out.
+  """
+  role: Role
+}
+
+type Mutation {
+  """
+  Accepts a new report: an issue is made from it in the project's Triage
+  status, linked both ways. Needs `issue:write`. 409
+  `intake.errors.report-decided`; 404 `intake.errors.not-found`.
+  """
+  acceptClientReport(id: ID!): ClientReport!
+  """
+  Accepts an invitation with the token of its link (`/invitations/accept`):
+  makes or finds the account of the invitation's e-mail, gives it the
+  invitation's role in the organisation, and signs it in (`signIn`), or answers
+  `linked` for an account that already signs in with a password (sign in as
+  usual). A new account, and an account whose e-mail was never proved, needs
+  `password`. Anonymous. 400 `invitations.errors.invalid` for a token unknown,
+  spent, revoked or expired; 400 `validation.errors.invalid-input` (a
+  `required` issue on `password`); 409 `invitations.errors.already-member`.
+  """
+  acceptInvitation(password: String @constraint(maxLength: 1024), token: String! @constraint(maxLength: 200)): AcceptInvitationPayload!
+  """
+  Activates the factor with the first code the app shows, and answers the
+  recovery codes, once. 400 `auth.errors.invalid-code`; 409
+  `auth.errors.second-factor-not-enrolled` or `auth.errors.second-factor-active`.
+  """
+  activateSecondFactor(code: String! @constraint(maxLength: 20)): RecoveryCodes!
+  """
+  Comments on an issue as the viewer. Needs `comment:write`. 404
+  `issues.errors.not-found`; 400 `comments.errors.mention-not-member` (on
+  `body`) when a mention marker names someone who is no member of the
+  organisation.
+  """
+  addComment(input: AddCommentInput!, issueId: ID!): Comment!
+  """
+  Hides the project from the default list; nothing is deleted. Needs `project:manage`.
+  """
+  archiveProject(id: ID!): Project!
+  """
+  Gives a member another role. Needs `member:manage` (admin, owner) and a
+  recent proof of identity (403 `auth.errors.step-up-required`: `requestStepUp`
+  then `confirmStepUp`). Only an owner grants the owner role or changes an
+  owner's (403 `members.errors.owner-required`). An organisation never loses its
+  last active owner (409 `members.errors.last-owner`). 404
+  `members.errors.not-found` for an account that is no member.
+  """
+  changeMemberRole(id: ID!, role: Role!): Member!
+  """
+  Changes the signed-in account's password, given the current one; every other
+  session of the account is signed out, the request's own stays. 401
+  `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `currentPassword`, a `too-short` issue on `newPassword`).
+  """
+  changePassword(input: ChangePasswordInput!): Boolean!
+  """
+  The token of a sign-in link, posted by the page it opens (never on GET: mail
+  scanners follow links). 400 `auth.errors.invalid-token`. An account with a
+  second factor gets SECOND_FACTOR_REQUIRED. 503 `auth.errors.unavailable` when
+  `authConfig.magicLink` is off.
+  """
+  confirmMagicLink(token: String! @constraint(maxLength: 200)): SignInPayload!
+  """
+  Opens the session of a SECOND_FACTOR_REQUIRED sign-in with the six-digit code
+  of the app. 400 `auth.errors.invalid-code` (with `attemptsLeft`; five wrong
+  codes spend the challenge) or `auth.errors.invalid-token` for a challenge
+  unknown, expired or spent: sign in again.
+  """
+  confirmSecondFactor(challenge: String! @constraint(maxLength: 200), code: String! @constraint(maxLength: 20)): SignInPayload!
+  """
+  Confirms the proof: the request's session counts as freshly signed in for ten
+  minutes. 400 `auth.errors.invalid-code` or `auth.errors.invalid-token`.
+  """
+  confirmStepUp(challenge: String! @constraint(maxLength: 200), code: String! @constraint(maxLength: 20)): Boolean!
+  """
+  Makes an issue at the end of its status. Needs `issue:write`. 404
+  `projects.errors.not-found`; 400 `validation.errors.invalid-input`
+  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`).
+  """
+  createIssue(input: CreateIssueInput!): Issue!
+  """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
+  createLabel(input: CreateLabelInput!): Label!
+  """
+  Creates an organisation with its own database; the signed-in account becomes
+  its owner. Needs `organisation:create`, which every signed-in account holds.
+  409 `tenancy.errors.slug-taken`; 409 `organisations.errors.too-many` (the
+  account already owns 10); 429 `auth.errors.too-many-attempts` (5 an hour);
+  400 `validation.errors.invalid-input` (an
+  `invalid` issue on `slug` or `timeZone`).
+  """
+  createOrganisation(input: CreateOrganisationInput!): MyOrganisation!
+  """
+  Makes a project with the default workflow (Triage, Backlog, Todo, In
+  progress, Done, Cancelled). Needs `project:manage` (admin, owner). 409
+  `projects.errors.key-taken`; 400 `validation.errors.invalid-input` (`key`,
+  `name`, `leadId`).
+  """
+  createProject(input: CreateProjectInput!): Project!
+  """
+  Adds a status at the end of the project's workflow. Needs `project:manage`.
+  409 `projects.errors.status-name-taken`.
+  """
+  createStatus(input: CreateStatusInput!): Status!
+  """
+  Makes a key for a project. Needs `intake:manage` and a recent proof of
+  identity (403 `auth.errors.step-up-required`). 400
+  `intake.errors.invalid-origin` on `allowedOrigins`; 404
+  `projects.errors.not-found`.
+  """
+  createWidgetKey(input: CreateWidgetKeyInput!): WidgetKey!
+  """
+  Declines a new report with a reason (kept for the team; the reporter sees
+  only the state). Needs `issue:write`. 409 `intake.errors.report-decided`.
+  """
+  declineClientReport(id: ID!, reason: String! @constraint(minLength: 1, maxLength: 1000)): ClientReport!
+  """
+  Deletes a file and its thumbnail; answers its id. Needs `attachment:write`
+  and being the uploader, or `attachment:delete`; otherwise 404
+  `attachments.errors.not-found`. Uploading is not a mutation: `PUT
+  /media/attachments?ownerType=&ownerId=&fileName=` with the raw body (see
+  CONTEXT.md).
+  """
+  deleteAttachment(id: ID!): ID!
+  """Deletes a comment; answers its id. Same rules as `editComment`."""
+  deleteComment(id: ID!): ID!
+  """
+  Deletes an issue; its children lose their parent. Answers its id. Needs `issue:delete` (admin, owner).
+  """
+  deleteIssue(id: ID!): ID!
+  """Deletes a label. Answers its id. Needs `project:manage`."""
+  deleteLabel(id: ID!): ID!
+  """
+  Deletes a status and closes the gap in the order. Refused while issues use it
+  (409 `projects.errors.status-in-use`). Answers its id. Needs `project:manage`.
+  """
+  deleteStatus(id: ID!): ID!
+  """
+  Removes the second factor and its recovery codes. Needs a recent proof of
+  identity (403 `auth.errors.step-up-required`).
+  """
+  disableSecondFactor: Boolean!
+  """
+  Changes the body or the `public` flag; the body's mentions are checked again.
+  Needs `comment:write`, and being the author or an admin: 403
+  `comments.errors.not-yours` otherwise. Only the author sets or changes
+  `public`: 403 `comments.errors.public-author-only` for an admin. 404
+  `comments.errors.not-found`.
+  """
+  editComment(id: ID!, input: EditCommentInput!): Comment!
+  """
+  Starts setting up a second factor for the signed-in account: a new secret
+  replaces a waiting one. 409 `auth.errors.second-factor-active` when one is
+  active already; 403 `auth.errors.email-unverified` while the account's e-mail
+  is not proved (a sign-in link proves it; proving it later would drop the
+  factor). It protects nothing until `activateSecondFactor`.
+  """
+  enrollSecondFactor: SecondFactorEnrolment!
+  """
+  Invites an e-mail address to the request's organisation with a role, and
+  mails the link (in the request's language). Inviting an address again
+  replaces its pending invitation. Needs `member:manage`; only an owner invites
+  an owner (403 `members.errors.owner-required`). 409
+  `invitations.errors.address-already-member` when the address holds an account
+  that is a member already.
+  """
+  inviteMember(input: InviteMemberInput!): Invitation!
+  """
+  Marks the given notifications of the viewer as read (an unknown or foreign
+  id is ignored; at most 200), or every unread one when `ids` is left out.
+  Answers the unread count left. Needs organisation membership.
+  """
+  markNotificationsRead(ids: [ID!]): Int!
+  """
+  Puts the issue in a status, right after `beforeId` and right before
+  `afterId` (the issues that end up above and below it; both optional, both in
+  that status). With neither it goes to the end. Only this issue is written.
+  409 `issues.errors.bad-placement` when a neighbour is elsewhere or the two
+  are not in order. Needs `issue:write`.
+  """
+  moveIssue(afterId: ID, beforeId: ID, id: ID!, statusId: ID!): Issue!
+  """
+  Opens the session with a recovery code instead of the app's code; the code is
+  spent. Same refusals as `confirmSecondFactor`.
+  """
+  recoverSecondFactor(challenge: String! @constraint(maxLength: 200), recoveryCode: String! @constraint(maxLength: 40)): SignInPayload!
+  """
+  Takes a member out of the organisation (their account stays, and any other
+  organisation they belong to). Same permission, proof and owner rules as
+  `changeMemberRole`. Answers the removed account's id. Takes out an account in
+  `conflict` too.
+  """
+  removeMember(id: ID!): ID!
+  """
+  Sets the workflow's order: `ids` are ALL the project's statuses, each once,
+  in the new order (400 `validation.errors.invalid-input` on `ids` otherwise).
+  Answers them in that order. Needs `project:manage`.
+  """
+  reorderStatuses(ids: [ID!]!, projectId: ID!): [Status!]!
+  """
+  Sends a sign-in link (`/auth/magic-link`). True once accepted, whether or not
+  the e-mail holds an account, and when `authConfig.magicLink` is off (nothing is
+  sent). 429 `auth.errors.too-many-attempts` (with
+  `retryAfter`) past five requests for one address in ten minutes.
+  """
+  requestMagicLink(email: String! @constraint(maxLength: 320)): Boolean!
+  """
+  Sends a password-reset link (`/auth/reset-password`). True once accepted,
+  whether or not the e-mail holds an account; throttled as `requestMagicLink`.
+  """
+  requestPasswordReset(email: String! @constraint(maxLength: 320)): Boolean!
+  """
+  Asks for a fresh proof of identity before a sensitive action (a role change,
+  a removal, disabling the second factor): a code mailed to the account, or the
+  app's code when a second factor is active. 401 `auth.errors.unauthenticated`.
+  """
+  requestStepUp: StepUpChallenge!
+  """
+  Sends a pending invitation again, with a new link valid 7 days (the old one
+  ends). Needs `member:manage`. 404 `invitations.errors.not-found`; 409
+  `invitations.errors.not-pending` for one accepted or revoked, 409
+  `invitations.errors.address-already-member` when its address became a member.
+  """
+  resendInvitation(id: ID!): Invitation!
+  """
+  Sets a new password from a reset link's token, and signs the account out
+  everywhere: sign in again after it. 400 `auth.errors.invalid-token`, 400
+  `validation.errors.invalid-input` (a `too-short` issue on `password`).
+  """
+  resetPassword(password: String! @constraint(maxLength: 1024), token: String! @constraint(maxLength: 200)): Boolean!
+  """
+  Revokes a pending invitation: its link no longer works. Needs `member:manage`.
+  404 `invitations.errors.not-found`; 409 `invitations.errors.not-pending`.
+  """
+  revokeInvitation(id: ID!): Invitation!
+  """
+  Retires the key for good: it answers like an unknown one. Answers its id.
+  Needs `intake:manage`.
+  """
+  revokeWidgetKey(id: ID!): ID!
+  """
+  Gives the key a new value; the old one stops working at once. Needs
+  `intake:manage` and a recent proof of identity.
+  """
+  rotateWidgetKey(id: ID!): WidgetKey!
+  """
+  Turns the second-factor requirement of the request's organisation on or off.
+  Needs `organisation:manage` (admin, owner) and a recent proof of identity (403
+  `auth.errors.step-up-required`). Turning it on needs the viewer's own second
+  factor to be active (409 `auth.errors.second-factor-not-enrolled`), so the
+  admin does not lock themselves out.
+  """
+  setSecondFactorRequired(required: Boolean!): Organisation!
+  """
+  Signs in with a password. 401 `auth.errors.invalid-credentials` for a wrong
+  e-mail or password (the same answer for an unknown account); 429
+  `auth.errors.too-many-attempts` (with `retryAfter`, in seconds) after ten wrong
+  passwords at one e-mail. An account with a second factor gets
+  SECOND_FACTOR_REQUIRED.
+  """
+  signIn(input: SignInInput!): SignInPayload!
+  """Revokes the request's session. False when it presented none."""
+  signOut: Boolean!
+  """
+  Makes an account and signs it in. 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `email` for an address that is taken or malformed, a
+  `too-short` issue on `password`). Making an organisation comes next
+  (`createOrganisation`).
+  """
+  signUp(input: SignUpInput!): SignInPayload!
+  """Brings an archived project back. Needs `project:manage`."""
+  unarchiveProject(id: ID!): Project!
+  """Removes the viewer from the watchers; repeatable. Needs `issue:write`."""
+  unwatchIssue(id: ID!): Issue!
+  """
+  Changes the given fields. Needs `issue:write`. 404 `issues.errors.not-found`;
+  409 `issues.errors.parent-cycle`.
+  """
+  updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
+  """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
+  updateLabel(id: ID!, input: UpdateLabelInput!): Label!
+  """
+  Changes the name or the time zone of the request's organisation. Needs
+  `organisation:manage` (admin, owner): 403 `auth.errors.forbidden` otherwise.
+  """
+  updateOrganisation(input: UpdateOrganisationInput!): Organisation!
+  """Changes a project; its key stays. Needs `project:manage`."""
+  updateProject(id: ID!, input: UpdateProjectInput!): Project!
+  """Needs `project:manage`. 409 `projects.errors.status-name-taken`."""
+  updateStatus(id: ID!, input: UpdateStatusInput!): Status!
+  """
+  Updates the signed-in account's own name and preferred language; nothing else
+  (not the e-mail, not the roles). Fields left out are kept. 401
+  `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input`.
+  """
+  updateViewer(input: UpdateViewerInput!): Viewer!
+  """Needs `intake:manage`. 404 `intake.errors.key-not-found`."""
+  updateWidgetKey(id: ID!, input: UpdateWidgetKeyInput!): WidgetKey!
+  """Adds the viewer to the watchers; repeatable. Needs `issue:write`."""
+  watchIssue(id: ID!): Issue!
+}
+
+"""An organisation the viewer is a member of, with their role there."""
+type MyOrganisation {
+  organisation: Organisation!
+  """
+  What `role` may do in this organisation, in the catalogue's order; the UI gates on it.
+  """
+  permissions: [String!]!
+  role: Role!
+}
+
+"""A Nano ID: 21 characters of A-Z, a-z, 0-9, _ and -."""
+scalar NanoID @specifiedBy(url: "https://github.com/ai/nanoid")
+
+"""A finite number below 0."""
+scalar NegativeFloat
+
+"""An integer from -2147483648 to -1."""
+scalar NegativeInt
+
+"""A string that is not empty and not only white space."""
+scalar NonEmptyString
+
+"""A finite number, 0 or above."""
+scalar NonNegativeFloat
+
+"""An integer from 0 to 2147483647."""
+scalar NonNegativeInt
+
+"""A finite number, 0 or below."""
+scalar NonPositiveFloat
+
+"""An integer from -2147483648 to 0."""
+scalar NonPositiveInt
+
+"""
+A notification of the viewer, in the organisation of `x-organization-id`. The
+issue's key and title are those at the time, so the row reads after the issue
+is gone.
+"""
+type Notification {
+  """The journal row (`activity`) the notification comes from."""
+  activityId: ID!
+  """Who did it (never the viewer)."""
+  actorId: ID!
+  """The comment, for a mention."""
+  commentId: ID
+  createdAt: DateTime!
+  id: ID!
+  issueId: ID!
+  issueKey: String!
+  issueTitle: String!
+  kind: NotificationKind!
+  projectId: ID!
+  """When the viewer read it; null while unread."""
+  readAt: DateTime
+}
+
+type NotificationConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  nodes: [Notification!]!
+}
+
+"""A new notification of the viewer, and their unread count."""
+type NotificationEvent {
+  kind: String!
+  notificationId: ID!
+  unreadCount: Int!
+}
+
+enum NotificationKind {
+  """An issue was assigned to the viewer."""
+  assigned
+  """The viewer was mentioned in a comment."""
+  mention
+  """An issue the viewer watches changed or was commented."""
+  watchedChange
+}
+
+"""A MongoDB ObjectId: 24 hexadecimal digits."""
+scalar ObjectID @specifiedBy(url: "https://www.mongodb.com/docs/manual/reference/method/ObjectId/")
+
+"""
+An organisation: the tenant of every request that names it, a team or a company.
+"""
+type Organisation {
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  """
+  Whether every member must have a TOTP second factor. A member without one is
+  refused every read of the organisation (403 `auth.errors.second-factor-required`)
+  until they enrol (`enrollSecondFactor`, `activateSecondFactor`).
+  """
+  requireSecondFactor: Boolean!
+  """
+  Names the organisation in URLs; set when it is created and never changed.
+  """
+  slug: String!
+  """An IANA time zone name, such as `Europe/Paris`; dates are shown in it."""
+  timeZone: String!
+  updatedAt: DateTime!
+  """
+  What the viewer may do IN THIS organisation, from their role there (the
+  access catalogue, built from the module manifests): permission codes
+  `<area>:<action>`, in catalogue order; the UI gates on them. Empty for an
+  anonymous viewer or a non-member.
+  """
+  viewerPermissions: [String!]!
+}
+
+"""
+Where a page of a list ends. Paging is forward only: `endCursor` is the
+`after` of the next page; to go back, a client keeps the cursors it has
+visited. `startCursor` is the `after` this page was asked with, and
+`hasPreviousPage` says whether it was given.
+"""
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+}
+
+"""A phone number in E.164 form, such as +33612345678."""
+scalar PhoneNumber @specifiedBy(url: "https://www.itu.int/rec/T-REC-E.164")
+
+"""A TCP or UDP port number, from 0 to 65535."""
+scalar Port
+
+"""A finite number above 0."""
+scalar PositiveFloat
+
+"""An integer from 1 to 2147483647."""
+scalar PositiveInt
+
+"""
+A project of the organisation: a place where issues are tracked. Its `key`
+(`ABC`) prefixes its issues' keys and is unique in the organisation.
+"""
+type Project {
+  """Null while the project is active."""
+  archivedAt: DateTime
+  createdAt: DateTime!
+  description: String!
+  id: ID!
+  """
+  2 to 10 capital letters or digits, starting with a letter; fixed when the project is made.
+  """
+  key: String!
+  labels: [Label!]!
+  """
+  The account leading the project, a member of the organisation; null when nobody does.
+  """
+  leadId: ID
+  name: String!
+  """The project's workflow, in order."""
+  statuses: [Status!]!
+  updatedAt: DateTime!
+  """Who sees the project; `organisation` is every member."""
+  visibility: ProjectVisibility!
+}
+
+enum ProjectVisibility {
+  organisation
+}
+
+type Query {
+  """
+  The journal of a project or of one issue (exactly one of `projectId` and
+  `issueId`), newest first, paged by cursor (`first` 1 to 100, default 50).
+  Needs `issue:read`; 400 `validation.errors.invalid` when neither or both are
+  given; 404 `projects.errors.not-found` for an unknown project (the history of a
+  deleted issue stays readable).
+  """
+  activity(after: String, first: Int = 50, issueId: ID, projectId: ID): ActivityConnection!
+  """
+  The files of an issue or a comment, oldest first. Needs `attachment:read`.
+  404 `issues.errors.not-found` or `comments.errors.not-found`.
+  """
+  attachments(ownerId: ID!, ownerType: AttachmentOwnerType!): [Attachment!]!
+  """The sign-in options this server offers. Anonymous."""
+  authConfig: AuthConfig!
+  """
+  The project's client reports, newest first, paged by cursor (`first` 1 to
+  100, default 50), optionally of one `state`. Needs `issue:write` (those who
+  triage). 404 `projects.errors.not-found`.
+  """
+  clientReports(after: String, first: Int = 50, projectId: ID!, state: ClientReportState): ClientReportConnection!
+  """
+  The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
+  default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
+  """
+  comments(after: String, first: Int = 50, issueId: ID!): CommentConnection!
+  """
+  The request's organisation's invitations, newest first, at most 100.
+  Organisation admins and owners only (`member:manage`).
+  """
+  invitations(status: InvitationStatus): [Invitation!]!
+  """
+  One issue by its key (any case). 404 `issues.errors.not-found`. Needs `issue:read`.
+  """
+  issue(key: String!): Issue!
+  """
+  The files of an issue and of all its comments, oldest first, in one query.
+  Needs `attachment:read`. 404 `issues.errors.not-found`.
+  """
+  issueAttachments(issueId: ID!): [Attachment!]!
+  """
+  The issues of a project, paged by cursor (`first` 1 to 100, default 50;
+  default sort `number` ascending). Needs `issue:read`. 400
+  `validation.errors.invalid-input` on `projectId`, `first` or `after`.
+  """
+  issues(after: String, filter: IssueFilter, first: Int = 50, projectId: ID!, sort: IssueSort): IssueConnection!
+  """
+  The request's organisation's members, by name. Any member
+  (`member:read`).
+  """
+  members: [Member!]!
+  """
+  The active organisations the signed-in account is a member of, by name, for
+  the organisation switcher. Needs no `x-organization-id`. 401
+  `auth.errors.unauthenticated`.
+  """
+  myOrganisations: [MyOrganisation!]!
+  """
+  The viewer's own notifications, newest first, paged by cursor (`first` 1 to
+  100, default 50); `unread: true` keeps the unread ones. Needs organisation
+  membership.
+  """
+  notifications(after: String, first: Int = 50, unread: Boolean): NotificationConnection!
+  """
+  The organisation the request names in `x-organization-id` (its id or slug).
+  Any member. 401 `auth.errors.unauthenticated`, 400
+  `tenancy.errors.organization-required`, 404 `tenancy.errors.unknown-organization`
+  (unknown, or the viewer is no member: the same answer).
+  """
+  organisation: Organisation!
+  """
+  One project by its key (any case). 404 `projects.errors.not-found`. Needs
+  `project:read`.
+  """
+  project(key: String!): Project!
+  """
+  The request's organisation's projects, by key; archived ones only when asked.
+  Any member (`project:read`).
+  """
+  projects(includeArchived: Boolean = false): [Project!]!
+  """
+  Searches issues (title, key, description), projects (key, name, description)
+  and members (name, e-mail) of the request's organisation, ranked best match
+  first, at most `first` per kind (1 to 50, default 10). `kinds` defaults to
+  every kind the viewer may read (`issue:read`, `project:read`, `member:read`;
+  an empty list means the same);
+  naming a kind the viewer may not read is 403 `auth.errors.forbidden`. An
+  issue key (`ABC-12`) comes first. 400 `validation.errors.invalid-input` on an
+  empty or over-long `query` (200 characters) or on `first`.
+  """
+  search(first: Int = 10, kinds: [SearchKind!], query: String!): SearchResults!
+  """
+  How many notifications the viewer has not read. Needs organisation membership.
+  """
+  unreadNotificationCount: Int!
+  version: String!
+  """The signed-in account, or null when anonymous."""
+  viewer: Viewer
+  """
+  The widget keys of a project, oldest first; revoked ones are not listed.
+  Needs `intake:manage` (admin, owner). 404 `projects.errors.not-found`.
+  """
+  widgetKeys(projectId: ID!): [WidgetKey!]!
+}
+
+"""A CSS rgb() color, such as rgb(255, 0, 0)."""
+scalar RGB @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#rgb-functions")
+
+"""A CSS rgba() color, such as rgba(255, 0, 0, 0.5)."""
+scalar RGBA @specifiedBy(url: "https://www.w3.org/TR/css-color-4/#rgb-functions")
+
+"""
+The ten one-time codes that replace the app when the phone is lost. Shown once.
+"""
+type RecoveryCodes {
+  codes: [String!]!
+}
+
+"""
+What a member is in an organisation (CONTEXT.md, Role). The values are the
+stored role codes; the roles are built in (plan Q13) and the permissions each
+holds come from the module manifests. From the most to the least privileged.
+"""
+enum Role {
+  admin
+  member
+  owner
+  viewer
+}
+
+"""A SHA-256 digest: 64 hexadecimal digits."""
+scalar SHA256 @specifiedBy(url: "https://csrc.nist.gov/pubs/fips/180-4/upd1/final")
+
+"""A SHA-512 digest: 128 hexadecimal digits."""
+scalar SHA512 @specifiedBy(url: "https://csrc.nist.gov/pubs/fips/180-4/upd1/final")
+
+"""An integer from -9007199254740991 to 9007199254740991."""
+scalar SafeInt
+
+enum SearchKind {
+  issue
+  member
+  project
+}
+
+"""
+What a search found, one list per kind, each best match first. A kind the
+search left out, or the viewer may not read, is an empty list.
+"""
+type SearchResults {
+  issues: [Issue!]!
+  members: [Member!]!
+  projects: [Project!]!
+}
+
+"""
+A password was right but the account's second factor is active: no session
+yet. The BFF keeps the challenge (never in a URL or a log) and sends it back
+with a code to `confirmSecondFactor`, or with a recovery code to
+`recoverSecondFactor`.
+"""
+type SecondFactorChallenge {
+  """Five minutes after the sign-in."""
+  expiresAt: DateTime!
+  token: String!
+}
+
+"""
+The secret of a second factor being set up: render `uri` as a QR code and show
+`secret` beside it. Shown once, never again; never cached.
+"""
+type SecondFactorEnrolment {
+  secret: String!
+  uri: String!
+}
+
+"""A Semantic Versioning 2.0.0 version, such as 1.0.0-rc.1."""
+scalar SemVer @specifiedBy(url: "https://semver.org/spec/v2.0.0.html")
+
+"""
+An open session. The token is for a backend (the BFF), which keeps it in its
+own httpOnly cookie and calls the API with `Authorization: Bearer <token>`;
+never readable by the page's scripts, never in a URL or in page data.
+"""
+type Session {
+  """When the session ends."""
+  expiresAt: DateTime!
+  """The session's token, to send as `Authorization: Bearer`."""
+  token: String!
+  viewer: Viewer!
+}
+
+input SignInInput {
+  email: String! @constraint(maxLength: 320)
+  password: String! @constraint(maxLength: 1024)
+}
+
+"""
+What a sign-in answers: `session` for SIGNED_IN, `challenge` for
+SECOND_FACTOR_REQUIRED (exactly one of the two is set).
+"""
+type SignInPayload {
+  challenge: SecondFactorChallenge
+  session: Session
+  status: SignInStatus!
+}
+
+enum SignInStatus {
+  SECOND_FACTOR_REQUIRED
+  SIGNED_IN
+}
+
+input SignUpInput {
+  email: String! @constraint(maxLength: 320)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  password: String! @constraint(maxLength: 1024)
+}
+
+"""
+The direction of a list's `orderBy`. Every sorted list also orders by `id` after
+its `orderBy`, so a cursor page across a sort neither skips nor repeats a row.
+"""
+enum SortDirection {
+  ASC
+  DESC
+  asc
+  desc
+}
+
+"""A step of a project's workflow."""
+type Status {
+  category: StatusCategory!
+  """`#rrggbb`."""
+  colour: String!
+  id: ID!
+  name: String!
+  """Its place in the workflow, from 0, with no gap."""
+  order: Int!
+  projectId: ID!
+}
+
+"""
+Where a status stands in the life of an issue. `triage` holds what intake
+brings in before a member accepts it.
+"""
+enum StatusCategory {
+  backlog
+  cancelled
+  done
+  inProgress
+  todo
+  triage
+}
+
+"""
+A confirmation to give back: with `via` APP the code is the one the
+authenticator app shows, with EMAIL it was mailed to the account.
+"""
+type StepUpChallenge {
+  challenge: String!
+  expiresAt: DateTime!
+  via: StepUpVia!
+}
+
+enum StepUpVia {
+  APP
+  EMAIL
+}
+
+"""
+Live events over server-sent events (`Accept: text/event-stream`). Each opens
+only for a viewer who may read what it names, in the organisation of
+`x-organization-id`, and is checked again every 30 seconds: a viewer who lost
+the right is cut off. A stream ends after 15 minutes without an event or after
+an hour; the client reconnects and refetches.
+"""
+type Subscription {
+  """
+  New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
+  """
+  clientReportReceived(projectId: ID!): ClientReportEvent!
+  """
+  Field changes and comments of one issue. Needs `issue:read`; 404 `issues.errors.not-found`.
+  """
+  issueChanged(issueId: ID!): IssueEvent!
+  """The viewer's own notifications. Needs organisation membership."""
+  notificationReceived: NotificationEvent!
+  """
+  Issues of a project created, updated, moved or deleted. Needs `issue:read`; 404 `projects.errors.not-found`.
+  """
+  projectBoard(projectId: ID!): IssueEvent!
+}
+
+"""A time of day with its offset, such as 10:15:30Z (RFC 3339 full-time)."""
+scalar Time @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc3339#section-5.6")
+
+"""An IANA time zone name, such as Europe/Paris."""
+scalar TimeZone @specifiedBy(url: "https://www.iana.org/time-zones")
+
+"""
+An instant, as an integer number of milliseconds since 1970-01-01T00:00:00Z.
+"""
+scalar Timestamp
+
+"""A ULID: 26 characters of Crockford base32."""
+scalar ULID @specifiedBy(url: "https://github.com/ulid/spec")
+
+"""An absolute http or https URL."""
+scalar URL @specifiedBy(url: "https://url.spec.whatwg.org/")
+
+"""A UUID in its 8-4-4-4-12 hexadecimal form."""
+scalar UUID @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
+
+"""A version 4 (random) UUID."""
+scalar UUIDv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
+
+"""A version 7 (time-ordered) UUID."""
+scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
+
+"""
+A field left out stays as it is. Null clears `assigneeId`, `parentId`,
+`startDate` and `dueDate`, and is refused for the others. The status changes
+with `moveIssue`.
+"""
+input UpdateIssueInput {
+  assigneeId: ID
+  description: String @constraint(maxLength: 50000)
+  dueDate: DateTime
+  labelIds: [ID!]
+  parentId: ID
+  priority: IssuePriority
+  startDate: DateTime
+  title: String @constraint(minLength: 1, maxLength: 200)
+}
+
+"""A field left out stays as it is; null is refused."""
+input UpdateLabelInput {
+  colour: String @constraint(maxLength: 7)
+  name: String @constraint(minLength: 1, maxLength: 100)
+}
+
+"""
+A field left out stays as it is; null is refused (400 `validation.errors.required`).
+"""
+input UpdateOrganisationInput {
+  name: String @constraint(minLength: 1, maxLength: 200)
+  timeZone: String @constraint(maxLength: 64)
+}
+
+"""
+A field left out stays as it is; null is refused for `name`, and clears `leadId`.
+"""
+input UpdateProjectInput {
+  description: String @constraint(maxLength: 10000)
+  leadId: ID
+  name: String @constraint(minLength: 1, maxLength: 200)
+}
+
+"""A field left out stays as it is; null is refused."""
+input UpdateStatusInput {
+  category: StatusCategory
+  colour: String @constraint(maxLength: 7)
+  name: String @constraint(minLength: 1, maxLength: 100)
+}
+
+input UpdateViewerInput {
+  """The account's preferred language. Left out keeps it; null is refused."""
+  language: Language
+  """
+  Null is refused (400 `validation.errors.required`): the name cannot be cleared.
+  """
+  name: String @constraint(minLength: 1, maxLength: 200)
+}
+
+"""A field left out stays as it is; null is refused."""
+input UpdateWidgetKeyInput {
+  active: Boolean
+  allowedOrigins: [String!] @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  label: String @constraint(minLength: 1, maxLength: 100)
+}
+
+"""A UTC offset from -12:00 to +14:00, such as +05:30."""
+scalar UtcOffset
+
+"""The signed-in account."""
+type Viewer {
+  email: EmailAddress!
+  """
+  Whether a TOTP second factor is active: a sign-in then asks for a code.
+  """
+  hasSecondFactor: Boolean!
+  id: ID!
+  """The account's preferred language, or null when it never chose."""
+  language: Language
+  name: String!
+  """
+  What the account may do whatever organisations it belongs to:
+  `organisation:create`. The permissions in an organisation are
+  `Organisation.viewerPermissions`.
+  """
+  permissions: [String!]!
+  """
+  When the request's session ends: the BFF sets its cookie's expiry to it.
+  """
+  sessionExpiresAt: DateTime
+}
+
+"""No value: always null."""
+scalar Void
+
+"""
+A key the widget of a project is embedded with. The key is public by design: it
+reads its own configuration and sends reports for its project, nothing else.
+"""
+type WidgetKey {
+  """Off, the widget answers `enabled: false` and takes no report."""
+  active: Boolean!
+  """
+  The sites (`https://host[:port]`) allowed to use it; the public endpoint answers CORS for these only.
+  """
+  allowedOrigins: [String!]!
+  createdAt: DateTime!
+  id: ID!
+  label: String!
+  """When it was last used, to the minute; null if never."""
+  lastUsedAt: DateTime
+  projectId: ID!
+  """`pk_live_` and 32 characters: the value of `data-project-key`."""
+  publicKey: String!
+  updatedAt: DateTime!
+}
+
+"""An xid: 20 characters of lowercase base32hex."""
+scalar XID @specifiedBy(url: "https://github.com/rs/xid")

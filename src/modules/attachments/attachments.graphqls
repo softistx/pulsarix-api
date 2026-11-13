@@ -1,0 +1,50 @@
+enum AttachmentOwnerType {
+  issue
+  comment
+}
+
+"""
+A file on an issue or on one of its comments. The bytes are served by the
+media routes (`url`, `previewUrl`), to readers of the issue only.
+"""
+type Attachment {
+  id: ID!
+  ownerType: AttachmentOwnerType!
+  ownerId: ID!
+  "The issue the file belongs to (the comment's issue for a comment)."
+  issueId: ID!
+  fileName: String!
+  mime: String!
+  "Bytes."
+  size: Int!
+  "The file, relative to the API: `GET` it with the Bearer token and the organisation header."
+  url: String!
+  "A 256 px square thumbnail: a picture's, or a PDF's first page (WebP); null when none could be made."
+  previewUrl: String
+  uploadedBy: ID!
+  createdAt: DateTime!
+}
+
+type Query {
+  """
+  The files of an issue or a comment, oldest first. Needs `attachment:read`.
+  404 `issues.errors.not-found` or `comments.errors.not-found`.
+  """
+  attachments(ownerType: AttachmentOwnerType!, ownerId: ID!): [Attachment!]!
+  """
+  The files of an issue and of all its comments, oldest first, in one query.
+  Needs `attachment:read`. 404 `issues.errors.not-found`.
+  """
+  issueAttachments(issueId: ID!): [Attachment!]!
+}
+
+type Mutation {
+  """
+  Deletes a file and its thumbnail; answers its id. Needs `attachment:write`
+  and being the uploader, or `attachment:delete`; otherwise 404
+  `attachments.errors.not-found`. Uploading is not a mutation: `PUT
+  /media/attachments?ownerType=&ownerId=&fileName=` with the raw body (see
+  CONTEXT.md).
+  """
+  deleteAttachment(id: ID!): ID!
+}

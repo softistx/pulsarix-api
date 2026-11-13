@@ -1,0 +1,154 @@
+"""
+A project of the organisation: a place where issues are tracked. Its `key`
+(`ABC`) prefixes its issues' keys and is unique in the organisation.
+"""
+type Project {
+  id: ID!
+  "2 to 10 capital letters or digits, starting with a letter; fixed when the project is made."
+  key: String!
+  name: String!
+  description: String!
+  "The account leading the project, a member of the organisation; null when nobody does."
+  leadId: ID
+  "Who sees the project; `organisation` is every member."
+  visibility: ProjectVisibility!
+  "Null while the project is active."
+  archivedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  "The project's workflow, in order."
+  statuses: [Status!]!
+  labels: [Label!]!
+}
+
+enum ProjectVisibility {
+  organisation
+}
+
+"""
+Where a status stands in the life of an issue. `triage` holds what intake
+brings in before a member accepts it.
+"""
+enum StatusCategory {
+  triage
+  backlog
+  todo
+  inProgress
+  done
+  cancelled
+}
+
+"A step of a project's workflow."
+type Status {
+  id: ID!
+  projectId: ID!
+  name: String!
+  category: StatusCategory!
+  "Its place in the workflow, from 0, with no gap."
+  order: Int!
+  "`#rrggbb`."
+  colour: String!
+}
+
+"A tag a project puts on its issues."
+type Label {
+  id: ID!
+  projectId: ID!
+  name: String!
+  "`#rrggbb`."
+  colour: String!
+}
+
+"`key` is stored in capitals. `leadId` must be a member."
+input CreateProjectInput {
+  key: String! @constraint(minLength: 2, maxLength: 10)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  description: String @constraint(maxLength: 10000)
+  leadId: ID
+}
+
+"A field left out stays as it is; null is refused for `name`, and clears `leadId`."
+input UpdateProjectInput {
+  name: String @constraint(minLength: 1, maxLength: 200)
+  description: String @constraint(maxLength: 10000)
+  leadId: ID
+}
+
+input CreateStatusInput {
+  projectId: ID!
+  name: String! @constraint(minLength: 1, maxLength: 100)
+  category: StatusCategory!
+  colour: String! @constraint(maxLength: 7)
+}
+
+"A field left out stays as it is; null is refused."
+input UpdateStatusInput {
+  name: String @constraint(minLength: 1, maxLength: 100)
+  category: StatusCategory
+  colour: String @constraint(maxLength: 7)
+}
+
+input CreateLabelInput {
+  projectId: ID!
+  name: String! @constraint(minLength: 1, maxLength: 100)
+  colour: String! @constraint(maxLength: 7)
+}
+
+"A field left out stays as it is; null is refused."
+input UpdateLabelInput {
+  name: String @constraint(minLength: 1, maxLength: 100)
+  colour: String @constraint(maxLength: 7)
+}
+
+type Query {
+  """
+  The request's organisation's projects, by key; archived ones only when asked.
+  Any member (`project:read`).
+  """
+  projects(includeArchived: Boolean = false): [Project!]!
+  """
+  One project by its key (any case). 404 `projects.errors.not-found`. Needs
+  `project:read`.
+  """
+  project(key: String!): Project!
+}
+
+type Mutation {
+  """
+  Makes a project with the default workflow (Triage, Backlog, Todo, In
+  progress, Done, Cancelled). Needs `project:manage` (admin, owner). 409
+  `projects.errors.key-taken`; 400 `validation.errors.invalid-input` (`key`,
+  `name`, `leadId`).
+  """
+  createProject(input: CreateProjectInput!): Project!
+  "Changes a project; its key stays. Needs `project:manage`."
+  updateProject(id: ID!, input: UpdateProjectInput!): Project!
+  "Hides the project from the default list; nothing is deleted. Needs `project:manage`."
+  archiveProject(id: ID!): Project!
+  "Brings an archived project back. Needs `project:manage`."
+  unarchiveProject(id: ID!): Project!
+  """
+  Adds a status at the end of the project's workflow. Needs `project:manage`.
+  409 `projects.errors.status-name-taken`.
+  """
+  createStatus(input: CreateStatusInput!): Status!
+  "Needs `project:manage`. 409 `projects.errors.status-name-taken`."
+  updateStatus(id: ID!, input: UpdateStatusInput!): Status!
+  """
+  Sets the workflow's order: `ids` are ALL the project's statuses, each once,
+  in the new order (400 `validation.errors.invalid-input` on `ids` otherwise).
+  Answers them in that order. Needs `project:manage`.
+  """
+  reorderStatuses(projectId: ID!, ids: [ID!]!): [Status!]!
+  """
+  Deletes a status and closes the gap in the order. Refused while issues use it
+  (409 `projects.errors.status-in-use`). Answers its id. Needs `project:manage`.
+  """
+  deleteStatus(id: ID!): ID!
+  "Needs `project:manage`. 409 `projects.errors.label-name-taken`."
+  createLabel(input: CreateLabelInput!): Label!
+  "Needs `project:manage`. 409 `projects.errors.label-name-taken`."
+  updateLabel(id: ID!, input: UpdateLabelInput!): Label!
+  "Deletes a label. Answers its id. Needs `project:manage`."
+  deleteLabel(id: ID!): ID!
+}

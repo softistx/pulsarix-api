@@ -1,0 +1,45 @@
+"A person who works in the request's organisation: an account with one role there."
+type Member {
+  "The account's id."
+  id: ID!
+  name: String!
+  email: EmailAddress!
+  """
+  Null when the account holds several roles in the organisation (`conflict`,
+  data written outside the API): it has no access until `changeMemberRole`
+  gives it one, or `removeMember` takes it out.
+  """
+  role: Role
+  conflict: Boolean!
+  "False for a deactivated account, which can no longer sign in."
+  active: Boolean!
+  "Whether this member is the signed-in account."
+  isViewer: Boolean!
+}
+
+type Query {
+  """
+  The request's organisation's members, by name. Any member
+  (`member:read`).
+  """
+  members: [Member!]!
+}
+
+type Mutation {
+  """
+  Gives a member another role. Needs `member:manage` (admin, owner) and a
+  recent proof of identity (403 `auth.errors.step-up-required`: `requestStepUp`
+  then `confirmStepUp`). Only an owner grants the owner role or changes an
+  owner's (403 `members.errors.owner-required`). An organisation never loses its
+  last active owner (409 `members.errors.last-owner`). 404
+  `members.errors.not-found` for an account that is no member.
+  """
+  changeMemberRole(id: ID!, role: Role!): Member!
+  """
+  Takes a member out of the organisation (their account stays, and any other
+  organisation they belong to). Same permission, proof and owner rules as
+  `changeMemberRole`. Answers the removed account's id. Takes out an account in
+  `conflict` too.
+  """
+  removeMember(id: ID!): ID!
+}

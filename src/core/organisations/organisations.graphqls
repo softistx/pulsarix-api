@@ -1,0 +1,90 @@
+"An organisation: the tenant of every request that names it, a team or a company."
+type Organisation {
+  id: ID!
+  name: String!
+  "Names the organisation in URLs; set when it is created and never changed."
+  slug: String!
+  "An IANA time zone name, such as `Europe/Paris`; dates are shown in it."
+  timeZone: String!
+  """
+  Whether every member must have a TOTP second factor. A member without one is
+  refused every read of the organisation (403 `auth.errors.second-factor-required`)
+  until they enrol (`enrollSecondFactor`, `activateSecondFactor`).
+  """
+  requireSecondFactor: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  """
+  What the viewer may do IN THIS organisation, from their role there (the
+  access catalogue, built from the module manifests): permission codes
+  `<area>:<action>`, in catalogue order; the UI gates on them. Empty for an
+  anonymous viewer or a non-member.
+  """
+  viewerPermissions: [String!]!
+}
+
+"An organisation the viewer is a member of, with their role there."
+type MyOrganisation {
+  organisation: Organisation!
+  role: Role!
+  "What `role` may do in this organisation, in the catalogue's order; the UI gates on it."
+  permissions: [String!]!
+}
+
+"""
+`slug` is the organisation's address (lower case letters, digits and single
+hyphens, 2 to 63 characters); left out, it is made from the name. `timeZone`
+defaults to UTC.
+"""
+input CreateOrganisationInput {
+  name: String! @constraint(minLength: 1, maxLength: 200)
+  slug: String @constraint(maxLength: 63)
+  timeZone: String @constraint(maxLength: 64)
+}
+
+"A field left out stays as it is; null is refused (400 `validation.errors.required`)."
+input UpdateOrganisationInput {
+  name: String @constraint(minLength: 1, maxLength: 200)
+  timeZone: String @constraint(maxLength: 64)
+}
+
+type Query {
+  """
+  The organisation the request names in `x-organization-id` (its id or slug).
+  Any member. 401 `auth.errors.unauthenticated`, 400
+  `tenancy.errors.organization-required`, 404 `tenancy.errors.unknown-organization`
+  (unknown, or the viewer is no member: the same answer).
+  """
+  organisation: Organisation!
+  """
+  The active organisations the signed-in account is a member of, by name, for
+  the organisation switcher. Needs no `x-organization-id`. 401
+  `auth.errors.unauthenticated`.
+  """
+  myOrganisations: [MyOrganisation!]!
+}
+
+type Mutation {
+  """
+  Creates an organisation with its own database; the signed-in account becomes
+  its owner. Needs `organisation:create`, which every signed-in account holds.
+  409 `tenancy.errors.slug-taken`; 409 `organisations.errors.too-many` (the
+  account already owns 10); 429 `auth.errors.too-many-attempts` (5 an hour);
+  400 `validation.errors.invalid-input` (an
+  `invalid` issue on `slug` or `timeZone`).
+  """
+  createOrganisation(input: CreateOrganisationInput!): MyOrganisation!
+  """
+  Changes the name or the time zone of the request's organisation. Needs
+  `organisation:manage` (admin, owner): 403 `auth.errors.forbidden` otherwise.
+  """
+  updateOrganisation(input: UpdateOrganisationInput!): Organisation!
+  """
+  Turns the second-factor requirement of the request's organisation on or off.
+  Needs `organisation:manage` (admin, owner) and a recent proof of identity (403
+  `auth.errors.step-up-required`). Turning it on needs the viewer's own second
+  factor to be active (409 `auth.errors.second-factor-not-enrolled`), so the
+  admin does not lock themselves out.
+  """
+  setSecondFactorRequired(required: Boolean!): Organisation!
+}

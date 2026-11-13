@@ -1,0 +1,96 @@
+name: CI
+
+# Pull requests into develop only: a push run would re-check the commit its PR just
+# checked. One job: a pull request runs `bun run verify:pr` (generate, schema check, lint,
+# typecheck, build and only the specs its diff affects). The full `verify` runs on demand
+# (workflow_dispatch) and in the daily "chore: full pass" PR. Browser tests never run in CI.
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # The organisation's self-hosted runners. The job needs nothing from the runner's
+    # environment: Node (graphql-codegen runs on it) and Bun are set up here.
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The affected-spec selection diffs against the base branch.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      # Restored here, saved by an explicit step with its own timeout (actions/cache's post
+      # step has no timeout and can hang the job).
+      - uses: actions/cache/restore@v4
+        id: cache-bun
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
+      - run: bun install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+      # A9's Redis-backed specs (the intake limits, the live channels across instances) run
+      # over a real server, found at $REDIS_BIN. Redis publishes no prebuilt binary, so the
+      # job takes the runner's own redis-server when it has one, else builds the pinned
+      # release once from source (needs make and a C compiler) and caches the binary. Where
+      # neither is possible the step warns and leaves REDIS_BIN unset: those specs skip
+      # instead of failing the job. No service container: one job, no Docker on the runner.
+      - id: redis-bin
+        run: |
+          if command -v redis-server >/dev/null; then
+            echo "bin=$(command -v redis-server)" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif command -v make >/dev/null && { command -v cc >/dev/null || command -v gcc >/dev/null; }; then
+            echo "bin=$HOME/redis-bin/redis-server" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::no redis-server, make or a C compiler on this runner: the real-Redis specs are skipped"
+            echo "bin=" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/cache@v4
+        id: cache-redis
+        if: ${{ steps.redis-bin.outputs.build == 'true' }}
+        with:
+          path: ~/redis-bin
+          key: redis-7.4.1-${{ runner.os }}-${{ runner.arch }}
+      - name: Build Redis 7.4.1
+        if: ${{ steps.redis-bin.outputs.build == 'true' && steps.cache-redis.outputs.cache-hit != 'true' }}
+        run: |
+          curl -fsSL https://download.redis.io/releases/redis-7.4.1.tar.gz | tar xz -C "$RUNNER_TEMP"
+          make -C "$RUNNER_TEMP/redis-7.4.1" -j2 BUILD_TLS=no
+          mkdir -p ~/redis-bin
+          cp "$RUNNER_TEMP/redis-7.4.1/src/redis-server" ~/redis-bin/redis-server
+      # Manual runs: the whole `verify`.
+      - if: github.event_name != 'pull_request'
+        run: bun run verify
+        env:
+          REDIS_BIN: ${{ steps.redis-bin.outputs.bin }}
+      # Pull requests: the same steps with `test:affected` (the specs that are or import a
+      # changed file; the whole suite when shared infrastructure changed) in place of `test`.
+      - if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          bun run verify:pr
+        env:
+          REDIS_BIN: ${{ steps.redis-bin.outputs.bin }}
+      - name: Save bun install cache
+        if: ${{ !cancelled() && steps.cache-bun.outputs.cache-hit != 'true' }}
+        timeout-minutes: 5
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ steps.cache-bun.outputs.cache-primary-key }}

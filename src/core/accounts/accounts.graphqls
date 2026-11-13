@@ -1,0 +1,241 @@
+"The languages of mails and texts: English by default, French offered."
+enum Language {
+  EN
+  FR
+}
+
+"The signed-in account."
+type Viewer {
+  id: ID!
+  email: EmailAddress!
+  name: String!
+  "The account's preferred language, or null when it never chose."
+  language: Language
+  "Whether a TOTP second factor is active: a sign-in then asks for a code."
+  hasSecondFactor: Boolean!
+  "When the request's session ends: the BFF sets its cookie's expiry to it."
+  sessionExpiresAt: DateTime
+  """
+  What the account may do whatever organisations it belongs to:
+  `organisation:create`. The permissions in an organisation are
+  `Organisation.viewerPermissions`.
+  """
+  permissions: [String!]!
+}
+
+"""
+An open session. The token is for a backend (the BFF), which keeps it in its
+own httpOnly cookie and calls the API with `Authorization: Bearer <token>`;
+never readable by the page's scripts, never in a URL or in page data.
+"""
+type Session {
+  "The session's token, to send as `Authorization: Bearer`."
+  token: String!
+  "When the session ends."
+  expiresAt: DateTime!
+  viewer: Viewer!
+}
+
+"""
+A password was right but the account's second factor is active: no session
+yet. The BFF keeps the challenge (never in a URL or a log) and sends it back
+with a code to `confirmSecondFactor`, or with a recovery code to
+`recoverSecondFactor`.
+"""
+type SecondFactorChallenge {
+  token: String!
+  "Five minutes after the sign-in."
+  expiresAt: DateTime!
+}
+
+enum SignInStatus {
+  SIGNED_IN
+  SECOND_FACTOR_REQUIRED
+}
+
+"""
+What a sign-in answers: `session` for SIGNED_IN, `challenge` for
+SECOND_FACTOR_REQUIRED (exactly one of the two is set).
+"""
+type SignInPayload {
+  status: SignInStatus!
+  session: Session
+  challenge: SecondFactorChallenge
+}
+
+"""
+The secret of a second factor being set up: render `uri` as a QR code and show
+`secret` beside it. Shown once, never again; never cached.
+"""
+type SecondFactorEnrolment {
+  secret: String!
+  uri: String!
+}
+
+"The ten one-time codes that replace the app when the phone is lost. Shown once."
+type RecoveryCodes {
+  codes: [String!]!
+}
+
+"""
+A confirmation to give back: with `via` APP the code is the one the
+authenticator app shows, with EMAIL it was mailed to the account.
+"""
+type StepUpChallenge {
+  challenge: String!
+  via: StepUpVia!
+  expiresAt: DateTime!
+}
+
+enum StepUpVia {
+  EMAIL
+  APP
+}
+
+input SignUpInput {
+  email: String! @constraint(maxLength: 320)
+  password: String! @constraint(maxLength: 1024)
+  name: String! @constraint(minLength: 1, maxLength: 200)
+}
+
+input SignInInput {
+  email: String! @constraint(maxLength: 320)
+  password: String! @constraint(maxLength: 1024)
+}
+
+input UpdateViewerInput {
+  "Null is refused (400 `validation.errors.required`): the name cannot be cleared."
+  name: String @constraint(minLength: 1, maxLength: 200)
+  "The account's preferred language. Left out keeps it; null is refused."
+  language: Language
+}
+
+input ChangePasswordInput {
+  currentPassword: String! @constraint(maxLength: 1024)
+  newPassword: String! @constraint(maxLength: 1024)
+}
+
+"What a sign-in screen may offer; public, read before anyone is signed in."
+type AuthConfig {
+  "Sign-in by an e-mailed link is on (env PULSARIX_MAGIC_LINK, off by default)."
+  magicLink: Boolean!
+}
+
+type Query {
+  "The signed-in account, or null when anonymous."
+  viewer: Viewer
+  "The sign-in options this server offers. Anonymous."
+  authConfig: AuthConfig!
+}
+
+type Mutation {
+  """
+  Makes an account and signs it in. 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `email` for an address that is taken or malformed, a
+  `too-short` issue on `password`). Making an organisation comes next
+  (`createOrganisation`).
+  """
+  signUp(input: SignUpInput!): SignInPayload!
+  """
+  Signs in with a password. 401 `auth.errors.invalid-credentials` for a wrong
+  e-mail or password (the same answer for an unknown account); 429
+  `auth.errors.too-many-attempts` (with `retryAfter`, in seconds) after ten wrong
+  passwords at one e-mail. An account with a second factor gets
+  SECOND_FACTOR_REQUIRED.
+  """
+  signIn(input: SignInInput!): SignInPayload!
+  """
+  Opens the session of a SECOND_FACTOR_REQUIRED sign-in with the six-digit code
+  of the app. 400 `auth.errors.invalid-code` (with `attemptsLeft`; five wrong
+  codes spend the challenge) or `auth.errors.invalid-token` for a challenge
+  unknown, expired or spent: sign in again.
+  """
+  confirmSecondFactor(
+    challenge: String! @constraint(maxLength: 200)
+    code: String! @constraint(maxLength: 20)
+  ): SignInPayload!
+  """
+  Opens the session with a recovery code instead of the app's code; the code is
+  spent. Same refusals as `confirmSecondFactor`.
+  """
+  recoverSecondFactor(
+    challenge: String! @constraint(maxLength: 200)
+    recoveryCode: String! @constraint(maxLength: 40)
+  ): SignInPayload!
+  """
+  Starts setting up a second factor for the signed-in account: a new secret
+  replaces a waiting one. 409 `auth.errors.second-factor-active` when one is
+  active already; 403 `auth.errors.email-unverified` while the account's e-mail
+  is not proved (a sign-in link proves it; proving it later would drop the
+  factor). It protects nothing until `activateSecondFactor`.
+  """
+  enrollSecondFactor: SecondFactorEnrolment!
+  """
+  Activates the factor with the first code the app shows, and answers the
+  recovery codes, once. 400 `auth.errors.invalid-code`; 409
+  `auth.errors.second-factor-not-enrolled` or `auth.errors.second-factor-active`.
+  """
+  activateSecondFactor(code: String! @constraint(maxLength: 20)): RecoveryCodes!
+  """
+  Removes the second factor and its recovery codes. Needs a recent proof of
+  identity (403 `auth.errors.step-up-required`).
+  """
+  disableSecondFactor: Boolean!
+  """
+  Sends a sign-in link (`/auth/magic-link`). True once accepted, whether or not
+  the e-mail holds an account, and when `authConfig.magicLink` is off (nothing is
+  sent). 429 `auth.errors.too-many-attempts` (with
+  `retryAfter`) past five requests for one address in ten minutes.
+  """
+  requestMagicLink(email: String! @constraint(maxLength: 320)): Boolean!
+  """
+  The token of a sign-in link, posted by the page it opens (never on GET: mail
+  scanners follow links). 400 `auth.errors.invalid-token`. An account with a
+  second factor gets SECOND_FACTOR_REQUIRED. 503 `auth.errors.unavailable` when
+  `authConfig.magicLink` is off.
+  """
+  confirmMagicLink(token: String! @constraint(maxLength: 200)): SignInPayload!
+  """
+  Sends a password-reset link (`/auth/reset-password`). True once accepted,
+  whether or not the e-mail holds an account; throttled as `requestMagicLink`.
+  """
+  requestPasswordReset(email: String! @constraint(maxLength: 320)): Boolean!
+  """
+  Sets a new password from a reset link's token, and signs the account out
+  everywhere: sign in again after it. 400 `auth.errors.invalid-token`, 400
+  `validation.errors.invalid-input` (a `too-short` issue on `password`).
+  """
+  resetPassword(
+    token: String! @constraint(maxLength: 200)
+    password: String! @constraint(maxLength: 1024)
+  ): Boolean!
+  """
+  Updates the signed-in account's own name and preferred language; nothing else
+  (not the e-mail, not the roles). Fields left out are kept. 401
+  `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input`.
+  """
+  updateViewer(input: UpdateViewerInput!): Viewer!
+  """
+  Changes the signed-in account's password, given the current one; every other
+  session of the account is signed out, the request's own stays. 401
+  `auth.errors.unauthenticated`; 400 `validation.errors.invalid-input` (an
+  `invalid` issue on `currentPassword`, a `too-short` issue on `newPassword`).
+  """
+  changePassword(input: ChangePasswordInput!): Boolean!
+  """
+  Asks for a fresh proof of identity before a sensitive action (a role change,
+  a removal, disabling the second factor): a code mailed to the account, or the
+  app's code when a second factor is active. 401 `auth.errors.unauthenticated`.
+  """
+  requestStepUp: StepUpChallenge!
+  """
+  Confirms the proof: the request's session counts as freshly signed in for ten
+  minutes. 400 `auth.errors.invalid-code` or `auth.errors.invalid-token`.
+  """
+  confirmStepUp(
+    challenge: String! @constraint(maxLength: 200)
+    code: String! @constraint(maxLength: 20)
+  ): Boolean!
+  "Revokes the request's session. False when it presented none."
+  signOut: Boolean!
+}
