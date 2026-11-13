@@ -20,6 +20,7 @@ const run = async (nodeEnv: string, url?: string) => {
         TOTP_KEYS: "k:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
         REDIS_URL: "redis://localhost:6379",
         API_PROXY_SECRET: "s".repeat(32),
+        TRUSTED_PROXIES: "172.16.0.0/12",
         ...(url === undefined ? {} : { CHRONIX_URL: url }),
       },
       stdout: "pipe",
