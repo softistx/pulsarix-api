@@ -545,6 +545,33 @@ describe("stopping the timer and reading the viewer's own", () => {
     expect(still.issue.timeSpent.myRunningTimer).not.toBeNull();
   });
 
+  test("stop leaves a timer that has no reference alone", async () => {
+    const { member, asMember, project, make } = await setup();
+    fake.mapProject(project.id);
+    const issue = await make("Untracked");
+    fake.startUntrackedTimer(member.email, project.id);
+    fake.calls.length = 0;
+    const stopped = await asMember.call<{ stopIssueTimer: unknown }>(Stop, {
+      issueId: issue.id,
+    });
+    expect(stopped.stopIssueTimer).toBeNull();
+    expect(fake.calls.some((c) => c.op === "stopTimer")).toBe(false);
+  });
+
+  test("a timer that vanishes between the two chronix calls stops as null", async () => {
+    const { asMember, project, make } = await setup();
+    fake.mapProject(project.id);
+    const issue = await make("Race");
+    await asMember.call(Start, { issueId: issue.id });
+    fake.vanishAfterNextRead();
+    fake.calls.length = 0;
+    const stopped = await asMember.call<{ stopIssueTimer: unknown }>(Stop, {
+      issueId: issue.id,
+    });
+    expect(stopped.stopIssueTimer).toBeNull();
+    expect(fake.calls.map((c) => c.op)).toEqual(["runningTimer", "stopTimer"]);
+  });
+
   test("an unmapped project is refused on start; stop has no project to map", async () => {
     const { asMember, make } = await setup();
     const issue = await make("Unmapped");
@@ -618,5 +645,16 @@ describe("stopping the timer and reading the viewer's own", () => {
       issue: { timeSpent: { myRunningTimer: unknown } };
     }>(Mine, { key: x.key });
     expect(none.issue.timeSpent.myRunningTimer).toBeNull();
+  });
+
+  test("myRunningTimer is null for an unverified e-mail, with no chronix call", async () => {
+    const { asOwner, make } = await setup(true, false);
+    const issue = await make("Unverified");
+    fake.calls.length = 0;
+    const seen = await asOwner.call<{
+      issue: { timeSpent: { status: string; myRunningTimer: unknown } };
+    }>(Mine, { key: issue.key });
+    expect(seen.issue.timeSpent.myRunningTimer).toBeNull();
+    expect(fake.calls).toEqual([]);
   });
 });
