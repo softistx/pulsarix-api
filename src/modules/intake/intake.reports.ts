@@ -4,7 +4,7 @@ import type { ModuleMongo } from "../../config/db";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import type { IssuesService } from "../issues/public";
-import { projectNotFound } from "../projects/projects.errors";
+import { projectNotFound } from "../projects/public";
 import { reportDecided, reportNotFound } from "./intake.errors";
 import type { ClientReportDocument, ReportState } from "./intake.model";
 

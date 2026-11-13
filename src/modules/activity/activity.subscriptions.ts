@@ -8,8 +8,8 @@ import {
 } from "../../core/access";
 import { idOrInvalid } from "../../core/shared/ids";
 import type { Context } from "../../http/context";
-import { issueNotFound } from "../issues/issues.errors";
-import { projectNotFound } from "../projects/projects.errors";
+import { issueNotFound } from "../issues/public";
+import { projectNotFound } from "../projects/public";
 
 // A stream ends after this long without an event, or in all; the client
 // reconnects and refetches. The viewer's right is checked again every

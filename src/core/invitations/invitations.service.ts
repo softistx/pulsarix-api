@@ -4,7 +4,7 @@ import type { CoreMongo } from "../../config/db";
 import type { Locale } from "../../i18n/locale";
 import type { Role } from "../access";
 import type { Auth } from "../auth";
-import { ownerRequired } from "../members/members.errors";
+import { ownerRequired } from "../members";
 import { exhausted, invalid } from "../shared/errors";
 import { retryWriteConflicts } from "../shared/locked";
 import type { Organisation } from "../tenancy";

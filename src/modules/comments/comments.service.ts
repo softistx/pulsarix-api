@@ -7,7 +7,7 @@ import {
 import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { retryWriteConflicts } from "../../core/shared/locked";
-import { issueNotFound } from "../issues/issues.errors";
+import { issueNotFound } from "../issues/public";
 import {
   commentNotFound,
   commentNotYours,
