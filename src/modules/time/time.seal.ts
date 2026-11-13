@@ -7,7 +7,7 @@ import {
 import { parseSealingKeys } from "@softistx/janus";
 import { env } from "../../config/env";
 
-// Temporary, until nxgt-janus#TBD: a sealing helper in @softistx/janus replaces this file.
+// Temporary, until nxgt-janus#735: a sealing helper in @softistx/janus replaces this file.
 //
 // The link key is sealed before any store sees it: AES-256-GCM under the
 // application's sealing keys (TOTP_KEYS, the keys the second factor's secrets
