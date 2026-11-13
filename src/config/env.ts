@@ -123,7 +123,7 @@ export const env = defineEnv({
   // API_PROXY_SECRET: the secret pulsarix-ui's server sends as
   // `x-pulsarix-proxy-secret` (the same variable on both services). Set, the
   // forwarded client address of /graphql is honoured only on a request that
-  // carries it (src/http/proxy-ip.ts); /public/ never carries it (the widget
+  // carries it (src/http/context.ts); /public/ never carries it (the widget
   // calls through Traefik). Required in production, at least 32 characters;
   // elsewhere an empty value is unset, a set one is still checked.
   API_PROXY_SECRET: production
