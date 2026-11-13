@@ -13,20 +13,25 @@
  * secret.
  *
  *   bun deploy/deploy.ts [--env deploy/.env] [--prefix staging]
- *                        [--no-pull] [--ui] [--timeout 300] [--dry-run]
+ *                        [--no-pull] [--ui] [--backup] [--timeout 300]
+ *                        [--dry-run]
  *
  *   --env      the stack's env file (default deploy/.env); it must exist and be
  *              mode 600, or the script refuses to run
  *   --prefix   STACK_PREFIX, overriding the file (a second stack)
  *   --no-pull  skip `git pull` (a checkout on a feature branch)
  *   --ui       also build and start pulsarix-ui (compose profile `ui`)
+ *   --backup   also build and start the offsite backup (compose profile `backup`)
+ *              and require its BACKUP_S3_* settings; without it the backup is
+ *              off and nothing about it is required
  *   --dry-run  print the plan and what the env file lacks, then stop: no git,
  *              no docker, no network, no token lookup, nothing written. Exit 1
  *              when the env file has problems, so it doubles as a preflight
  *
- * The backup service starts with the rest (nightly dump, offsite copy); its
- * BACKUP_S3_* settings are checked before anything is built. restore.ts and
- * restore-drill.ts bring data back and prove a dump restores.
+ * The backup service (nightly dump, offsite copy) is opt-in: with --backup its
+ * BACKUP_S3_* settings are checked before anything is built; without it one
+ * line says the backup is off. restore.ts and restore-drill.ts bring data back
+ * and prove a dump restores.
  */
 
 import { existsSync } from "node:fs";
@@ -43,7 +48,7 @@ import {
   resolvePrefix,
   uiContext,
 } from "./lib";
-import { deploySteps, envProblems, renderPlan } from "./plan";
+import { BACKUP_OFF_LINE, deploySteps, envProblems, renderPlan } from "./plan";
 
 const args = Bun.argv.slice(2);
 const known = new Set([
@@ -51,6 +56,7 @@ const known = new Set([
   "--prefix",
   "--no-pull",
   "--ui",
+  "--backup",
   "--timeout",
   "--dry-run",
 ]);
@@ -63,6 +69,7 @@ if (!/^[1-9][0-9]*$/.test(timeout)) fail("--timeout is a number of seconds");
 const options = {
   noPull: args.includes("--no-pull"),
   ui: args.includes("--ui"),
+  backup: args.includes("--backup"),
   timeout,
 };
 const step = (name: string, detail = "") =>
@@ -96,8 +103,9 @@ if (args.includes("--dry-run")) {
       }),
     ),
   );
+  if (!options.backup) console.log(`\n${BACKUP_OFF_LINE}`);
   const problems = existsSync(envFile)
-    ? envProblems(values)
+    ? envProblems(values, { backup: options.backup })
     : [`${envFile} is missing: cp deploy/.env.example ${envFile}, fill it`];
   if (problems.length > 0) {
     console.log(`\nthe real run would stop on:\n  ${problems.join("\n  ")}`);
@@ -109,7 +117,7 @@ if (args.includes("--dry-run")) {
 
 const stack = await loadStack(args);
 
-const problems = envProblems(stack.values);
+const problems = envProblems(stack.values, { backup: options.backup });
 if (problems.length > 0)
   fail(`the settings in ${stack.envFile}:\n  ${problems.join("\n  ")}`);
 
@@ -136,8 +144,15 @@ if (githubToken(process.env) === undefined)
   fail(
     `no GitHub Packages token: the image build installs the private @softistx/* packages. Export GITHUB_TOKEN, or log gh in with read:packages (gh auth refresh -s read:packages), or put a classic token with read:packages in ${GITHUB_TOKEN_FILE} (mode 600)`,
   );
-const profile = options.ui ? ["--profile", "ui"] : [];
-step("build", "api, backup, minio-init (cached layers make a rerun cheap)");
+const profile = [
+  ...(options.ui ? ["--profile", "ui"] : []),
+  ...(options.backup ? ["--profile", "backup"] : []),
+];
+if (!options.backup) step("backup", BACKUP_OFF_LINE);
+step(
+  "build",
+  `api, ${options.backup ? "backup, " : ""}minio-init (cached layers make a rerun cheap)`,
+);
 await stack.compose(...profile, "build");
 
 step("up", "");

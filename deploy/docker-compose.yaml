@@ -3,8 +3,8 @@
 # Modelled on operix-api/deploy. One stack: mongo (a one-node replica set, auth
 # on), redis, minio, their init one-shots, the backup service and the API. The
 # UI (pulsarix-ui) is an optional service of the `ui` profile, added once that
-# repository ships its Dockerfile. Run it with `bun deploy/deploy.ts` (see
-# docs/deployment.md); by hand, from this folder:
+# repository ships its Dockerfile. The backup service is the `backup` profile. Run it with
+# `bun deploy/deploy.ts` (see docs/deployment.md); by hand, from this folder:
 #
 #   cp .env.example .env     # fill every CHANGE_ME, chmod 600
 #   docker compose build && docker compose up -d
@@ -50,8 +50,8 @@
 #   MONGO_ROOT_PASSWORD is read only on the first start of an empty volume; the
 #   app and backup passwords are re-applied on every `up`. The replica set
 #   member is named after the container, never localhost.
-# - `backup` dumps the whole Mongo instance, with its oplog (one consistent
-#   moment), every night to the backup-data volume, copies the dump and a mirror
+# - `backup` (profile `backup`, opt-in: deploy.ts --backup) dumps the
+#   whole Mongo instance, with its oplog (one consistent moment), every night to the backup-data volume, copies the dump and a mirror
 #   of the media bucket to an offsite S3 bucket, and mails BACKUP_ALERT_TO on
 #   failure. deploy/restore.ts and deploy/restore-drill.ts run inside it.
 # - MinIO is pinned by digest to Chainguard's build, as docker-compose.yml is.
@@ -182,7 +182,9 @@ services:
       APP_USER: ${MONGO_APP_USER:-px_app}
       APP_PASSWORD: ${MONGO_APP_PASSWORD:?}
       BACKUP_USER: ${MONGO_BACKUP_USER:-px_backup}
-      BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?}
+      # Optional: only the `backup` profile needs the backup user. Empty, none is
+      # created (an existing one is left as it is).
+      BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:-}
     # Idempotent: a user that exists gets its password and roles set again, so a
     # rotated secret in .env is applied by `up`.
     command:
@@ -194,7 +196,8 @@ services:
           const upsert = (user, pwd, roles) =>
             admin.getUser(user) ? admin.updateUser(user, { pwd, roles }) : admin.createUser({ user, pwd, roles });
           upsert(process.env.APP_USER, process.env.APP_PASSWORD, [{ role: "readWriteAnyDatabase", db: "admin" }, { role: "dbAdminAnyDatabase", db: "admin" }]);
-          upsert(process.env.BACKUP_USER, process.env.BACKUP_PASSWORD, [{ role: "backup", db: "admin" }]);
+          if (process.env.BACKUP_PASSWORD)
+            upsert(process.env.BACKUP_USER, process.env.BACKUP_PASSWORD, [{ role: "backup", db: "admin" }]);
           print("users ready");
         '
     labels:
@@ -309,6 +312,9 @@ services:
   # stored here.
   backup:
     <<: *common
+    # Opt-in: `docker compose --profile backup up` (deploy.ts --backup). Without
+    # the profile the service is neither built nor started.
+    profiles: [backup]
     image: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-backup:${TAG:-local}
     build:
       context: ./backup
@@ -325,7 +331,7 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
-      MONGO_URI: mongodb://${MONGO_BACKUP_USER:-px_backup}:${MONGO_BACKUP_PASSWORD:?}@${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo:27017/?replicaSet=rs0&authSource=admin
+      MONGO_URI: mongodb://${MONGO_BACKUP_USER:-px_backup}:${MONGO_BACKUP_PASSWORD:-}@${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo:27017/?replicaSet=rs0&authSource=admin
       MONGO_CORE_DATABASE: ${MONGO_CORE_DATABASE:-pulsarix_core}
       MONGO_ORGANISATION_PREFIX: ${MONGO_ORGANISATION_PREFIX:-pulsarix_org_}
       S3_ENDPOINT: http://${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-minio:9000
@@ -333,10 +339,14 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?}
       S3_SECRET_KEY: ${S3_SECRET_KEY:?}
       # The offsite target: any S3-compatible endpoint (MinIO, B2, Wasabi, S3).
-      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:?}
-      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:?}
-      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:?}
-      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:?}
+      # Compose interpolates every service, profile or not, so these cannot be
+      # `${X:?}` without breaking a stack that leaves the backup out: they
+      # default to empty and `deploy.ts --backup` refuses to go on without them
+      # (backupProblems).
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
       # Per stack by default, so two stacks never share a prefix.
       BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-pulsarix${STACK_PREFIX:+-${STACK_PREFIX}}}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}

@@ -13,8 +13,15 @@ const filled = Object.fromEntries(
     v === "CHANGE_ME" ? "a1b2c3" : v,
   ]),
 );
-// Values the example leaves empty on purpose, or that need a URL shape.
-filled["BACKUP_S3_ENDPOINT"] = "https://s3.example.test";
+// The backup settings, commented out in the example (opt-in).
+const backupValues = {
+  MONGO_BACKUP_PASSWORD: "a1b2c3",
+  BACKUP_S3_ENDPOINT: "https://s3.example.test",
+  BACKUP_S3_BUCKET: "bucket",
+  BACKUP_S3_ACCESS_KEY: "a1b2c3",
+  BACKUP_S3_SECRET_KEY: "a1b2c3",
+};
+const withBackup = { ...filled, ...backupValues };
 
 describe("envProblems", () => {
   test(".env.example names every required variable, all still CHANGE_ME", () => {
@@ -29,15 +36,35 @@ describe("envProblems", () => {
     expect(envProblems(filled)).toEqual([]);
   });
 
-  test("reports a missing name once, the backup password included", () => {
-    const { REDIS_PASSWORD: _a, MONGO_BACKUP_PASSWORD: _b, ...rest } = filled;
+  test("without --backup nothing about the backup is required or checked", () => {
+    expect(envProblems(filled)).toEqual([]);
+    expect(envProblems({ ...filled, BACKUP_S3_ENDPOINT: "nonsense" })).toEqual(
+      [],
+    );
+  });
+
+  test("with --backup a filled file has no problem", () => {
+    expect(envProblems(withBackup, { backup: true })).toEqual([]);
+  });
+
+  test("with --backup the missing offsite settings and backup password are reported once each", () => {
+    const problems = envProblems(filled, { backup: true });
+    for (const name of Object.keys(backupValues))
+      expect(problems.filter((p) => p.startsWith(name))).toHaveLength(1);
+    expect(
+      envProblems(
+        { ...withBackup, BACKUP_S3_ENDPOINT: "ftp://x" },
+        { backup: true },
+      ),
+    ).toEqual(["BACKUP_S3_ENDPOINT must be an http:// or https:// URL"]);
+  });
+
+  test("reports a missing name once", () => {
+    const { REDIS_PASSWORD: _a, ...rest } = filled;
     const problems = envProblems(rest);
     expect(problems.filter((p) => p.startsWith("REDIS_PASSWORD"))).toHaveLength(
       1,
     );
-    expect(
-      problems.filter((p) => p.startsWith("MONGO_BACKUP_PASSWORD")),
-    ).toHaveLength(1);
   });
 
   test("refuses a URL password that needs escaping and an http scheme", () => {
@@ -55,7 +82,7 @@ describe("envProblems", () => {
 
 describe("deploySteps", () => {
   const input = {
-    options: { noPull: false, ui: false, timeout: "300" },
+    options: { noPull: false, ui: false, backup: false, timeout: "300" },
     apiRoot: "/srv/pulsarix-api",
     uiRoot: "/srv/pulsarix-ui",
     compose: "docker compose -f c.yaml --env-file e",
@@ -91,6 +118,24 @@ describe("deploySteps", () => {
     expect(
       deploySteps(input).find((s) => s.name === "up")?.command,
     ).not.toContain("--profile");
+  });
+
+  test("--backup adds the backup profile and the backup image; without it neither appears", () => {
+    const off = deploySteps(input);
+    for (const s of off) {
+      expect(s.command ?? "").not.toContain("--profile backup");
+      expect(s.detail).not.toMatch(/\bbackup,/);
+    }
+    const on = deploySteps({
+      ...input,
+      options: { ...input.options, backup: true, ui: true },
+    });
+    const build = on.find((s) => s.name === "build");
+    expect(build?.command).toContain("--profile ui --profile backup build");
+    expect(build?.detail).toContain("backup, minio-init");
+    expect(on.find((s) => s.name === "up")?.command).toContain(
+      "--profile backup",
+    );
   });
 
   test("waits for healthy containers for the given timeout", () => {

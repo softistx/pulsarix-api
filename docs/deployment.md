@@ -9,16 +9,16 @@ registry).
 | Service               | Image                        | Role                                                                                                                               |
 | --------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `mongo`               | `mongo:8.0`                  | one-node replica set, auth on (keyfile from `MONGO_KEYFILE`)                                                                       |
-| `mongo-init`          | `mongo:8.0`                  | one-shot: the app user and the backup user (re-applied on every `up`)                                                              |
+| `mongo-init`          | `mongo:8.0`                  | one-shot: the app user, and the backup user when `MONGO_BACKUP_PASSWORD` is set (re-applied on every `up`)                         |
 | `redis`               | `redis:7.4`                  | password, append-only. **Required**: rate limits, the digest queue, live events; the public intake endpoint answers 503 without it |
 | `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                  |
-| `backup`              | `deploy/backup/Dockerfile`   | nightly `mongodump --oplog`, offsite copy, media mirror                                                                            |
+| `backup`              | `deploy/backup/Dockerfile`   | profile `backup`, started with `--backup`: nightly `mongodump --oplog`, offsite copy, media mirror                                 |
 | `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                    |
 | `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui` once pulsarix-ui has its Dockerfile; serves the widget's `dist` (see "The widget bundle")        |
 
 No service publishes a port. Two networks: `internal`, private to the stack, holds every service;
 the external `proxy` network (nxgt-docker creates it) holds only `api` and `ui` as well, so Traefik
-reaches them by container name. `mongo`, `redis`, `minio` and `backup` are on `internal` only:
+reaches them by container name. `mongo`, `redis`, `minio` and `backup` (when enabled) are on `internal` only:
 another stack on `proxy` cannot reach them. This isolates the data services from the parc's other
 stacks, not from the API itself, and `api` stays reachable by any container on `proxy`. In
 development (`docker-compose.yml`) the published ports are bound to `127.0.0.1`.
@@ -89,7 +89,8 @@ bun deploy/deploy.ts                    # pull, build, up --wait
 1 when the env file has problems, so it is also the preflight. The build needs a GitHub Packages
 token with `read:packages` (`$GITHUB_TOKEN`, `~/.config/pulsarix/github-token` or `gh auth token`),
 handed to BuildKit as a secret. Flags: `--env`, `--prefix` (a second stack), `--no-pull`, `--ui`,
-`--timeout`. A rerun with nothing changed recreates nothing.
+`--backup` (see "Backups"), `--timeout`. Without `--backup` the deploy prints one line saying the
+backup is off. A rerun with nothing changed recreates nothing.
 
 Sign-in by an e-mailed link is off unless `PULSARIX_MAGIC_LINK=true` in `deploy/.env`.
 
@@ -98,7 +99,19 @@ service healthy; `GET /ready` answers 200 inside the API container.
 
 ## Backups
 
-The `backup` service dumps the whole Mongo instance with its oplog (one consistent moment) every
+The offsite backup is **opt-in**: the `backup` service is in the compose profile `backup`, so a
+plain `bun deploy/deploy.ts` neither builds nor starts it, and `BACKUP_S3_*` and
+`MONGO_BACKUP_PASSWORD` are not required (the deploy prints "backup off"). Enable it later with
+`bun deploy/deploy.ts --backup`: it then requires the four `BACKUP_S3_*` settings and
+`MONGO_BACKUP_PASSWORD` (checked before anything is built), builds the backup image and starts the
+service. `mongo-init` creates the backup user only when `MONGO_BACKUP_PASSWORD` is set. Until the
+backup is on, there is no offsite copy and `restore.ts` / `restore-drill.ts` (which run inside the
+`backup` container) are unavailable.
+
+A stack that once ran with `--backup` and is redeployed without it keeps the old backup container;
+stop it with `docker compose --profile backup stop backup`.
+
+When enabled, the `backup` service dumps the whole Mongo instance with its oplog (one consistent moment) every
 night at `BACKUP_HOUR` (UTC) to the `backup-data` volume, copies the dump and a mirror of the
 media bucket offsite (`BACKUP_S3_*`, any S3-compatible bucket), keeps `BACKUP_RETENTION_DAYS`
 days locally, and mails `BACKUP_ALERT_TO` when a run fails or none succeeded for 26 h. Its
@@ -109,7 +122,7 @@ expiry rule set once on the bucket.
 ### Offsite bucket, one-time setup
 
 Create a private bucket at the provider, a key limited to it (read and write objects, list), and
-an expiry rule of 14 days. Put the endpoint, bucket and key in `deploy/.env` (`BACKUP_S3_*`).
+an expiry rule of 14 days. Put the endpoint, bucket and key in `deploy/.env` (`BACKUP_S3_*`), then deploy with `--backup`.
 
 ## Restore and drill
 
