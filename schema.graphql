@@ -957,9 +957,10 @@ type Mutation {
   """
   startIssueTimer(issueId: ID!): IssueTimer!
   """
-  Stops the viewer's running timer and returns the entry chronix saved, or null
-  when none ran. chronix keeps one timer per member, so it is the one running
-  whatever its issue; `issueId` must exist. Needs `time:write`. Same errors as
+  Stops the viewer's running timer when it runs on this issue and returns the
+  entry chronix saved; null when none runs or it runs on another issue (it
+  keeps running: a stale tab never stops another issue's timer). Two chronix
+  calls, so a timer changed in between is accepted. `issueId` must exist. Needs `time:write`. Same errors as
   `startIssueTimer` (403 `time.errors.email-unverified`, 409
   `time.errors.not-linked`, 403 `time.errors.forbidden`, 503
   `time.errors.unavailable`).
