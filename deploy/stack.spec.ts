@@ -65,6 +65,21 @@ describe("docker-compose.yaml", () => {
     expect(compose.services["ui"]?.profiles).toEqual(["ui"]);
   });
 
+  test("the backup service is opt-in: profile backup, the only service that reads BACKUP_S3_*, never required by compose itself", () => {
+    expect(compose.services["backup"]?.profiles).toEqual(["backup"]);
+    for (const [name, service] of Object.entries(compose.services))
+      if (name !== "backup")
+        expect(JSON.stringify(service)).not.toContain("BACKUP_S3");
+    // Compose interpolates disabled profiles too: a `:?` here would block a stack without the backup.
+    expect(composeText).not.toMatch(
+      /\$\{(BACKUP_S3_\w+|MONGO_BACKUP_PASSWORD):\?\}/,
+    );
+    // mongo-init creates the backup user only when a password is given.
+    expect(
+      compose.services["mongo-init"]?.environment?.["BACKUP_PASSWORD"],
+    ).toBe(v("MONGO_BACKUP_PASSWORD:-"));
+  });
+
   test("the API waits for a healthy Redis (the intake endpoint answers 503 without it) and gets REDIS_URL", () => {
     expect(compose.services["api"]?.depends_on?.["redis"]?.condition).toBe(
       "service_healthy",

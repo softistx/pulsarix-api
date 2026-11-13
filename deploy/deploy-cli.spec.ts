@@ -40,12 +40,15 @@ async function run(args: string[], env: Record<string, string> = {}) {
 
 const example = readFileSync(join(import.meta.dir, ".env.example"), "utf8");
 const filledFile = join(root, "filled.env");
+const base = example.replace(/=CHANGE_ME/g, "=a1b2c3");
+writeFileSync(filledFile, base);
+// The same file with the opt-in backup settings.
+const backupFile = join(root, "backup.env");
 writeFileSync(
-  filledFile,
-  example
-    .replace(/=CHANGE_ME/g, "=a1b2c3")
-    .replace("BACKUP_S3_ENDPOINT=a1b2c3", "BACKUP_S3_ENDPOINT=https://s3.test"),
+  backupFile,
+  `${base}\nMONGO_BACKUP_PASSWORD=a1b2c3\nBACKUP_S3_ENDPOINT=https://s3.test\nBACKUP_S3_BUCKET=b\nBACKUP_S3_ACCESS_KEY=k\nBACKUP_S3_SECRET_KEY=s\n`,
 );
+chmodSync(backupFile, 0o644);
 // Deliberately world-readable: a real run refuses it, a dry run only reads it.
 chmodSync(filledFile, 0o644);
 
@@ -59,6 +62,20 @@ describe("deploy.ts --dry-run", () => {
     expect(out).toContain("build");
     expect(out).toContain("--wait --wait-timeout 300");
     expect(out).toContain("the real run would go ahead");
+    expect(out).toContain("backup off");
+    expect(out).not.toContain("--profile backup");
+    expect(existsSync(calls)).toBe(false);
+  });
+
+  test("--backup plans the backup profile and needs the offsite settings", async () => {
+    const ok = await run(["--dry-run", "--backup", "--env", backupFile]);
+    expect(ok.code).toBe(0);
+    expect(ok.out).toContain("--profile backup");
+    expect(ok.out).not.toContain("backup off");
+    const missing = await run(["--dry-run", "--backup", "--env", filledFile]);
+    expect(missing.code).toBe(1);
+    expect(missing.out).toContain("BACKUP_S3_ENDPOINT is required");
+    expect(missing.out).toContain("MONGO_BACKUP_PASSWORD is required");
     expect(existsSync(calls)).toBe(false);
   });
 
@@ -71,7 +88,7 @@ describe("deploy.ts --dry-run", () => {
     expect(code).toBe(1);
     expect(out).toContain("the real run would stop on");
     expect(out).toContain("MONGO_APP_PASSWORD is required");
-    expect(out).toContain("BACKUP_S3_ENDPOINT is required");
+    expect(out).not.toContain("BACKUP_S3_ENDPOINT");
     expect(existsSync(calls)).toBe(false);
   });
 
