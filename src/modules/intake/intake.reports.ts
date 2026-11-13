@@ -1,5 +1,4 @@
 import { OptimisticLockError } from "@softistx/mongo";
-import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
@@ -100,27 +99,25 @@ export class ReportsService {
   async accept(id: string): Promise<ClientReportDocument> {
     const report = await this.byId(id);
     const claimed = await this.claim(report, "accepted");
-    let issueId: ObjectId | null = null;
+    let created = false;
     try {
       const triage = await this.mongo.db.statuses.findFirst({
         projectId: report.projectId,
         category: "triage",
       });
-      const issue = await this.issues.create({
+      await this.issues.create({
         projectId: report.projectId.toHexString(),
         title: report.title,
         description: report.description,
         statusId: triage?.id ?? null,
         clientReportId: report._id,
       });
-      issueId = issue._id;
-      return await this.mongo.db.clientReports.update(claimed._id, {
-        issueId,
-      });
+      created = true;
+      // `issueId` was set in the issue's own transaction (intake.closing.ts).
+      return await this.byId(claimed._id.toHexString());
     } catch (error) {
-      // Once the issue exists the report stays accepted (the issue carries
-      // `clientReportId`); only a failed creation puts it back to new.
-      if (!issueId) {
+      // Only a failed creation puts the report back to new.
+      if (!created) {
         await this.mongo.db.clientReports
           .update(claimed._id, {
             state: "new",

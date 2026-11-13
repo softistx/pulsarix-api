@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { ObjectId } from "mongodb";
 import { memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import { codeOfBody, goodReport, type IntakeKit, intakeKit } from "~/intake";
@@ -342,6 +343,57 @@ describe("the inbox", () => {
     expect(
       (await mongo.db.statuses.findById(issue.issue.statusId))?.category,
     ).toBe("triage");
+  });
+
+  test("a created issue always has the report's issueId, set in its own transaction", async () => {
+    const kit = await intakeKit();
+    const id = await send(kit);
+    const accepted = await kit.asOwner.call<{
+      acceptClientReport: { issueId: string };
+    }>(Accept, { id });
+    const mongo = (await tenancy.databaseOf(kit.organisation.id)) as never as {
+      db: {
+        clientReports: {
+          findById: (
+            id: string,
+          ) => Promise<{ issueId: { toHexString(): string } | null } | null>;
+        };
+      };
+    };
+    expect(
+      (await mongo.db.clientReports.findById(id))?.issueId?.toHexString(),
+    ).toBe(accepted.acceptClientReport.issueId);
+  });
+
+  test("a failed creation puts the report back to new, without an issueId", async () => {
+    const kit = await intakeKit();
+    const id = await send(kit);
+    const mongo = (await tenancy.databaseOf(kit.organisation.id)) as never as {
+      db: {
+        clientReports: {
+          update: (
+            id: string,
+            patch: Record<string, unknown>,
+          ) => Promise<unknown>;
+          findById: (
+            id: string,
+          ) => Promise<{
+            state: string;
+            issueId: unknown;
+            decidedBy: unknown;
+          } | null>;
+        };
+      };
+    };
+    // The report points at a project that no longer exists: the issue cannot be made.
+    await mongo.db.clientReports.update(id, { projectId: new ObjectId() });
+    await kit.asOwner.call(Accept, { id }).catch(() => undefined);
+    const after = await mongo.db.clientReports.findById(id);
+    expect(after).toMatchObject({
+      state: "new",
+      issueId: null,
+      decidedBy: null,
+    });
   });
 
   test("a report is decided once: a second accept or decline is a 409", async () => {
