@@ -30,7 +30,10 @@ beforeEach(async () => {
   base = join(root, "tmp");
   await Promise.all([mkdir(bin), mkdir(backups), mkdir(base)]);
   await stub("mc");
-  await stub("mongosh", 'printf "%s\\n" $DBS');
+  await stub(
+    "mongosh",
+    '[ -z "$NUMBERING_PREFIX" ] || echo "numbering-prefix $NUMBERING_PREFIX" >> "$(dirname "$0")/../calls.log"\nprintf "%s\\n" $DBS',
+  );
   await stub("mongod");
   await stub(
     "mongodump",
@@ -75,6 +78,7 @@ const env = {
   BACKUP_S3_ACCESS_KEY: "off",
   BACKUP_S3_SECRET_KEY: "o",
   BACKUP_S3_PREFIX: "pulsarix",
+  NUMBERING_PROGRAM: "print('NUMBERING_DATA {}')",
   DBS: "admin config local other pulsarix_core pulsarix_org_a",
 };
 
@@ -207,5 +211,14 @@ describe("drillScript", () => {
     expect(log.join("\n")).toContain("--nsTo=drill_20261110T030000Z_org_a.*");
     expect(existsSync(join(base, "scratch.lock"))).toBe(false);
     expect(readdirSync(base)).toEqual([]);
+  });
+
+  test("runs the issue-number check on the scratch organisation databases", async () => {
+    await tarOf(["instance.archive.gz"]);
+    const { code } = await run(drillScript);
+    expect(code).toBe(0);
+    expect(await calls()).toContain(
+      "numbering-prefix drill_20261110T030000Z_org_",
+    );
   });
 });

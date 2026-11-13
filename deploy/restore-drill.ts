@@ -4,7 +4,8 @@
  * databases. It restores the dump's core database and every organisation's into
  * scratch databases (`drill_<ts>_core`, `drill_<ts>_org_<id>`; refused if they
  * could name a live one), lists each database's collections with their document
- * counts, checks that every collection the code defines is present, prints PASS or FAIL,
+ * counts, checks that every collection the code defines is present and that no
+ * issue counter is behind its project's issues (numbering.ts), prints PASS or FAIL,
  * and drops the scratch databases whatever happens. Exits 1 on FAIL. It
  * never stops api and needs no --confirm: nothing live is replaced.
  *
@@ -28,6 +29,12 @@ import {
   summarize,
 } from "./drill";
 import { fail, flagValue, loadStack, mongoRootUri } from "./lib";
+import {
+  checkNumbering,
+  NUMBERING_EXPORT,
+  parseNumberingOutput,
+  summarizeNumbering,
+} from "./numbering";
 import { drillScript } from "./restore-script";
 
 const args = Bun.argv.slice(2);
@@ -71,11 +78,13 @@ const script = drillScript;
 
 const out = await stack
   .composeWith(
-    { RESTORE_URI: rootUri },
+    { RESTORE_URI: rootUri, NUMBERING_PROGRAM: NUMBERING_EXPORT },
     "exec",
     "-T",
     "-e",
     "RESTORE_URI",
+    "-e",
+    "NUMBERING_PROGRAM",
     "-e",
     `CORE=${core}`,
     "-e",
@@ -93,5 +102,7 @@ const out = await stack
 
 const { dump, restored } = parseDrillOutput(out);
 const result = compareDatabases(expectedCore, expectedOrganisation, restored);
+const numbering = checkNumbering(parseNumberingOutput(out));
 console.log(summarize(dump, result));
-process.exit(result.ok ? 0 : 1);
+console.log(summarizeNumbering(numbering));
+process.exit(result.ok && numbering.ok ? 0 : 1);
