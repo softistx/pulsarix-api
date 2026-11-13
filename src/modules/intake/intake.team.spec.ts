@@ -4,6 +4,7 @@ import { memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import { codeOfBody, goodReport, type IntakeKit, intakeKit } from "~/intake";
 import { coreMongo, tenancy } from "../../config/db";
+import { registerIssueChange } from "../issues/public";
 
 const Keys = `query($projectId: ID!) {
   widgetKeys(projectId: $projectId) {
@@ -392,6 +393,41 @@ describe("the inbox", () => {
       issueId: null,
       decidedBy: null,
     });
+  });
+
+  test("a step after followIssue that throws rolls the issueId back with the issue", async () => {
+    const kit = await intakeKit();
+    const id = await send(kit);
+    // Registered after followIssue, so it runs after the issueId was written,
+    // inside the same transaction.
+    const unregister = registerIssueChange(async (_mongo, change) => {
+      if (change.verb === "created" && change.issue.clientReportId) {
+        throw new Error("a later step fails");
+      }
+    });
+    try {
+      await kit.asOwner.call(Accept, { id }).catch(() => undefined);
+    } finally {
+      unregister();
+    }
+    const mongo = (await tenancy.databaseOf(kit.organisation.id)) as never as {
+      db: {
+        clientReports: {
+          findById: (
+            id: string,
+          ) => Promise<{ state: string; issueId: unknown } | null>;
+        };
+      };
+    };
+    expect(await mongo.db.clientReports.findById(id)).toMatchObject({
+      state: "new",
+      issueId: null,
+    });
+    // No issue was kept: the first key is still free.
+    const retry = await kit.asOwner.call<{
+      acceptClientReport: { issueId: string };
+    }>(Accept, { id });
+    expect(retry.acceptClientReport.issueId).toBeTruthy();
   });
 
   test("a report is decided once: a second accept or decline is a 409", async () => {

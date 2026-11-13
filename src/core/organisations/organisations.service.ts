@@ -1,3 +1,4 @@
+import { slugTaken } from "@alxia/tenancy";
 import { isObjectIdString, toObjectId } from "@softistx/mongo";
 import type {
   CreateOrganisationInput,
@@ -11,6 +12,7 @@ import {
   invalid,
   required,
   tooManyAttempts,
+  unavailable,
 } from "../shared/errors";
 import { tenancyFailure } from "../tenancy";
 import { tooManyOrganisations } from "./organisations.errors";
@@ -95,12 +97,19 @@ export class OrganisationsService {
     if (owned.length >= MAX_OWNED_ORGANISATIONS) {
       throw tooManyOrganisations(MAX_OWNED_ORGANISATIONS);
     }
-    const result = await this.limits?.organisationCreate.consume(
-      { accountId },
-      1,
-      { timeoutMs: 1_000 },
-    );
-    if (result && !result.allowed)
+    if (!this.limits) return;
+    let result: { allowed: boolean; retryAfter: number };
+    try {
+      result = await this.limits.organisationCreate.consume({ accountId }, 1, {
+        timeoutMs: 1_000,
+      });
+    } catch (error) {
+      // Fail closed, like the intake: a limit that cannot be checked is a 503,
+      // never a free creation (each one provisions a database).
+      console.warn("organisation creation rate limit unavailable", error);
+      throw unavailable();
+    }
+    if (!result.allowed)
       throw tooManyAttempts(Math.ceil(result.retryAfter / 1000));
   }
 
@@ -121,6 +130,12 @@ export class OrganisationsService {
       issues.push({ path: "timeZone", code: "validation.errors.invalid" });
     }
     if (issues.length > 0) throw invalid(issues);
+    // A taken slug is refused before the attempt is counted: a 409 never burns
+    // one of the 5 hourly creations. (Two creations racing for one slug still
+    // reach `provision`, whose unique index has the last word.)
+    if (await this.core.db.organisations.findFirst({ slug })) {
+      throw tenancyFailure(slugTaken(slug));
+    }
     await this.guardCreation(accountId);
     let tenant: Awaited<ReturnType<AppTenancy["provision"]>>;
     try {

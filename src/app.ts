@@ -79,6 +79,13 @@ export function createApp(
   const membership = options.membership ?? auth.membership;
   const access = options.access ?? accessOf(modules);
   const tenancy = options.tenancy ?? tenancyOf(membership);
+  const limits = "limits" in options ? options.limits : realtime.limits;
+  // Without Redis nothing rate-limits organisation creation: said once.
+  if (!limits && Bun.env.NODE_ENV === "production") {
+    console.warn(
+      "no rate limits (no Redis): organisation creation is not limited",
+    );
+  }
   const media = "media" in options ? options.media : serverMedia;
   useMedia(media);
   const intake = options.intake ?? serverIntake(tenancy);
@@ -111,7 +118,7 @@ export function createApp(
             membership,
             access,
             tenancy,
-            limits: "limits" in options ? options.limits : realtime.limits,
+            limits,
           }),
           plugins: graphqlPlugins,
           ide: "apollo-sandbox",

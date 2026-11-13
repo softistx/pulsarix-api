@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { authApp, ownerWithOrganisation, signedUp } from "~/auth";
 import { codeOf } from "~/http";
 import { coreMongo } from "../../config/db";
@@ -101,6 +101,53 @@ describe("createOrganisation", () => {
       `{ myOrganisations { role } }`,
     );
     expect(mine.myOrganisations).toHaveLength(1);
+  });
+
+  test("a taken slug does not burn an attempt", async () => {
+    const first = await ownerWithOrganisation(kit, "Burn Name");
+    let consumed = 0;
+    const limited = authApp({
+      limits: {
+        organisationCreate: {
+          consume: async () => {
+            consumed++;
+            return { allowed: true, retryAfter: 0 };
+          },
+        },
+      },
+    });
+    const account = await signedUp(limited);
+    const taken = await limited.client(account.token).attempt(Create, {
+      input: { name: "Whatever", slug: first.organisation.slug },
+    });
+    expect(codeOf(taken)).toBe("tenancy.errors.slug-taken");
+    expect(consumed).toBe(0);
+  });
+
+  test("a limiter that throws is a logged 503 and creates nothing", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const broken = authApp({
+        limits: {
+          organisationCreate: {
+            consume: async () => {
+              throw new Error("redis down");
+            },
+          },
+        },
+      });
+      const account = await signedUp(broken);
+      const me = broken.client(account.token);
+      const refused = await me.attempt(Create, { input: { name: "Down" } });
+      expect(codeOf(refused)).toBe("auth.errors.unavailable");
+      expect(warn).toHaveBeenCalled();
+      const mine = await me.call<{ myOrganisations: unknown[] }>(
+        `{ myOrganisations { role } }`,
+      );
+      expect(mine.myOrganisations).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test("the tenth organisation is the last an account can own", async () => {
