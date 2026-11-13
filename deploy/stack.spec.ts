@@ -17,6 +17,13 @@ const compose = Bun.YAML.parse(composeText) as {
       profiles?: string[];
       depends_on?: Record<string, { condition: string }>;
       environment?: Record<string, string>;
+      volumes?: {
+        type: string;
+        source: string;
+        target: string;
+        read_only?: boolean;
+        bind?: { create_host_path?: boolean };
+      }[];
       labels?: string[];
       networks?: string[];
     }
@@ -91,6 +98,22 @@ describe("docker-compose.yaml", () => {
     // The data services are never routed.
     for (const name of ["mongo", "redis", "minio", "backup"])
       expect(compose.services[name]?.labels).toContain("traefik.enable=false");
+  });
+
+  test("the UI serves the widget's dist: WIDGET_DIST_DIR set, the dist mounted read only and never created empty", () => {
+    const ui = compose.services["ui"];
+    expect(ui?.environment?.["WIDGET_DIST_DIR"]).toBe("/widget");
+    expect(ui?.volumes).toEqual([
+      {
+        type: "bind",
+        source: v("WIDGET_DIST:-../../pulsarix-widget/dist"),
+        target: "/widget",
+        read_only: true,
+        bind: { create_host_path: false },
+      },
+    ]);
+    // The API serves no widget file.
+    expect(apiEnv["WIDGET_DIST_DIR"]).toBeUndefined();
   });
 
   test("no DNS record is part of the stack", () => {
