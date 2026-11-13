@@ -38,6 +38,9 @@ export function createFakeChronixLink(
     LinkTimer & { ref: ExternalRefInput | null }
   >();
   let down = false;
+  // The next `runningTimer` answers the timer, then it is gone (another
+  // client stopped it between pulsarix's two calls).
+  let vanishAfterRead = false;
   let sequence = 0;
   // Every call, to assert the actor and the reference passed.
   const calls: {
@@ -106,7 +109,12 @@ export function createFakeChronixLink(
         return {
           async runningTimer() {
             guard(key, actor, "runningTimer");
-            return timers.get(actor) ?? null;
+            const timer = timers.get(actor) ?? null;
+            if (vanishAfterRead) {
+              vanishAfterRead = false;
+              timers.delete(actor);
+            }
+            return timer;
           },
           async startTimer(input) {
             guard(key, actor, "startTimer", input);
@@ -209,6 +217,22 @@ export function createFakeChronixLink(
     },
     comeUp: () => {
       down = false;
+    },
+    // A timer started in chronix itself, with no external reference.
+    startUntrackedTimer: (actor: string, partnerProjectId: string) => {
+      timers.set(actor, {
+        entryId: `t${++sequence}`,
+        startedAt: "2026-11-13T10:00:00.000Z",
+        project,
+        partnerProjectId,
+        description: null,
+        externalRef: null,
+        ref: null,
+      });
+    },
+    // The next read of the running timer finds it, then it is gone.
+    vanishAfterNextRead: () => {
+      vanishAfterRead = true;
     },
     // An admin mapped a pulsarix project in chronix.
     mapProject: (partnerProjectId: string) => mapped.add(partnerProjectId),

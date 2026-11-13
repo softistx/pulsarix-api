@@ -2,19 +2,23 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import { can, requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
 import type { LinkTimer } from "./chronix";
-import { TimeService, type TimeSpentView } from "./time.service";
+import { TimeLink } from "./time.link";
+import { isOnIssue } from "./time.ref";
+import { issueTotals, type TimeSpentView } from "./time.totals";
+import { TimeTracking } from "./time.tracking";
 
 type Permission = "time:read" | "time:write" | "time:manage";
 
 async function scoped(ctx: Context, permission: Permission) {
   const { mongo, tenant } = await requirePermission(ctx, permission);
   const viewer = requireViewer(ctx);
-  return new TimeService(
-    mongo,
-    tenant._id.toHexString(),
-    viewer.email,
-    viewer.emailVerified,
-  );
+  const link = new TimeLink(mongo, tenant._id.toHexString());
+  return {
+    link,
+    tracking: new TimeTracking(mongo, link, viewer.email, viewer.emailVerified),
+    totals: (issueIds: readonly string[]) =>
+      issueTotals(link, viewer.email, viewer.emailVerified, issueIds),
+  };
 }
 
 // The issues of one request ask their totals together: a list of 50 issues is
@@ -56,7 +60,7 @@ function myTimer(ctx: Context): Promise<LinkTimer | null> {
   if (!timer) {
     timer = (async () => {
       if (!(await can(ctx, "time:write"))) return null;
-      return (await scoped(ctx, "time:write")).runningTimer();
+      return (await scoped(ctx, "time:write")).tracking.runningTimer();
     })().catch(() => null);
     timers.set(ctx, timer);
   }
@@ -65,34 +69,32 @@ function myTimer(ctx: Context): Promise<LinkTimer | null> {
 
 export const timeResolvers: Resolvers = {
   Query: {
-    timeLink: async (_, __, ctx) => (await scoped(ctx, "time:read")).status(),
+    timeLink: async (_, __, ctx) =>
+      (await scoped(ctx, "time:read")).link.status(),
   },
   Mutation: {
     // Sensitive, like the widget keys: a fresh session (step-up) is required.
     linkChronix: async (_, { key }, ctx) => {
-      const service = await scoped(ctx, "time:manage");
+      const { link } = await scoped(ctx, "time:manage");
       ctx.services.requireFresh(requireViewer(ctx));
-      return service.link(key);
+      return link.link(key);
     },
     unlinkChronix: async (_, __, ctx) => {
-      const service = await scoped(ctx, "time:manage");
+      const { link } = await scoped(ctx, "time:manage");
       ctx.services.requireFresh(requireViewer(ctx));
-      return service.unlink();
+      return link.unlink();
     },
     startIssueTimer: async (_, { issueId }, ctx) =>
-      (await scoped(ctx, "time:write")).startTimer(issueId),
+      (await scoped(ctx, "time:write")).tracking.startTimer(issueId),
     stopIssueTimer: async (_, { issueId }, ctx) =>
-      (await scoped(ctx, "time:write")).stopTimer(issueId),
+      (await scoped(ctx, "time:write")).tracking.stopTimer(issueId),
     logIssueTime: async (_, { issueId, input }, ctx) =>
-      (await scoped(ctx, "time:write")).logTime(issueId, input),
+      (await scoped(ctx, "time:write")).tracking.logTime(issueId, input),
   },
   TimeSpent: {
     myRunningTimer: async (parent, _, ctx) => {
       const timer = await myTimer(ctx);
-      const ref = timer?.externalRef;
-      if (!timer || ref?.kind !== "issue" || ref.id !== parent.issueId) {
-        return null;
-      }
+      if (!timer || !isOnIssue(timer, parent.issueId)) return null;
       return { startedAt: timer.startedAt, stoppedSeconds: null };
     },
   },

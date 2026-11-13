@@ -3,7 +3,7 @@
 // The chronix link API client (contract: chronix `docs/link-api.md`, §1 transport,
 // §3 schema, §4 errors, §5 client). The names and shapes below are those of
 // `@softistx/chronix-react/server`, so the swap is this file's removal: an import
-// path change in `time.service.ts` and the specs' fake. Only the calls pulsarix
+// path change in `time.tracking.ts` and the specs' fake. Only the calls pulsarix
 // makes are ported (no project mapping, no subscription).
 
 export interface ExternalRefInput {
