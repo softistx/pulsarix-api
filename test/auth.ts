@@ -103,12 +103,17 @@ export function authApp(
 export type AuthApp = ReturnType<typeof authApp>;
 export type { Http };
 
-export type LinkKind = "resetPassword" | "magicLink" | "invitation";
+export type LinkKind =
+  | "resetPassword"
+  | "magicLink"
+  | "invitation"
+  | "verifyEmail";
 
 const paths: Record<LinkKind, string> = {
   resetPassword: "/auth/reset-password",
   magicLink: "/auth/magic-link",
   invitation: "/invitations/accept",
+  verifyEmail: "/auth/verify-email",
 };
 
 export interface SentLink {

@@ -1,0 +1,272 @@
+import { describe, expect, spyOn, test } from "bun:test";
+import type { Mailer } from "@softistx/mail";
+import { createMemoryMailer } from "@softistx/mail";
+import { authApp, proveEmail, signedUp, specPassword, tokenSent } from "~/auth";
+import { codeOf } from "~/http";
+
+const kit = authApp();
+
+const Request = `mutation { requestEmailVerification }`;
+const Confirm = `mutation($t: String!) {
+  confirmEmailVerification(token: $t) { id email emailVerified }
+}`;
+const Me = `{ viewer { emailVerified } }`;
+
+// A signed-up account asks for its link; the token is in the mail.
+async function asked(app = kit) {
+  const account = await signedUp(app);
+  await app.client(account.token).call(Request);
+  await app.settled();
+  return { account, token: tokenSent(app, account.email, "verifyEmail") };
+}
+
+const verified = async (token: string, app = kit) =>
+  (await app.client(token).call<{ viewer: { emailVerified: boolean } }>(Me))
+    .viewer.emailVerified;
+
+describe("requestEmailVerification", () => {
+  test("mails the link to the account, which stays unverified until it is followed", async () => {
+    const { account, token } = await asked();
+    expect(token).toBeTruthy();
+    expect(await verified(account.token)).toBe(false);
+  });
+
+  test("an anonymous request is refused 401", async () => {
+    expect(codeOf(await kit.client().attempt(Request))).toBe(
+      "auth.errors.unauthenticated",
+    );
+  });
+
+  test("an already verified account gets the same answer and no mail", async () => {
+    const fresh = await signedUp(kit);
+    const unverified = await kit.client(fresh.token).attempt<unknown>(Request);
+    const done = await signedUp(kit);
+    await proveEmail(kit, done.email);
+    const proved = await kit.client(done.token).attempt<unknown>(Request);
+    await kit.settled();
+    expect(proved).toEqual(unverified);
+    expect(proved.data).toEqual({ requestEmailVerification: true });
+    expect(kit.sent.some((s) => s.to === done.email)).toBe(false);
+    expect(kit.sent.some((s) => s.to === fresh.email)).toBe(true);
+  });
+
+  test("requests for one address are throttled (429) with a retryAfter", async () => {
+    const account = await signedUp(kit);
+    let last: Awaited<ReturnType<ReturnType<typeof kit.client>["attempt"]>> =
+      {};
+    for (let i = 0; i < 6; i++) {
+      last = await kit.client(account.token).attempt(Request);
+    }
+    expect(codeOf(last)).toBe("auth.errors.too-many-attempts");
+    expect(
+      last.errors?.[0]?.extensions?.params?.["retryAfter"],
+    ).toBeGreaterThan(0);
+  });
+});
+
+describe("confirmEmailVerification", () => {
+  test("proves the e-mail and answers the account, whose session stays open", async () => {
+    const { account, token } = await asked();
+    const done = await kit.client(account.token).call<{
+      confirmEmailVerification: { id: string; emailVerified: boolean };
+    }>(Confirm, { t: token });
+    expect(done.confirmEmailVerification).toMatchObject({
+      id: account.id,
+      emailVerified: true,
+    });
+    expect(await verified(account.token)).toBe(true);
+  });
+
+  test("an anonymous confirmation is refused 401", async () => {
+    const { token } = await asked();
+    expect(codeOf(await kit.client().attempt(Confirm, { t: token }))).toBe(
+      "auth.errors.unauthenticated",
+    );
+  });
+
+  test("an expired token is refused 400 invalid-token", async () => {
+    const own = authApp();
+    const { account, token } = await asked(own);
+    // The link lapses after a day; the account signs in again meanwhile.
+    own.clock.advance(3 * 24 * 60 * 60_000);
+    const again = await own.client().call<{
+      signIn: { session: { token: string } };
+    }>(
+      `mutation($input: SignInInput!) { signIn(input: $input) { session { token } } }`,
+      { input: { email: account.email, password: specPassword } },
+    );
+    expect(
+      codeOf(
+        await own
+          .client(again.signIn.session.token)
+          .attempt(Confirm, { t: token }),
+      ),
+    ).toBe("auth.errors.invalid-token");
+    expect(await verified(again.signIn.session.token, own)).toBe(false);
+  });
+
+  test("a reused token is refused 400 invalid-token", async () => {
+    const { account, token } = await asked();
+    await kit.client(account.token).call(Confirm, { t: token });
+    expect(
+      codeOf(await kit.client(account.token).attempt(Confirm, { t: token })),
+    ).toBe("auth.errors.invalid-token");
+  });
+
+  test("a token for another account is refused and not spent", async () => {
+    const owner = await asked();
+    const other = await signedUp(kit);
+    expect(
+      codeOf(
+        await kit.client(other.token).attempt(Confirm, { t: owner.token }),
+      ),
+    ).toBe("auth.errors.invalid-token");
+    expect(await verified(other.token)).toBe(false);
+    // Its owner can still use it.
+    await kit.client(owner.account.token).call(Confirm, { t: owner.token });
+    expect(await verified(owner.account.token)).toBe(true);
+  });
+
+  test("an unknown token is refused 400 invalid-token", async () => {
+    const account = await signedUp(kit);
+    expect(
+      codeOf(await kit.client(account.token).attempt(Confirm, { t: "nope" })),
+    ).toBe("auth.errors.invalid-token");
+  });
+
+  test("the account can then set up a second factor", async () => {
+    const { account, token } = await asked();
+    await kit.client(account.token).call(Confirm, { t: token });
+    const { enrollSecondFactor } = await kit.client(account.token).call<{
+      enrollSecondFactor: { secret: string };
+    }>(`mutation { enrollSecondFactor { secret } }`);
+    expect(enrollSecondFactor.secret).toBeTruthy();
+  });
+});
+
+describe("the mail", () => {
+  test("a French account gets the French subject", async () => {
+    const en = await asked();
+    const fr = await signedUp(kit);
+    await kit
+      .client(fr.token)
+      .call(`mutation { updateViewer(input: { language: FR }) { id } }`);
+    await kit.client(fr.token).call(Request);
+    await kit.settled();
+    const subject = (to: string) =>
+      kit.sent.findLast((s) => s.to === to && s.kind === "verifyEmail")
+        ?.subject;
+    expect(subject(fr.email)).toBeTruthy();
+    expect(subject(fr.email)).not.toBe(subject(en.account.email));
+  });
+
+  test("a mailer that throws still gets true, and one background log line", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const memory = createMemoryMailer();
+      const broken = authApp({
+        mailer: {
+          ...memory,
+          send: async () => {
+            throw new Error("smtp down");
+          },
+        } as unknown as Mailer,
+      });
+      const account = await signedUp(broken);
+      const answer = await broken
+        .client(account.token)
+        .attempt<unknown>(Request);
+      await broken.settled();
+      expect(answer.data).toEqual({ requestEmailVerification: true });
+      const lines = log.mock.calls
+        .map((call) => String(call[0]))
+        .filter((line) => line.includes("failed in the background"));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain("an e-mail verification link");
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
+
+describe("the account limit of requestEmailVerification", () => {
+  const unused = {
+    organisationCreate: {
+      consume: async () => ({ allowed: true, retryAfter: 0 }),
+    },
+  };
+
+  test("is refused 429 past the limit, proved or not", async () => {
+    const keys: string[] = [];
+    let open = true;
+    const limited = authApp({
+      limits: {
+        ...unused,
+        emailVerificationAccount: {
+          consume: async (params: { accountId: string }) => {
+            keys.push(params.accountId);
+            return { allowed: open, retryAfter: 90_000 };
+          },
+        },
+      },
+    });
+    const account = await signedUp(limited);
+    const proved = await signedUp(limited);
+    await proveEmail(limited, proved.email);
+    await limited.client(account.token).call(Request);
+    expect(keys).toEqual([account.id]);
+    open = false;
+    for (const who of [account, proved]) {
+      const refused = await limited.client(who.token).attempt(Request);
+      expect(codeOf(refused)).toBe("auth.errors.too-many-attempts");
+      expect(refused.errors?.[0]?.extensions?.params?.["retryAfter"]).toBe(90);
+    }
+  });
+
+  test("the account limit is spent before janus counts the address", async () => {
+    let open = false;
+    const limited = authApp({
+      limits: {
+        ...unused,
+        emailVerificationAccount: {
+          consume: async () => ({ allowed: open, retryAfter: 1_000 }),
+        },
+      },
+    });
+    const account = await signedUp(limited);
+    // Six refusals by the limit: janus (5 per 10 minutes) counted none.
+    for (let i = 0; i < 6; i++) {
+      expect(codeOf(await limited.client(account.token).attempt(Request))).toBe(
+        "auth.errors.too-many-attempts",
+      );
+    }
+    open = true;
+    await limited.client(account.token).call(Request);
+    await limited.settled();
+    expect(limited.sent.some((s) => s.to === account.email)).toBe(true);
+  });
+
+  test("a limiter that throws is a 503, never a free pass", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const broken = authApp({
+        limits: {
+          ...unused,
+          emailVerificationAccount: {
+            consume: async () => {
+              throw new Error("redis down");
+            },
+          },
+        },
+      });
+      const account = await signedUp(broken);
+      const refused = await broken.client(account.token).attempt(Request);
+      expect(codeOf(refused)).toBe("auth.errors.unavailable");
+      await broken.settled();
+      expect(broken.sent.some((s) => s.to === account.email)).toBe(false);
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});

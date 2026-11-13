@@ -1,6 +1,6 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { permissionsOfAccount, requireViewer } from "../access";
-import { throttleIp } from "../shared/throttle";
+import { consumeOrRefuse, throttleIp } from "../shared/throttle";
 
 // The account flows are anonymous by nature (sign-up, sign-in, links, the
 // second factor's challenge); `viewer` reads the context's viewer and refuses
@@ -38,6 +38,20 @@ export const accounts: Resolvers = {
       ctx.services.signIn.requestPasswordReset(email),
     resetPassword: (_, { token, password }, ctx) =>
       ctx.services.signIn.resetPassword(token, password),
+    requestEmailVerification: async (_, __, ctx) => {
+      const viewer = requireViewer(ctx);
+      const limit = ctx.services.limits?.emailVerificationAccount;
+      if (limit) {
+        await consumeOrRefuse(
+          limit,
+          { accountId: viewer.id },
+          "email-verification",
+        );
+      }
+      return ctx.services.viewer(viewer).requestEmailVerification();
+    },
+    confirmEmailVerification: (_, { token }, ctx) =>
+      ctx.services.viewer(requireViewer(ctx)).confirmEmailVerification(token),
     updateViewer: (_, { input }, ctx) =>
       ctx.services.viewer(requireViewer(ctx)).update(input),
     changePassword: (_, { input }, ctx) =>

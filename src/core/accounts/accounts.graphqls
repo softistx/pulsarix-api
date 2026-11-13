@@ -13,6 +13,12 @@ type Viewer {
   language: Language
   "Whether a TOTP second factor is active: a sign-in then asks for a code."
   hasSecondFactor: Boolean!
+  """
+  Whether the account's e-mail is proved (a verification link, a sign-in link, a
+  password reset or an invitation proves it). While false, `requestEmailVerification`
+  sends the link.
+  """
+  emailVerified: Boolean!
   "When the request's session ends: the BFF sets its cookie's expiry to it."
   sessionExpiresAt: DateTime
   """
@@ -209,6 +215,25 @@ type Mutation {
     token: String! @constraint(maxLength: 200)
     password: String! @constraint(maxLength: 1024)
   ): Boolean!
+  """
+  Sends the signed-in account a verification link (`/auth/verify-email`). True
+  once accepted, whether or not the e-mail is proved already (then nothing is
+  sent): the answer never tells. 401 `auth.errors.unauthenticated`; 429
+  `auth.errors.too-many-attempts` (with `retryAfter`) past ten requests an hour
+  for the account or five in ten minutes for its address; 503
+  `auth.errors.unavailable` when the limit cannot be checked.
+  """
+  requestEmailVerification: Boolean!
+  """
+  Proves the signed-in account's e-mail from a verification link's token,
+  posted by the page it opens (never on GET: mail scanners follow links), and
+  answers the account. The link is bound to the account that is signed in: a
+  token issued to another account is refused and stays usable by its owner. 401
+  `auth.errors.unauthenticated`; 400 `auth.errors.invalid-token` for a token
+  unknown, expired, spent, issued to another account or to an address the
+  account no longer holds. The second factor and the password are kept.
+  """
+  confirmEmailVerification(token: String! @constraint(maxLength: 200)): Viewer!
   """
   Updates the signed-in account's own name and preferred language; nothing else
   (not the e-mail, not the roles). Fields left out are kept. 401

@@ -88,7 +88,7 @@ export function createApp(
   // Without Redis nothing rate-limits these three actions: said once.
   if (!limits && Bun.env.NODE_ENV === "production") {
     console.warn(
-      "no rate limits (no Redis): organisation creation, sign-up and acceptInvitation are not limited",
+      "no rate limits (no Redis): organisation creation, sign-up, acceptInvitation and requestEmailVerification are not limited",
     );
   }
   const media = "media" in options ? options.media : serverMedia;

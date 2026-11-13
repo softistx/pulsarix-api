@@ -1,4 +1,5 @@
 export { authCall, signInCall } from "./accounts.errors";
+export type { AccountLimits } from "./accounts.limits";
 export {
   type Account,
   type SessionPayload,
