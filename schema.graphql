@@ -661,6 +661,17 @@ type Mutation {
   """
   changePassword(input: ChangePasswordInput!): Boolean!
   """
+  Proves the signed-in account's e-mail from a verification link's token,
+  posted by the page it opens (never on GET: mail scanners follow links), and
+  answers the account. The link is bound to the account that is signed in: a
+  token issued to another account is refused and stays usable by its owner. 401
+  `auth.errors.unauthenticated`; 400 `auth.errors.invalid-token` for a token
+  unknown, expired, spent, issued to another account or to an address the
+  account no longer holds. An e-mail proved already confirms again without
+  change. The second factor and the password are kept.
+  """
+  confirmEmailVerification(token: String! @constraint(maxLength: 200)): Viewer!
+  """
   The token of a sign-in link, posted by the page it opens (never on GET: mail
   scanners follow links). 400 `auth.errors.invalid-token`. An account with a
   second factor gets SECOND_FACTOR_REQUIRED. 503 `auth.errors.unavailable` when
@@ -803,6 +814,15 @@ type Mutation {
   Answers them in that order. Needs `project:manage`.
   """
   reorderStatuses(ids: [ID!]!, projectId: ID!): [Status!]!
+  """
+  Sends the signed-in account a verification link (`/auth/verify-email`). True
+  once accepted, whether or not the e-mail is proved already (then nothing is
+  sent): the answer never tells. 401 `auth.errors.unauthenticated`; 429
+  `auth.errors.too-many-attempts` (with `retryAfter`) past ten requests an hour
+  for the account or five in ten minutes for its address; 503
+  `auth.errors.unavailable` when the limit cannot be checked.
+  """
+  requestEmailVerification: Boolean!
   """
   Sends a sign-in link (`/auth/magic-link`). True once accepted, whether or not
   the e-mail holds an account, and when `authConfig.magicLink` is off (nothing is
@@ -1462,6 +1482,12 @@ scalar UtcOffset
 """The signed-in account."""
 type Viewer {
   email: EmailAddress!
+  """
+  Whether the account's e-mail is proved (a verification link, a sign-in link, a
+  password reset or an invitation proves it). While false, `requestEmailVerification`
+  sends the link.
+  """
+  emailVerified: Boolean!
   """
   Whether a TOTP second factor is active: a sign-in then asks for a code.
   """

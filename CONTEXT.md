@@ -71,13 +71,16 @@ proof of identity (10 minutes; 403 `auth.errors.step-up-required`, then `request
 The UI pages the mails link to, fixed here (the UI never renames them alone). Each posts its token
 back from a button: a mail scanner follows a link, so a GET never spends it.
 
-| Path                          | Mail           | Mutation           |
-| ----------------------------- | -------------- | ------------------ |
-| `/invitations/accept?token=`  | invitation     | `acceptInvitation` |
-| `/auth/magic-link?token=`     | sign-in link   | `confirmMagicLink` |
-| `/auth/reset-password?token=` | password reset | `resetPassword`    |
+| Path                          | Mail           | Mutation                   |
+| ----------------------------- | -------------- | -------------------------- |
+| `/invitations/accept?token=`  | invitation     | `acceptInvitation`         |
+| `/auth/magic-link?token=`     | sign-in link   | `confirmMagicLink`         |
+| `/auth/reset-password?token=` | password reset | `resetPassword`            |
+| `/auth/verify-email?token=`   | e-mail proof   | `confirmEmailVerification` |
 
 The sign-in link is behind `PULSARIX_MAGIC_LINK` (off by default; `.env.example`, `deploy/.env.example`). Off, `requestMagicLink` answers true and sends nothing, `confirmMagicLink` is refused 503 `auth.errors.unavailable`, and `authConfig { magicLink }` is false so the sign-in screen hides the option.
+
+**E-mail verification.** `signUp` does not prove the e-mail (`Viewer.emailVerified` is false). The signed-in account calls `requestEmailVerification`, which answers true whether or not the e-mail is proved already (then nothing is sent): the mail runs in the background, and the 429 comes from the account's Redis limit (10 an hour, `accounts.email-verification-account`, 503 if Redis cannot be asked) and janus's per-address throttle (5 per 10 minutes). `/auth/verify-email` posts its token to `confirmEmailVerification`, which needs a session and is bound to it: a token issued to another account is `auth.errors.invalid-token` and stays usable by its owner. The link proves the address only; the password and the second factor are kept (a first proof through a sign-in link or an invitation still drops them). It adds no error code: a lapsed, spent, unknown or foreign token is `auth.errors.invalid-token`.
 
 ## File routes
 

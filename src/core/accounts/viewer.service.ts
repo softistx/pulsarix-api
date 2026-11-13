@@ -93,6 +93,51 @@ export class ViewerService {
     return true;
   }
 
+  // Sends the account a verification link. The address is counted in the
+  // request (`prepare`: no lookup, the same store calls whatever the state),
+  // so the mail throttle answers 429 for a proved e-mail as for an unproved
+  // one. The lookup, the token and the mail run in the background: `send()`
+  // issues a token only for an active account that has not proved the address
+  // and answers null for any other, so neither the answer nor its time tells
+  // the state. The mail is written in the account's language, else the
+  // request's.
+  async requestEmailVerification() {
+    const locale = this.viewer.locale ?? this.locale;
+    const prepared = await authCall(() =>
+      this.users.verifyEmail.prepare(this.viewer.email),
+    );
+    this.auth.background.run("an e-mail verification link", async () => {
+      const issued = await prepared.send();
+      // Another account may hold the address by now: the link goes to the
+      // signed-in account's own, never to a lookup's.
+      if (issued && issued.user.id === this.viewer.id) {
+        await this.auth.mail.verifyEmail(issued, {
+          name: issued.user.name,
+          locale,
+        });
+      }
+    });
+    return true;
+  }
+
+  // Proves the e-mail from the link's token. Bound to this account: a token
+  // issued to another one is refused (invalid-token) and not spent, so its
+  // owner can still use it. No first proof: the link only marks the address,
+  // and the password and second factor stay.
+  confirmEmailVerification(token: string) {
+    return authCall(async () => {
+      const user = await this.users.verifyEmail.confirm(token, {
+        user: this.viewer.id,
+      });
+      return {
+        ...viewerOf(user),
+        sessionExpiresAt: this.viewer.sessionExpiresAt,
+        authenticatedAt: this.viewer.authenticatedAt,
+        sessionId: this.viewer.sessionId,
+      };
+    });
+  }
+
   // Starts a TOTP second factor: the secret and the otpauth URI to render as a
   // QR code, answered once. A waiting secret is replaced; an active factor is
   // refused (disable it first). 403 `auth.errors.email-unverified` while the
