@@ -14,7 +14,7 @@ registry).
 | `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                  |
 | `backup`              | `deploy/backup/Dockerfile`   | profile `backup`, started with `--backup`: nightly `mongodump --oplog`, offsite copy, media mirror                                 |
 | `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                    |
-| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui` once pulsarix-ui has its Dockerfile; serves the widget's `dist` (see "The widget bundle")        |
+| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui`;                                serves the widget's `dist` (see "The widget bundle")             |
 
 No service publishes a port. Two networks: `internal`, private to the stack, holds every service;
 the external `proxy` network (nxgt-docker creates it) holds only `api` and `ui` as well, so Traefik
@@ -147,5 +147,4 @@ changes are additive (auto sync never drops); a data rollback is a restore.
 
 ## Not done yet
 
-The real staging deploy (this slice only prepared and dry-ran it), the offsite bucket, and the UI
-image (pulsarix-ui has no Dockerfile yet).
+The offsite backup: no bucket is configured on staging yet. Set `BACKUP_S3_*` and `MONGO_BACKUP_PASSWORD` in `deploy/.env`, then run `bun deploy/deploy.ts --ui --backup`. The restore drill (`bun deploy/restore-drill.ts`) needs the backup service, so it waits for that.

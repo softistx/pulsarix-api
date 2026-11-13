@@ -2,8 +2,8 @@
 #
 # Modelled on operix-api/deploy. One stack: mongo (a one-node replica set, auth
 # on), redis, minio, their init one-shots, the backup service and the API. The
-# UI (pulsarix-ui) is an optional service of the `ui` profile, added once that
-# repository ships its Dockerfile. The backup service is the `backup` profile. Run it with
+# UI (pulsarix-ui) is an optional service of the `ui` profile, started with `--ui`
+# (its Dockerfile is in that repository). The backup service is the `backup` profile. Run it with
 # `bun deploy/deploy.ts` (see docs/deployment.md); by hand, from this folder:
 #
 #   cp .env.example .env     # fill every CHANGE_ME, chmod 600
@@ -418,7 +418,7 @@ services:
       - traefik.http.routers.${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api.service=${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api
       - traefik.http.services.${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api.loadbalancer.server.port=3000
 
-  # ── the UI (profile `ui`, once pulsarix-ui has its Dockerfile) ───────────────
+  # ── the UI (profile `ui`, started with `--ui`) ───────────────────────────────
   ui:
     <<: [*routed, *common]
     profiles: [ui]
