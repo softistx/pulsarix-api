@@ -283,6 +283,8 @@ input CreateIssueInput {
   assigneeId: ID
   description: String @constraint(maxLength: 50000)
   dueDate: DateTime
+  """Hours, 0 to 100 000."""
+  estimateHours: Float
   labelIds: [ID!]
   parentId: ID
   priority: IssuePriority
@@ -435,6 +437,10 @@ type Issue {
   """Rich text, as the client wrote it."""
   description: String!
   dueDate: DateTime
+  """
+  The estimate in hours, or null. The time spent is `timeSpent` (chronix).
+  """
+  estimateHours: Float
   id: ID!
   key: String!
   labelIds: [ID!]!
@@ -450,6 +456,10 @@ type Issue {
   reporterId: ID
   startDate: DateTime
   statusId: ID!
+  """
+  Time spent on the issue (chronix). Never null, never an error: see `TimeSpent.status`.
+  """
+  timeSpent: TimeSpent!
   title: String!
   updatedAt: DateTime!
   watcherIds: [ID!]!
@@ -534,6 +544,15 @@ enum IssueSortField {
   updatedAt
 }
 
+"""A timer started on an issue."""
+type IssueTimer {
+  startedAt: DateTime!
+  """
+  The seconds of the timer this one replaced (chronix saves it), null when none ran.
+  """
+  stoppedSeconds: Int
+}
+
 """Any JSON value."""
 scalar JSON @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc8259")
 
@@ -574,6 +593,25 @@ scalar LocalTime
 
 """A BCP 47 language tag in canonical form, such as fr-FR."""
 scalar Locale @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc5646")
+
+input LogIssueTimeInput {
+  """Defaults to the chronix project's setting."""
+  billable: Boolean
+  """YYYY-MM-DD, in the chronix organisation's time zone."""
+  date: String! @constraint(format: "date")
+  description: String @constraint(maxLength: 2000)
+  """60 to 86400."""
+  durationSeconds: Int! @constraint(min: 60, max: 86400)
+}
+
+"""A time entry logged on an issue."""
+type LoggedTime {
+  billable: Boolean!
+  date: String!
+  description: String
+  durationSeconds: Int!
+  id: ID!
+}
 
 """
 A signed 64-bit integer, as a decimal string (a safe-integer number is accepted as input).
@@ -772,6 +810,20 @@ type Mutation {
   """
   inviteMember(input: InviteMemberInput!): Invitation!
   """
+  Links the organisation to chronix with a link key (`chx_link_...`, made by an
+  admin in chronix). The key is checked, sealed and stored; it is never
+  returned. Needs `time:manage` (admin, owner). 400 `time.errors.invalid-key`;
+  503 `time.errors.unavailable`.
+  """
+  linkChronix(key: String! @constraint(minLength: 1, maxLength: 200)): TimeLink!
+  """
+  Logs time by hand on the issue. Needs `time:write`. 409
+  `time.errors.not-linked` or `time.errors.period-locked`; 422
+  `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 429
+  `time.errors.rate-limited`; 503 `time.errors.unavailable`.
+  """
+  logIssueTime(input: LogIssueTimeInput!, issueId: ID!): LoggedTime!
+  """
   Marks the given notifications of the viewer as read (an unknown or foreign
   id is ignored; at most 200), or every unread one when `ids` is left out.
   Answers the unread count left. Needs organisation membership.
@@ -874,8 +926,19 @@ type Mutation {
   (`createOrganisation`).
   """
   signUp(input: SignUpInput!): SignInPayload!
+  """
+  Starts the viewer's timer on the issue (chronix stops and saves the one
+  running). Needs `time:write`. 409 `time.errors.not-linked`; 422
+  `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 503
+  `time.errors.unavailable`.
+  """
+  startIssueTimer(issueId: ID!): IssueTimer!
   """Brings an archived project back. Needs `project:manage`."""
   unarchiveProject(id: ID!): Project!
+  """
+  Forgets the key. Entries and references stay in chronix. Needs `time:manage`.
+  """
+  unlinkChronix: TimeLink!
   """Removes the viewer from the watchers; repeatable. Needs `issue:write`."""
   unwatchIssue(id: ID!): Issue!
   """
@@ -1166,6 +1229,8 @@ type Query {
   empty or over-long `query` (200 characters) or on `first`.
   """
   search(first: Int = 10, kinds: [SearchKind!], query: String!): SearchResults!
+  """Whether the organisation is linked to chronix. Needs `time:read`."""
+  timeLink: TimeLink!
   """
   How many notifications the viewer has not read. Needs organisation membership.
   """
@@ -1371,6 +1436,46 @@ type Subscription {
 """A time of day with its offset, such as 10:15:30Z (RFC 3339 full-time)."""
 scalar Time @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc3339#section-5.6")
 
+"""
+Whether the organisation tracks time through chronix. The link key is never
+returned: only whether it is linked and the chronix organisation's name.
+"""
+type TimeLink {
+  linked: Boolean!
+  """The chronix organisation, null when not linked."""
+  organisationName: String
+}
+
+"""
+The time spent on an issue, read from chronix. Every number is null unless
+`status` is AVAILABLE; a chronix outage is `UNAVAILABLE`, never an error.
+"""
+type TimeSpent {
+  entryCount: Int
+  """Seconds, the viewer's own share."""
+  mySeconds: Int
+  """Whether someone's timer runs on the issue now."""
+  running: Boolean
+  status: TimeStatus!
+  """Seconds, all members."""
+  totalSeconds: Int
+}
+
+enum TimeStatus {
+  """`totalSeconds` and the rest are set."""
+  AVAILABLE
+  """
+  The viewer may not read time (`time:read`) or is not a member of the chronix organisation.
+  """
+  FORBIDDEN
+  """
+  chronix did not answer (or refused the key): the issue works, its time is not shown.
+  """
+  UNAVAILABLE
+  """The organisation has no chronix link."""
+  UNLINKED
+}
+
 """An IANA time zone name, such as Europe/Paris."""
 scalar TimeZone @specifiedBy(url: "https://www.iana.org/time-zones")
 
@@ -1396,13 +1501,15 @@ scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
-`startDate` and `dueDate`, and is refused for the others. The status changes
+`startDate`, `dueDate` and `estimateHours`, and is refused for the others. The status changes
 with `moveIssue`.
 """
 input UpdateIssueInput {
   assigneeId: ID
   description: String @constraint(maxLength: 50000)
   dueDate: DateTime
+  """Hours, 0 to 100 000; null clears it."""
+  estimateHours: Float
   labelIds: [ID!]
   parentId: ID
   priority: IssuePriority

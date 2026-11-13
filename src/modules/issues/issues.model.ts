@@ -42,6 +42,8 @@ export const issues = defineCollection({
     parentId: objectId().nullable().default(null),
     startDate: z.date().nullable().default(null),
     dueDate: z.date().nullable().default(null),
+    // The estimate in hours (time tracking, P1); the time spent is chronix's.
+    estimateHours: z.number().min(0).max(100_000).nullable().default(null),
     rank: z.string().min(1).max(200),
     // The member who made it.
     reporterId: accountId.nullable().default(null),

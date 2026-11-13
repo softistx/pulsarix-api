@@ -12,6 +12,7 @@ import { createAuth } from "../src/core/auth";
 import type { OrganisationLimits } from "../src/core/organisations/organisations.limits";
 import type { Media } from "../src/modules/attachments/attachments.storage";
 import type { PublicIntake } from "../src/modules/intake/intake.submit";
+import type { ChronixLinkFactory } from "../src/modules/time/chronix";
 import { type Http, http } from "./http";
 
 export const uiOrigin = "https://ui.pulsarix.test";
@@ -47,6 +48,7 @@ export function authApp(
     intake?: PublicIntake;
     magicLink?: boolean;
     limits?: OrganisationLimits;
+    chronix?: ChronixLinkFactory;
   } = {},
 ) {
   const clock = fixedClock(Date.now());
@@ -66,6 +68,7 @@ export function authApp(
     ...("media" in options && { media: options.media }),
     ...(options.intake && { intake: options.intake }),
     ...("limits" in options && { limits: options.limits }),
+    ...(options.chronix && { chronix: options.chronix }),
   });
   return {
     auth,

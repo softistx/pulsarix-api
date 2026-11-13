@@ -29,6 +29,7 @@ import { publicRoutes } from "./modules/intake/intake.routes";
 import { serverIntake } from "./modules/intake/intake.server";
 import type { PublicIntake } from "./modules/intake/intake.submit";
 import { modules } from "./modules/registry";
+import { type ChronixLinkFactory, useChronix } from "./modules/time/chronix";
 
 // The largest body /graphql reads.
 export const BODY_LIMIT = 100 * 1024;
@@ -73,6 +74,9 @@ export function createApp(
     // The rate limits of the kernel (Redis's by default, none without Redis);
     // a spec gives its own.
     limits?: OrganisationLimits | undefined;
+    // The chronix link client (the HTTP one by default, src/modules/time/chronix.ts);
+    // a spec gives a fake.
+    chronix?: ChronixLinkFactory;
   } = {},
 ) {
   const auth = options.auth ?? serverAuth();
@@ -88,6 +92,7 @@ export function createApp(
   }
   const media = "media" in options ? options.media : serverMedia;
   useMedia(media);
+  useChronix(options.chronix);
   const intake = options.intake ?? serverIntake(tenancy);
   const pipeline = mediaPipeline({
     media,
