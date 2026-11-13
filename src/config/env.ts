@@ -110,11 +110,12 @@ export const env = defineEnv({
   S3_ACCESS_KEY: unsetIfEmpty,
   S3_SECRET_KEY: unsetIfEmpty,
   // CHRONIX_URL: the chronix host whose `/link/graphql` the time tracking calls
-  // (link API, contract v1). The default is chronix's production host.
+  // (link API, contract v1), the origin only. The default is chronix's
+  // production host. https in production.
   CHRONIX_URL: z
     .string()
     .transform((value) => value || undefined)
-    .pipe(z.url({ protocol: /^https?$/ }).optional())
+    .pipe(z.url({ protocol: production ? /^https$/ : /^https?$/ }).optional())
     .optional()
     .transform((value) => value ?? "https://chronix.softistx.com"),
   // PULSARIX_MAGIC_LINK: sign-in by a link sent by e-mail. Off by default: off,

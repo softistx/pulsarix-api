@@ -26,6 +26,7 @@ import {
   priorityLevel,
 } from "./issues.model";
 import { type IssueChange, issueChanged, issueRemoved } from "./issues.usage";
+import { distinct, estimateIssue, invalidField } from "./issues.validation";
 import { rankAfter, rankBetween } from "./rank";
 
 export type IssuesMongo = ModuleMongo<"issues">;
@@ -85,27 +86,6 @@ type Changed = (
   issue: IssueDocument,
   changes: FieldChange[],
 ) => Promise<void>;
-
-// The ids given, as ObjectIds, each once.
-const distinct = (given: string[], path: string): ObjectId[] => {
-  const seen = new Map<string, ObjectId>();
-  for (const id of given) {
-    const objectId = idOrInvalid(id, path);
-    seen.set(objectId.toHexString(), objectId);
-  }
-  return [...seen.values()];
-};
-
-// An estimate is a number of hours, 0 to 100 000.
-const estimateIssue = (hours: number | null | undefined): FieldIssue[] =>
-  hours != null && !(hours >= 0 && hours <= 100_000)
-    ? [{ path: "estimateHours", code: "validation.errors.out-of-range" }]
-    : [];
-
-const invalidField = (path: string): FieldIssue => ({
-  path,
-  code: "validation.errors.invalid",
-});
 
 // Every write of a project's issues runs in one transaction that locks the
 // project (`lockProject`), so numbers, ranks and the checks against the

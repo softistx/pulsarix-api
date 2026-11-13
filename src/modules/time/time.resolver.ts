@@ -52,10 +52,17 @@ export const timeResolvers: Resolvers = {
     timeLink: async (_, __, ctx) => (await scoped(ctx, "time:read")).status(),
   },
   Mutation: {
-    linkChronix: async (_, { key }, ctx) =>
-      (await scoped(ctx, "time:manage")).link(key),
-    unlinkChronix: async (_, __, ctx) =>
-      (await scoped(ctx, "time:manage")).unlink(),
+    // Sensitive, like the widget keys: a fresh session (step-up) is required.
+    linkChronix: async (_, { key }, ctx) => {
+      const service = await scoped(ctx, "time:manage");
+      ctx.services.requireFresh(requireViewer(ctx));
+      return service.link(key);
+    },
+    unlinkChronix: async (_, __, ctx) => {
+      const service = await scoped(ctx, "time:manage");
+      ctx.services.requireFresh(requireViewer(ctx));
+      return service.unlink();
+    },
     startIssueTimer: async (_, { issueId }, ctx) =>
       (await scoped(ctx, "time:write")).startTimer(issueId),
     logIssueTime: async (_, { issueId, input }, ctx) =>

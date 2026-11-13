@@ -7,13 +7,14 @@ import {
   type ChronixLinkClient,
   ChronixLinkError,
   ChronixUnavailableError,
-  chronixClient,
   type RefTotal,
 } from "./chronix";
+import { chronixClient } from "./chronix.client";
 import {
   chronixFailure,
   emailUnverified,
   invalidKey,
+  keyMismatch,
   notLinked,
 } from "./time.errors";
 import { openLinkKey, sealLinkKey } from "./time.seal";
@@ -32,6 +33,7 @@ export type TimeSpentView =
     };
 
 const ISSUE = "issue";
+const PARTNER_APP = "pulsarix";
 const MAX_REFS = 100; // the contract's cap on `totals`
 
 // The issue as chronix references it (§3 `ExternalRefInput`): its stable id, a
@@ -84,8 +86,20 @@ export class TimeService {
     try {
       info = await client.link();
     } catch (error) {
-      if (error instanceof ChronixLinkError) throw invalidKey();
+      if (
+        error instanceof ChronixLinkError &&
+        error.code === "link.unauthenticated"
+      ) {
+        throw invalidKey();
+      }
       throw chronixFailure(error);
+    }
+    // The key must be made for this application and this organisation.
+    if (
+      info.partnerApp !== PARTNER_APP ||
+      info.partnerOrganisationId !== this.organisationId
+    ) {
+      throw keyMismatch();
     }
     await this.mongo.db.timeLinks.upsert(
       { _id: "main" },
@@ -186,6 +200,11 @@ export class TimeService {
     if (!client) {
       const linked = await this.linkDocument();
       set(linked ? "UNAVAILABLE" : "UNLINKED");
+      return views;
+    }
+    // chronix wants a verified actor on reads too: no call without one.
+    if (!this.emailVerified) {
+      set("FORBIDDEN");
       return views;
     }
     const me = client.as(this.actorEmail);

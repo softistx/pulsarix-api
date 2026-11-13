@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { authApp, memberWith, ownerWithOrganisation, proveEmail } from "~/auth";
 import { createFakeChronixLink } from "~/chronix";
 import { codeOf } from "~/http";
-import { useChronix } from "./chronix";
+import { useChronix } from "./chronix.client";
 import { openLinkKey, sealLinkKey } from "./time.seal";
 
 const fake = createFakeChronixLink({ organisationName: "Acme Time" });
@@ -44,7 +44,9 @@ interface TimeSpent {
 // and a viewer; linked to chronix unless `linked` is false.
 async function setup(linked = true, proveOwner = true) {
   fake.comeUp();
+  fake.setMembers(null);
   const { owner, organisation } = await ownerWithOrganisation(kit);
+  fake.issueKey(KEY, { organisationId: organisation.id });
   const asOwner = kit.client(owner.token, { organisation: organisation.id });
   const member = await memberWith(kit, organisation.id, owner.token, "member");
   const viewer = await memberWith(kit, organisation.id, owner.token, "viewer");
@@ -62,6 +64,7 @@ async function setup(linked = true, proveOwner = true) {
     ).createIssue;
   if (linked) await asOwner.call(Link, { key: KEY });
   return {
+    organisation,
     owner,
     member,
     viewer,
@@ -133,6 +136,35 @@ describe("the organisation's link", () => {
       (await asOwner.call<{ timeLink: { linked: boolean } }>(TimeLink)).timeLink
         .linked,
     ).toBe(false);
+  });
+
+  test("a key made for another application or organisation is refused", async () => {
+    const { asOwner, organisation } = await setup(false);
+    fake.issueKey("chx_link_other_app", {
+      organisationId: organisation.id,
+      app: "operix",
+    });
+    fake.issueKey("chx_link_other_org", { organisationId: "someone-else" });
+    for (const key of ["chx_link_other_app", "chx_link_other_org"]) {
+      expect(codeOf(await asOwner.attempt(Link, { key }))).toBe(
+        "time.errors.key-mismatch",
+      );
+    }
+    expect(
+      (await asOwner.call<{ timeLink: { linked: boolean } }>(TimeLink)).timeLink
+        .linked,
+    ).toBe(false);
+  });
+
+  test("linking and unlinking ask for a fresh session", async () => {
+    const { asOwner } = await setup(false);
+    kit.clock.advance(11 * 60 * 1000);
+    expect(codeOf(await asOwner.attempt(Link, { key: KEY }))).toBe(
+      "auth.errors.step-up-required",
+    );
+    expect(codeOf(await asOwner.attempt(Unlink))).toBe(
+      "auth.errors.step-up-required",
+    );
   });
 
   test("linking while chronix is down is 503, and unlinking forgets the key", async () => {
@@ -304,7 +336,7 @@ describe("the timer and the manual log", () => {
     expect(next.startIssueTimer.stoppedSeconds).toBe(600);
   });
 
-  test("an unverified e-mail cannot start or log, yet the time still reads", async () => {
+  test("an unverified e-mail cannot start or log, and the time reads FORBIDDEN without a call", async () => {
     // The owner signed up and has not proven the address.
     const { asOwner, project, make } = await setup(true, false);
     fake.mapProject(project.id);
@@ -316,13 +348,44 @@ describe("the timer and the manual log", () => {
       input: { date: "2026-11-02", durationSeconds: 600 },
     });
     expect(codeOf(logged)).toBe("time.errors.email-unverified");
+    fake.calls.length = 0;
     const read = await asOwner.call<{ issue: { timeSpent: TimeSpent } }>(
       Issue,
-      {
-        key: issue.key,
-      },
+      { key: issue.key },
     );
-    expect(read.issue.timeSpent.status).toBe("AVAILABLE");
+    expect(read.issue.timeSpent.status).toBe("FORBIDDEN");
+    expect(read.issue.timeSpent.totalSeconds).toBeNull();
+    expect(fake.calls).toEqual([]);
+  });
+
+  test("an account that is not a member in chronix: FORBIDDEN on reads, forbidden on writes", async () => {
+    const { member, asMember, project, make } = await setup();
+    fake.mapProject(project.id);
+    const issue = await make("Not a member");
+    fake.setMembers(["someone-else@example.test"]);
+    const read = await asMember.call<{ issue: { timeSpent: TimeSpent } }>(
+      Issue,
+      { key: issue.key },
+    );
+    expect(read.issue.timeSpent.status).toBe("FORBIDDEN");
+    expect(read.issue.timeSpent.totalSeconds).toBeNull();
+    expect(codeOf(await asMember.attempt(Start, { issueId: issue.id }))).toBe(
+      "time.errors.forbidden",
+    );
+    expect(
+      codeOf(
+        await asMember.attempt(Log, {
+          issueId: issue.id,
+          input: { date: "2026-11-02", durationSeconds: 600 },
+        }),
+      ),
+    ).toBe("time.errors.forbidden");
+    fake.setMembers([member.email]);
+    const back = await asMember.call<{ issue: { timeSpent: TimeSpent } }>(
+      Issue,
+      { key: issue.key },
+    );
+    expect(back.issue.timeSpent.status).toBe("AVAILABLE");
   });
 
   test("logIssueTime logs on the issue, as the acting member", async () => {

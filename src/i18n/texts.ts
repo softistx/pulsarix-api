@@ -64,7 +64,10 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Time tracking is unavailable right now. Try again in a moment.",
     "time.errors.forbidden":
       "You may not track time in the linked chronix organisation.",
-    "time.errors.email-unverified": "Verify your e-mail address to track time.",
+    "time.errors.email-unverified":
+      "Your e-mail address is not verified, so time tracking is unavailable. Verify it first, for example by resetting your password.",
+    "time.errors.key-mismatch":
+      "This chronix key was not made for this organisation of Pulsarix. Create a link key for it in chronix.",
     "time.errors.project-not-mapped":
       "This issue's project is not mapped to a chronix project yet.",
     "time.errors.period-locked": "This date is in a locked chronix period.",
@@ -186,7 +189,9 @@ export const texts: Record<Locale, Record<string, string>> = {
     "time.errors.forbidden":
       "Vous ne pouvez pas saisir de temps dans l'organisation chronix reliée.",
     "time.errors.email-unverified":
-      "Vérifiez votre adresse e-mail pour saisir du temps.",
+      "Votre adresse e-mail n'est pas vérifiée : le suivi du temps est indisponible. Vérifiez-la d'abord, par exemple en réinitialisant votre mot de passe.",
+    "time.errors.key-mismatch":
+      "Cette clé chronix n'a pas été créée pour cette organisation de Pulsarix. Créez-en une pour elle dans chronix.",
     "time.errors.project-not-mapped":
       "Le projet de ce ticket n'est pas encore associé à un projet chronix.",
     "time.errors.period-locked":

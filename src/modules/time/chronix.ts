@@ -134,18 +134,49 @@ interface GraphQLReply {
   }[];
 }
 
-// The link API over GraphQL HTTP (§1): `POST <baseUrl>/link/graphql`, JSON,
-// `Authorization: Link <key>`, `X-Chronix-Actor`.
-export const createChronixLinkClient: ChronixLinkFactory = (options) => {
+type Call = <T>(
+  actor: string | null,
+  query: string,
+  variables?: Record<string, unknown>,
+) => Promise<T>;
+
+// The reply of chronix as data, or the error it stands for (§1, §4).
+function readReply(status: number, text: string): Record<string, unknown> {
+  if (status >= 500) {
+    throw new ChronixUnavailableError(`chronix answered ${status}`);
+  }
+  let reply: GraphQLReply;
+  try {
+    reply = JSON.parse(text) as GraphQLReply;
+  } catch {
+    throw new ChronixUnavailableError("chronix answered no JSON");
+  }
+  const failure = reply.errors?.[0];
+  if (failure) {
+    const code =
+      failure.extensions?.code ?? (status === 429 ? "rate-limited" : "unknown");
+    throw new ChronixLinkError(
+      code,
+      failure.message ?? code,
+      failure.extensions?.retryAfterSeconds,
+    );
+  }
+  if (!reply.data)
+    throw new ChronixUnavailableError("chronix answered no data");
+  return reply.data;
+}
+
+// One request of the link API over GraphQL HTTP (§1): `POST <baseUrl>/link/graphql`,
+// JSON, `Authorization: Link <key>`, `X-Chronix-Actor` (the actor's verified e-mail).
+function caller(options: ChronixLinkOptions): Call {
   const doFetch = options.fetch ?? fetch;
   const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/link/graphql`;
   const timeoutMs = options.timeoutMs ?? 3000;
-
-  async function call<T>(
+  return async <T>(
     actor: string | null,
     query: string,
     variables: Record<string, unknown> = {},
-  ): Promise<T> {
+  ) => {
     let response: Response;
     let text: string;
     try {
@@ -164,32 +195,45 @@ export const createChronixLinkClient: ChronixLinkFactory = (options) => {
     } catch (cause) {
       throw new ChronixUnavailableError("chronix did not answer", { cause });
     }
-    if (response.status >= 500) {
-      throw new ChronixUnavailableError(`chronix answered ${response.status}`);
-    }
-    let reply: GraphQLReply;
-    try {
-      reply = JSON.parse(text) as GraphQLReply;
-    } catch {
-      throw new ChronixUnavailableError("chronix answered no JSON");
-    }
-    const failure = reply.errors?.[0];
-    if (failure) {
-      const code =
-        failure.extensions?.code ??
-        (response.status === 429 ? "rate-limited" : "unknown");
-      throw new ChronixLinkError(
-        code,
-        failure.message ?? code,
-        failure.extensions?.retryAfterSeconds,
-      );
-    }
-    if (!reply.data) {
-      throw new ChronixUnavailableError("chronix answered no data");
-    }
-    return reply.data as T;
-  }
+    return readReply(response.status, text) as T;
+  };
+}
 
+// The calls an acting member makes.
+function actorClient(call: Call, actor: string): ChronixActorClient {
+  const run = async <K extends string, T>(
+    key: K,
+    query: string,
+    variables?: Record<string, unknown>,
+  ): Promise<T> => (await call<Record<K, T>>(actor, query, variables))[key];
+  return {
+    runningTimer: () => run("runningTimer", `{ runningTimer { ${TIMER} } }`),
+    startTimer: (input) =>
+      run(
+        "startTimer",
+        `mutation($input: StartTimerInput!) { startTimer(input: $input) {
+          timer { ${TIMER} } stopped { ${ENTRY} } } }`,
+        { input },
+      ),
+    stopTimer: () => run("stopTimer", `mutation { stopTimer { ${ENTRY} } }`),
+    logTime: (input) =>
+      run(
+        "logTime",
+        `mutation($input: LogTimeInput!) { logTime(input: $input) { ${ENTRY} } }`,
+        { input },
+      ),
+    totals: (refs) =>
+      run(
+        "totals",
+        `query($refs: [ExternalRefKey!]!) { totals(refs: $refs) {
+          kind id totalSeconds actorSeconds entryCount running } }`,
+        { refs },
+      ),
+  };
+}
+
+export const createChronixLinkClient: ChronixLinkFactory = (options) => {
+  const call = caller(options);
   return {
     async link() {
       const data = await call<{ link: LinkInfo }>(
@@ -198,62 +242,6 @@ export const createChronixLinkClient: ChronixLinkFactory = (options) => {
       );
       return data.link;
     },
-    as(actor) {
-      return {
-        async runningTimer() {
-          return (
-            await call<{ runningTimer: LinkTimer | null }>(
-              actor,
-              `{ runningTimer { ${TIMER} } }`,
-            )
-          ).runningTimer;
-        },
-        async startTimer(input) {
-          return (
-            await call<{ startTimer: StartTimerPayload }>(
-              actor,
-              `mutation($input: StartTimerInput!) { startTimer(input: $input) {
-                timer { ${TIMER} } stopped { ${ENTRY} } } }`,
-              { input },
-            )
-          ).startTimer;
-        },
-        async stopTimer() {
-          return (
-            await call<{ stopTimer: LinkEntry | null }>(
-              actor,
-              `mutation { stopTimer { ${ENTRY} } }`,
-            )
-          ).stopTimer;
-        },
-        async logTime(input) {
-          return (
-            await call<{ logTime: LinkEntry }>(
-              actor,
-              `mutation($input: LogTimeInput!) { logTime(input: $input) { ${ENTRY} } }`,
-              { input },
-            )
-          ).logTime;
-        },
-        async totals(refs) {
-          return (
-            await call<{ totals: RefTotal[] }>(
-              actor,
-              `query($refs: [ExternalRefKey!]!) { totals(refs: $refs) {
-                kind id totalSeconds actorSeconds entryCount running } }`,
-              { refs },
-            )
-          ).totals;
-        },
-      };
-    },
+    as: (memberEmail) => actorClient(call, memberEmail),
   };
 };
-
-// The factory the app runs with: the HTTP client; a spec gives its own
-// (`createApp({ chronix })`).
-let factory: ChronixLinkFactory = createChronixLinkClient;
-export const useChronix = (next: ChronixLinkFactory | undefined) => {
-  factory = next ?? createChronixLinkClient;
-};
-export const chronixClient = (options: ChronixLinkOptions) => factory(options);

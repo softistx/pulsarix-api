@@ -812,12 +812,15 @@ type Mutation {
   """
   Links the organisation to chronix with a link key (`chx_link_...`, made by an
   admin in chronix). The key is checked, sealed and stored; it is never
-  returned. Needs `time:manage` (admin, owner). 400 `time.errors.invalid-key`;
-  503 `time.errors.unavailable`.
+  returned. Needs `time:manage` (admin, owner) and a fresh session (403
+  `auth.errors.step-up-required`). 400 `time.errors.invalid-key`; 422
+  `time.errors.key-mismatch` (the key is another application's or another
+  organisation's); 503 `time.errors.unavailable`.
   """
   linkChronix(key: String! @constraint(minLength: 1, maxLength: 200)): TimeLink!
   """
-  Logs time by hand on the issue. Needs `time:write`. 409
+  Logs time by hand on the issue. Needs `time:write`. 403
+  `time.errors.email-unverified`; 409
   `time.errors.not-linked` or `time.errors.period-locked`; 422
   `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 429
   `time.errors.rate-limited`; 503 `time.errors.unavailable`.
@@ -928,8 +931,8 @@ type Mutation {
   signUp(input: SignUpInput!): SignInPayload!
   """
   Starts the viewer's timer on the issue (chronix stops and saves the one
-  running). Needs `time:write`. 403 `time.errors.email-unverified` (the account's e-mail is
-  not verified); 409 `time.errors.not-linked`; 422
+  running). Needs `time:write`. 403 `time.errors.email-unverified` (the
+  account's e-mail is not verified); 409 `time.errors.not-linked`; 422
   `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 503
   `time.errors.unavailable`.
   """
@@ -937,7 +940,7 @@ type Mutation {
   """Brings an archived project back. Needs `project:manage`."""
   unarchiveProject(id: ID!): Project!
   """
-  Forgets the key. Entries and references stay in chronix. Needs `time:manage`.
+  Forgets the key. Entries and references stay in chronix. Needs `time:manage` and a fresh session.
   """
   unlinkChronix: TimeLink!
   """Removes the viewer from the watchers; repeatable. Needs `issue:write`."""
@@ -1466,7 +1469,7 @@ enum TimeStatus {
   """`totalSeconds` and the rest are set."""
   AVAILABLE
   """
-  The viewer may not read time (`time:read`) or is not a member of the chronix organisation.
+  The viewer may not read time (`time:read`), has no verified e-mail, or is not a member of the chronix organisation.
   """
   FORBIDDEN
   """

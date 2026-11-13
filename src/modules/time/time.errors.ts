@@ -14,12 +14,18 @@ export const unavailable = () =>
   fail("time.errors.unavailable", { status: 503 });
 
 // The acting account's e-mail is not verified, so chronix cannot be told who
-// acts: timers and logs are refused (reading the time still works).
+// acts: timers and logs are refused, and the issue's `timeSpent` is FORBIDDEN
+// (chronix wants a verified e-mail on reads too, link-api.md section 7).
 export const emailUnverified = () =>
   fail("time.errors.email-unverified", { status: 403 });
 
 // The member may not track time in the linked chronix organisation.
 export const forbidden = () => fail("time.errors.forbidden", { status: 403 });
+
+// The key is valid but belongs to another application or another organisation
+// than this one (its `partnerApp` or `partnerOrganisationId` differs).
+export const keyMismatch = () =>
+  fail("time.errors.key-mismatch", { status: 422, field: "key" });
 
 // The issue's project has no mapping in chronix (an admin maps it there).
 export const projectNotMapped = () =>
