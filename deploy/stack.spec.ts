@@ -18,6 +18,7 @@ const compose = Bun.YAML.parse(composeText) as {
       depends_on?: Record<string, { condition: string }>;
       environment?: Record<string, string>;
       labels?: string[];
+      networks?: string[];
     }
   >;
   networks: Record<string, { external?: boolean }>;
@@ -28,10 +29,19 @@ const apiEnv = (compose.services["api"]?.environment ?? {}) as Record<
 >;
 
 describe("docker-compose.yaml", () => {
-  test("every service sits on the external proxy network and publishes no port", () => {
-    expect(compose.networks["proxy"]?.external).toBe(true);
+  test("no service publishes a port", () => {
     for (const [name, service] of Object.entries(compose.services))
       expect(service.ports, `${name} publishes a port`).toBeUndefined();
+  });
+
+  test("the data services are on the stack network only; only api and ui join the external proxy network", () => {
+    expect(compose.networks["proxy"]?.external).toBe(true);
+    expect(compose.networks["internal"]?.external).toBeUndefined();
+    for (const [name, service] of Object.entries(compose.services)) {
+      const expected =
+        name === "api" || name === "ui" ? ["internal", "proxy"] : ["internal"];
+      expect([...(service.networks ?? [])].sort(), name).toEqual(expected);
+    }
   });
 
   test("the stack is mongo, redis, minio, their init one-shots, backup, api and an optional ui", () => {

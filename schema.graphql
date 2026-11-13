@@ -690,7 +690,9 @@ type Mutation {
   """
   Creates an organisation with its own database; the signed-in account becomes
   its owner. Needs `organisation:create`, which every signed-in account holds.
-  409 `tenancy.errors.slug-taken`; 400 `validation.errors.invalid-input` (an
+  409 `tenancy.errors.slug-taken`; 409 `organisations.errors.too-many` (the
+  account already owns 10); 429 `auth.errors.too-many-attempts` (5 an hour);
+  400 `validation.errors.invalid-input` (an
   `invalid` issue on `slug` or `timeZone`).
   """
   createOrganisation(input: CreateOrganisationInput!): MyOrganisation!
@@ -747,7 +749,9 @@ type Mutation {
   """
   Changes the body or the `public` flag; the body's mentions are checked again.
   Needs `comment:write`, and being the author or an admin: 403
-  `comments.errors.not-yours` otherwise. 404 `comments.errors.not-found`.
+  `comments.errors.not-yours` otherwise. Only the author sets or changes
+  `public`: 403 `comments.errors.public-author-only` for an admin. 404
+  `comments.errors.not-found`.
   """
   editComment(id: ID!, input: EditCommentInput!): Comment!
   """

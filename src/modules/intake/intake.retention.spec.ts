@@ -33,12 +33,14 @@ async function setup() {
 }
 
 describe("the retention job (Q15)", () => {
-  test("a declined report loses its e-mail, user agent and token 90 days after the decision", async () => {
+  test("a declined report loses its e-mail, user agent, page URL, metadata and token 90 days after the decision", async () => {
     const { mongo, make } = await setup();
     const now = new Date();
     const due = await make({
       state: "declined",
       decidedAt: new Date(now.getTime() - RETENTION_DAYS * DAY),
+      pageUrl: "https://app.client.test/settings",
+      metadata: [{ key: "plan", value: "pro" }],
     });
     const early = await make({
       state: "declined",
@@ -49,6 +51,8 @@ describe("the retention job (Q15)", () => {
     expect(erased).toMatchObject({
       email: null,
       userAgent: null,
+      pageUrl: null,
+      metadata: [],
       trackingTokenHash: null,
     });
     expect(erased?.erasedAt).toBeInstanceOf(Date);

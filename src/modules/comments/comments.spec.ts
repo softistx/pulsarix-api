@@ -210,6 +210,26 @@ describe("editing and deleting", () => {
       (await asAdmin.call<{ deleteComment: string }>(Delete, { id: added.id }))
         .deleteComment,
     ).toBe(added.id);
+    const mine = await comment(asMember, issue.id, "visible?");
+    const flip = await asAdmin.attempt(Edit, {
+      id: mine.id,
+      input: { public: true },
+    });
+    expect(codeOf(flip)).toBe("comments.errors.public-author-only");
+    const withBody = await asAdmin.attempt(Edit, {
+      id: mine.id,
+      input: { body: "moderated", public: true },
+    });
+    expect(codeOf(withBody)).toBe("comments.errors.public-author-only");
+    expect(
+      (
+        await asMember.call<{ editComment: Comment }>(Edit, {
+          id: mine.id,
+          input: { public: true },
+        })
+      ).editComment.public,
+    ).toBe(true);
+    await asAdmin.call(Delete, { id: mine.id });
     const second = await comment(asMember, issue.id, "again");
     await asOwner.call(Delete, { id: second.id });
     const third = await comment(asMember, issue.id, "own");

@@ -8,6 +8,7 @@ import type { Viewer } from "./auth/viewer";
 import { AcceptanceService, InvitationsService } from "./invitations";
 import { MembersService } from "./members";
 import { OrganisationsService } from "./organisations";
+import type { OrganisationLimits } from "./organisations/organisations.limits";
 import type { Organisation } from "./tenancy";
 
 // What a request builds anew, so none is shared between requests: the kernel's
@@ -18,6 +19,8 @@ export function services(deps: {
   core: CoreMongo;
   tenancy: Pick<AppTenancy, "provision">;
   request: Request;
+  // The rate limits (none without Redis).
+  limits?: OrganisationLimits | undefined;
 }) {
   return {
     signIn: new SignInService(deps.auth, deps.request, localeOfRequest()),
@@ -31,6 +34,7 @@ export function services(deps: {
       deps.core,
       deps.tenancy,
       deps.auth.membership,
+      deps.limits,
     ),
     // The role an account holds in an organisation, null for a non-member (a
     // business module checks that an account it is given belongs there).

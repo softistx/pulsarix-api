@@ -42,3 +42,18 @@ export const retryParams = (retryAfter: number) => ({
   retryAfter,
   minutes: Math.max(1, Math.ceil(retryAfter / 60)),
 });
+
+// Too many tries, or too many mails: 429 `auth.errors.too-many-attempts`, with
+// `retryAfter` (seconds) and `minutes` (rounded up) in `extensions` and
+// `extensions.params`.
+export function tooManyAttempts(retryAfter: number) {
+  const params = retryParams(retryAfter);
+  return new GraphQLError(i18n.t("auth.errors.too-many-attempts", params), {
+    extensions: {
+      code: "auth.errors.too-many-attempts",
+      params,
+      http: { status: 429 },
+      ...params,
+    },
+  });
+}

@@ -5,8 +5,19 @@ import type {
 } from "@/generated/graphql/resolvers";
 import type { AppTenancy, CoreMongo } from "../../config/db";
 import type { JanusMembership, Viewer } from "../auth";
-import { type FieldIssue, fail, invalid, required } from "../shared/errors";
+import {
+  type FieldIssue,
+  fail,
+  invalid,
+  required,
+  tooManyAttempts,
+} from "../shared/errors";
 import { tenancyFailure } from "../tenancy";
+import { tooManyOrganisations } from "./organisations.errors";
+import {
+  MAX_OWNED_ORGANISATIONS,
+  type OrganisationLimits,
+} from "./organisations.limits";
 import {
   type OrganisationDocument,
   organisationSlug,
@@ -45,6 +56,8 @@ export class OrganisationsService {
       JanusMembership,
       "organizationsOf" | "assign"
     >,
+    // The rate limits (none without Redis, in development and specs).
+    private readonly limits?: OrganisationLimits,
   ) {}
 
   // The ACTIVE organisations the account is a member of, by name, each with
@@ -72,6 +85,25 @@ export class OrganisationsService {
     });
   }
 
+  // An account creates at most 5 organisations an hour (rate limit, 429
+  // `auth.errors.too-many-attempts`) and owns at most 10 (409
+  // `organisations.errors.too-many`).
+  private async guardCreation(accountId: string) {
+    const owned = (await this.mine(accountId)).filter(
+      ({ role }) => role === "owner",
+    );
+    if (owned.length >= MAX_OWNED_ORGANISATIONS) {
+      throw tooManyOrganisations(MAX_OWNED_ORGANISATIONS);
+    }
+    const result = await this.limits?.organisationCreate.consume(
+      { accountId },
+      1,
+      { timeoutMs: 1_000 },
+    );
+    if (result && !result.allowed)
+      throw tooManyAttempts(Math.ceil(result.retryAfter / 1000));
+  }
+
   // Registers the organisation, creates and migrates its database, activates
   // it, and makes the account its owner. A taken slug is 409
   // `tenancy.errors.slug-taken`.
@@ -89,6 +121,7 @@ export class OrganisationsService {
       issues.push({ path: "timeZone", code: "validation.errors.invalid" });
     }
     if (issues.length > 0) throw invalid(issues);
+    await this.guardCreation(accountId);
     let tenant: Awaited<ReturnType<AppTenancy["provision"]>>;
     try {
       tenant = await this.tenancy.provision({ slug, name }, accountId);

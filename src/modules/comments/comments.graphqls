@@ -56,7 +56,9 @@ type Mutation {
   """
   Changes the body or the `public` flag; the body's mentions are checked again.
   Needs `comment:write`, and being the author or an admin: 403
-  `comments.errors.not-yours` otherwise. 404 `comments.errors.not-found`.
+  `comments.errors.not-yours` otherwise. Only the author sets or changes
+  `public`: 403 `comments.errors.public-author-only` for an admin. 404
+  `comments.errors.not-found`.
   """
   editComment(id: ID!, input: EditCommentInput!): Comment!
   "Deletes a comment; answers its id. Same rules as `editComment`."

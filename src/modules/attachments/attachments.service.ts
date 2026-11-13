@@ -6,9 +6,12 @@ import {
 import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { retryWriteConflicts } from "../../core/shared/locked";
-import { commentNotFound } from "../comments/comments.errors";
-import { issueNotFound } from "../issues/issues.errors";
-import { type IssueChange, issueChanged } from "../issues/public";
+import { commentNotFound } from "../comments/public";
+import {
+  type IssueChange,
+  issueChanged,
+  issueNotFound,
+} from "../issues/public";
 import { attachmentNotFound, tooMany } from "./attachments.errors";
 import { maxPerOwner } from "./attachments.kinds";
 import type { AttachmentDocument, OwnerType } from "./attachments.model";

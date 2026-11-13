@@ -1,5 +1,6 @@
 // What other modules may import from projects.
 
+export { projectNotFound } from "./projects.errors";
 export { lockProject } from "./projects.lock";
 export type {
   LabelDocument,

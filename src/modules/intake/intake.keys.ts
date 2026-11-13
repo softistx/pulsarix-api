@@ -3,7 +3,7 @@ import type { ObjectId } from "mongodb";
 import type { CoreMongo, ModuleMongo } from "../../config/db";
 import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
-import { projectNotFound } from "../projects/projects.errors";
+import { projectNotFound } from "../projects/public";
 import { keyNotFound } from "./intake.errors";
 import type { WidgetKeyDocument } from "./intake.model";
 import { allowListOf } from "./intake.origins";

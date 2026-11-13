@@ -60,6 +60,8 @@ export const texts: Record<Locale, Record<string, string>> = {
     "comments.errors.not-found": "This comment does not exist.",
     "comments.errors.not-yours":
       "Only the author or an admin can change this comment.",
+    "comments.errors.public-author-only":
+      "Only the author can make a comment public or private.",
     "comments.errors.mention-not-member":
       "A mention names someone who is not a member of this organisation.",
     "intake.errors.unknown-key": "This widget key does not exist.",
@@ -92,6 +94,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "This picture is too small: its shortest side must be at least {min} pixels.",
     "attachments.errors.unavailable":
       "File storage is temporarily unavailable. Try again shortly.",
+    "organisations.errors.too-many":
+      "An account can own at most {max, plural, one {# organisation} other {# organisations}}.",
     "members.errors.not-found": "This member does not exist.",
     "members.errors.last-owner":
       "An organisation keeps at least one owner. Name another owner first.",
@@ -164,6 +168,8 @@ export const texts: Record<Locale, Record<string, string>> = {
     "comments.errors.not-found": "Ce commentaire n'existe pas.",
     "comments.errors.not-yours":
       "Seul l'auteur ou un administrateur peut modifier ce commentaire.",
+    "comments.errors.public-author-only":
+      "Seul l'auteur peut rendre un commentaire public ou privé.",
     "comments.errors.mention-not-member":
       "Une mention désigne quelqu'un qui n'est pas membre de cette organisation.",
     "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",
@@ -197,6 +203,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Cette image est trop petite : son plus petit côté doit faire au moins {min} pixels.",
     "attachments.errors.unavailable":
       "Le stockage des fichiers est momentanément indisponible. Réessayez dans un instant.",
+    "organisations.errors.too-many":
+      "Un compte peut posséder au plus {max, plural, one {# organisation} other {# organisations}}.",
     "members.errors.not-found": "Ce membre n'existe pas.",
     "members.errors.last-owner":
       "Une organisation garde au moins un propriétaire. Nommez d'abord un autre propriétaire.",

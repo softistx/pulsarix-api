@@ -1,7 +1,6 @@
 import { JanusError } from "@softistx/janus";
-import { GraphQLError } from "graphql";
-import { i18n } from "../../i18n";
-import { fail, invalid, retryParams } from "../shared/errors";
+import type { GraphQLError } from "graphql";
+import { fail, invalid, tooManyAttempts } from "../shared/errors";
 
 // The module's refusals (CONTEXT.md lists their codes), and how janus's
 // errors become them. A code says what the client can act on, never which of
@@ -18,21 +17,6 @@ export const emailUnverified = () =>
 
 export const invalidToken = () =>
   fail("auth.errors.invalid-token", { status: 400 });
-
-// Too many tries, or too many mails: 429 `auth.errors.too-many-attempts`, with
-// `retryAfter` (seconds) and `minutes` (rounded up) in `extensions` and
-// `extensions.params`.
-export function tooManyAttempts(retryAfter: number) {
-  const params = retryParams(retryAfter);
-  return new GraphQLError(i18n.t("auth.errors.too-many-attempts", params), {
-    extensions: {
-      code: "auth.errors.too-many-attempts",
-      params,
-      http: { status: 429 },
-      ...params,
-    },
-  });
-}
 
 // A wrong code of the second factor or of a step-up, with the tries left when
 // janus counts them.

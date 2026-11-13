@@ -11,3 +11,6 @@ This file states only what is pulsarix-api's own.
 - `bun run verify` is the green bar; `typecheck` is `bun check`.
 - The dev services use ports 27018, 6380, 1026/8026 and 9002/9003 so they run beside operix-api's.
 - A gap in an in-house package is filed on that package, never worked around.
+- Error texts (`src/i18n/texts.ts`, English and French) live in code, not in core-database
+  migrations as operix's D9/D10 have them: a deliberate departure. There is no migrations
+  framework in v1, and the texts change with the code that raises them.

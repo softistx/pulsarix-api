@@ -13,6 +13,7 @@ import { realtime } from "./config/redis";
 import { type Access, accessOf, type Membership } from "./core/access";
 import type { Auth } from "./core/auth";
 import { janusViewer, type Viewer } from "./core/auth/viewer";
+import type { OrganisationLimits } from "./core/organisations/organisations.limits";
 import { services } from "./core/services";
 import { requestScope } from "./core/tenancy";
 import { type BaseOptions, createBase } from "./http/context";
@@ -69,6 +70,9 @@ export function createApp(
     // The public intake behind /public/graphql (the server's by default: Redis
     // rate limits, the server's mailer); a spec gives its own.
     intake?: PublicIntake;
+    // The rate limits of the kernel (Redis's by default, none without Redis);
+    // a spec gives its own.
+    limits?: OrganisationLimits | undefined;
   } = {},
 ) {
   const auth = options.auth ?? serverAuth();
@@ -102,7 +106,13 @@ export function createApp(
       .plugin((app) =>
         graphql(app, {
           schema: options.schema ?? schema,
-          context: graphqlContext({ auth, membership, access, tenancy }),
+          context: graphqlContext({
+            auth,
+            membership,
+            access,
+            tenancy,
+            limits: "limits" in options ? options.limits : realtime.limits,
+          }),
           plugins: graphqlPlugins,
           ide: "apollo-sandbox",
           sandbox: { initialHeaders: { [clientHeader]: "apollo-sandbox" } },
@@ -123,6 +133,7 @@ type ContextDeps = {
   membership: Membership;
   access: Access;
   tenancy: AppTenancy;
+  limits?: OrganisationLimits | undefined;
 };
 
 export function graphqlContext({
@@ -130,6 +141,7 @@ export function graphqlContext({
   membership,
   access,
   tenancy,
+  limits,
 }: ContextDeps) {
   return ({
     request,
@@ -138,7 +150,7 @@ export function graphqlContext({
     request: Request;
     viewer: Viewer | null;
   }) => ({
-    services: services({ auth, core: coreMongo, tenancy, request }),
+    services: services({ auth, core: coreMongo, tenancy, request, limits }),
     access,
     memberships: viewerMemberships(
       (organisationId, accountId) =>

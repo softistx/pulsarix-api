@@ -37,6 +37,7 @@ describe("the limits over Redis", () => {
         "intakeOrganisation",
         "intakeReadIp",
         "intakeTrackingIp",
+        "organisationCreate",
       ]);
       const kit = await intakeKit();
       const intake = new PublicIntake({

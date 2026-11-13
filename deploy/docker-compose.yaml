@@ -12,8 +12,14 @@
 # Images are built on the host from checkouts, there is no registry: the API
 # from `..` (this repository), the UI from UI_CONTEXT (../../pulsarix-ui).
 #
-# - No `ports:` anywhere. Containers reach each other by container name on the
-#   external `proxy` network (nxgt-docker creates it). Behind the parc's
+# - No `ports:` anywhere. Two networks: `internal`, private to this stack, holds
+#   every service; `proxy`, the external network nxgt-docker creates, holds only
+#   `api` and `ui` besides, so Traefik reaches them and nothing else. mongo,
+#   redis, minio and backup are not on `proxy`: another stack on `proxy` cannot
+#   resolve or reach them. `internal` is an ordinary bridge, not `internal: true`:
+#   backup needs egress (offsite S3, mail) and so does the API (mail). The
+#   isolation is between stacks: a compromised `api` still reaches its own data
+#   services. Behind the parc's
 #   Cloudflare Tunnel (visitor, Cloudflare, cloudflared, Traefik, app) the
 #   hostname is covered by the proxied `*.softistx.com` wildcard: this file adds
 #   Traefik router labels and never a DNS record.
@@ -24,7 +30,10 @@
 # - TRUSTED_PROXIES=172.16.0.0/12 (the docker range) makes the API read the
 #   client address from X-Forwarded-For past Traefik only: the intake rate
 #   limits, the anti-abuse checks and the auth audit depend on it. The API
-#   publishes no port, so nothing else can reach it with a forged header.
+#   publishes no port, but it is on `proxy`: any other container on that network
+#   can reach it directly and send a forged header. That is accepted while the
+#   parc's `proxy` network holds only trusted stacks; Traefik is the only
+#   intended client.
 # - Redis is required: the intake endpoint answers 503 without it, and the
 #   rate limits, the digest queue and the live events live in it.
 # - STACK_PREFIX is the DOCKER namespace (project name, container names, image
@@ -50,6 +59,9 @@
 name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix
 
 networks:
+  # The stack's own network: every service is on it, nothing outside the stack.
+  internal: {}
+  # Traefik's network, shared with the parc's other stacks: `api` and `ui` only.
   proxy:
     external: true
 
@@ -71,11 +83,17 @@ volumes:
 x-common: &common
   restart: unless-stopped
   networks:
-    - proxy
+    - internal
 
 x-oneshot: &oneshot
   restart: "no"
   networks:
+    - internal
+
+# What Traefik routes to: also on the shared `proxy` network.
+x-routed: &routed
+  networks:
+    - internal
     - proxy
 
 x-api-env: &api-env
@@ -347,7 +365,7 @@ services:
 
   # ── the API ─────────────────────────────────────────────────────────────────
   api:
-    <<: *common
+    <<: [*routed, *common]
     image: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api:${TAG:-local}
     build:
       context: ..
@@ -391,7 +409,7 @@ services:
 
   # ── the UI (profile `ui`, once pulsarix-ui has its Dockerfile) ───────────────
   ui:
-    <<: *common
+    <<: [*routed, *common]
     profiles: [ui]
     image: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-ui:${TAG:-local}
     build:

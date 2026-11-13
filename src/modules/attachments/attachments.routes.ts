@@ -10,7 +10,7 @@ import {
 } from "../../core/shared/errors";
 import type { ScopedRequestScope, Viewer } from "../../http/context";
 import { clientHeader } from "../../http/csrf";
-import { commentNotYours } from "../comments/comments.errors";
+import { commentNotYours } from "../comments/public";
 import { refusalFailure, unavailable } from "./attachments.errors";
 import {
   attachmentKind,

@@ -14,13 +14,15 @@
     "start": "NODE_ENV=production bun dist/server.js",
     "schema:print": "bun src/scripts/schema-print.ts",
     "test": "bun test --timeout=15000",
+    "test:affected": "bun src/scripts/affected-tests.ts",
     "typecheck": "bun check",
     "lint": "biome lint",
     "format": "biome format --write",
     "fix": "biome check --write",
     "context:check": "bun src/scripts/context-codes-check.ts",
     "check:ci": "biome ci && bun run context:check",
-    "verify": "bun run generate && bun run schema:print --check && bun run check:ci && bun run typecheck && bun run test && bun run build"
+    "verify": "bun run generate && bun run schema:print --check && bun run check:ci && bun run typecheck && bun run test && bun run build",
+    "verify:pr": "bun run generate && bun run schema:print --check && bun run check:ci && bun run typecheck && bun run test:affected origin/develop && bun run build"
   },
   "dependencies": {
     "@alxia/access": "^0.2.3",
