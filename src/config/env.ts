@@ -120,6 +120,17 @@ export const env = defineEnv({
       .default("")
       .transform((value) => ["1", "true", "yes", "on"].includes(value)),
   ),
+  // MONGO_AUTO_SYNC: create the validators and indexes of a collection on its
+  // first use. Always on outside production; in production only when this is
+  // 1, true, yes or on (deploy/docker-compose.yaml sets true: the app user has
+  // the dbAdmin role, and each organisation's database is made at runtime).
+  MONGO_AUTO_SYNC: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
+    z
+      .enum(["", "0", "false", "no", "off", "1", "true", "yes", "on"])
+      .default("")
+      .transform((value) => ["1", "true", "yes", "on"].includes(value)),
+  ),
   // An empty PORT= is unset, not port 0.
   PORT: z.preprocess(
     (value) => (value === "" ? undefined : value),

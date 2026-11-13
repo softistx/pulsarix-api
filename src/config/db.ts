@@ -18,6 +18,7 @@ import {
 import type { Membership } from "../core/access";
 import { organisationRegistry } from "../core/tenancy";
 import { modules } from "../modules/registry";
+import { autoSyncOf } from "./auto-sync";
 import { env } from "./env";
 
 // ONE MongoClient for the whole process (connectMongo shares it per URI), never
@@ -31,8 +32,10 @@ const connection = await connectMongo(env.MONGO_URI, {
 // first use. In production they do not, unless MONGO_AUTO_SYNC=true (deploy/: the
 // API's Mongo user holds the dbAdmin role, so each organisation database made
 // at runtime gets its validators and indexes on first use).
-const autoSync =
-  Bun.env.NODE_ENV !== "production" || Bun.env["MONGO_AUTO_SYNC"] === "true";
+const autoSync = autoSyncOf(
+  Bun.env.NODE_ENV === "production",
+  env.MONGO_AUTO_SYNC,
+);
 
 // The core database: the organisation registry, the member locks, the
 // invitations and janus's own collections (users, sessions, tokens,
