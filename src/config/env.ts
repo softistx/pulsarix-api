@@ -122,9 +122,17 @@ export const env = defineEnv({
   ),
   // API_PROXY_SECRET: the secret pulsarix-ui's server sends as
   // `x-pulsarix-proxy-secret` (the same variable on both services). Set, the
-  // forwarded client address is honoured only on a request that carries it;
-  // unset (development), TRUSTED_PROXIES alone decides. An empty value is unset.
-  API_PROXY_SECRET: unsetIfEmpty,
+  // forwarded client address of /graphql is honoured only on a request that
+  // carries it (src/http/proxy-ip.ts); /public/ never carries it (the widget
+  // calls through Traefik). Required in production, at least 32 characters;
+  // elsewhere an empty value is unset, a set one is still checked.
+  API_PROXY_SECRET: production
+    ? z.string().min(32, "at least 32 characters")
+    : z
+        .string()
+        .transform((secret) => secret || undefined)
+        .pipe(z.string().min(32, "at least 32 characters").optional())
+        .optional(),
   // MONGO_AUTO_SYNC: create the validators and indexes of a collection on its
   // first use. Always on outside production; in production only when this is
   // 1, true, yes or on (deploy/docker-compose.yaml sets true: the app user has

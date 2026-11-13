@@ -4,8 +4,8 @@ import { proxyIp } from "./proxy-ip";
 const SECRET = "s".repeat(32);
 const server = (address: string) =>
   ({ requestIP: () => ({ address }) }) as unknown as Bun.Server<unknown>;
-const request = (secret?: string) =>
-  new Request("http://api/graphql", {
+const request = (secret?: string, path = "/graphql") =>
+  new Request(`http://api${path}`, {
     headers: {
       "x-forwarded-for": "203.0.113.7",
       ...(secret === undefined ? {} : { "x-pulsarix-proxy-secret": secret }),
@@ -25,6 +25,18 @@ describe("proxyIp", () => {
       "172.18.0.2",
     );
     expect(ip(request("short"), server("172.18.0.2"))).toBe("172.18.0.2");
+    expect(ip(request(), server("172.18.0.2"))).toBe("172.18.0.2");
+  });
+
+  test("/public/ keeps the forwarded address without the secret (the widget comes through Traefik)", () => {
+    const ip = proxyIp({ trusted, secret: SECRET });
+    expect(
+      ip(request(undefined, "/public/graphql"), server("172.18.0.2")),
+    ).toBe("203.0.113.7");
+  });
+
+  test("/graphql from a trusted proxy without the secret gets the socket address", () => {
+    const ip = proxyIp({ trusted, secret: SECRET });
     expect(ip(request(), server("172.18.0.2"))).toBe("172.18.0.2");
   });
 

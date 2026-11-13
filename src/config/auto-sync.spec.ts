@@ -28,6 +28,7 @@ const run = async (nodeEnv: string, flag?: string) => {
         MAIL_URL: "smtp://localhost:1025",
         TOTP_KEYS: "k:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
         REDIS_URL: "redis://localhost:6379",
+        API_PROXY_SECRET: "s".repeat(32),
         ...(flag === undefined ? {} : { MONGO_AUTO_SYNC: flag }),
       },
       stdout: "pipe",
@@ -35,8 +36,9 @@ const run = async (nodeEnv: string, flag?: string) => {
     },
   );
   const out = (await new Response(proc.stdout).text()).trim();
+  const err = await new Response(proc.stderr).text();
   const code = await proc.exited;
-  return { out, code };
+  return { out, err, code };
 };
 const parsed = async (nodeEnv: string, flag?: string) =>
   (await run(nodeEnv, flag)).out;
@@ -57,7 +59,9 @@ describe("MONGO_AUTO_SYNC in production", () => {
   });
 
   test("an unknown value stops the process", async () => {
-    const { code } = await run("production", "maybe");
+    const { out, err, code } = await run("production", "maybe");
     expect(code).not.toBe(0);
+    expect(out).toBe("");
+    expect(err).toContain("MONGO_AUTO_SYNC");
   });
 });
