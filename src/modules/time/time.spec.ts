@@ -1,7 +1,10 @@
 import { beforeAll, describe, expect, test } from "bun:test";
+import { createCipheriv, hkdfSync, randomBytes } from "node:crypto";
+import { parseSealingKeys } from "@softistx/janus";
 import { authApp, memberWith, ownerWithOrganisation, proveEmail } from "~/auth";
 import { createFakeChronixLink } from "~/chronix";
 import { codeOf } from "~/http";
+import { env } from "../../config/env";
 import { useChronix } from "./chronix.client";
 import { openLinkKey, sealLinkKey } from "./time.seal";
 
@@ -190,6 +193,33 @@ describe("the organisation's link", () => {
     expect(openLinkKey(sealed, "org-2")).toBeNull();
     expect(openLinkKey(`${sealed}x`, "org-1")).toBeNull();
     expect(openLinkKey("junk", "org-1")).toBeNull();
+  });
+
+  // The sealing code before sealerFor, kept here to make the stored values.
+  const sealLegacy = (plain: string, organisationId: string) => {
+    const [first] = parseSealingKeys(env.TOTP_KEYS, { where: "TOTP_KEYS" });
+    const derived = Buffer.from(
+      hkdfSync(
+        "sha256",
+        Buffer.from(first.key, "base64"),
+        Buffer.alloc(0),
+        "pulsarix:chronix-link-key",
+        32,
+      ),
+    );
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", derived, iv);
+    cipher.setAAD(Buffer.from(organisationId));
+    const body = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+    const sealed = Buffer.concat([body, cipher.getAuthTag()]);
+    return `v1.${first.id}.${iv.toString("base64url")}.${sealed.toString("base64url")}`;
+  };
+
+  test("a key sealed by the code before sealerFor still opens, for its organisation only", () => {
+    const legacy = sealLegacy(KEY, "org-1");
+    expect(openLinkKey(legacy, "org-1")).toBe(KEY);
+    expect(openLinkKey(legacy, "org-2")).toBeNull();
+    expect(openLinkKey(`${legacy}x`, "org-1")).toBeNull();
   });
 });
 
