@@ -952,8 +952,10 @@ type Mutation {
   Starts the viewer's timer on the issue (chronix stops and saves the one
   running). Needs `time:write`. 403 `time.errors.email-unverified` (the
   account's e-mail is not verified); 409 `time.errors.not-linked`; 422
-  `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 503
-  `time.errors.unavailable`.
+  `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 400
+  `time.errors.invalid-key` (chronix refused the stored key); 429
+  `time.errors.rate-limited`; 404 `issues.errors.not-found` (`issueId` unknown);
+  503 `time.errors.unavailable`.
   """
   startIssueTimer(issueId: ID!): IssueTimer!
   """
@@ -962,8 +964,9 @@ type Mutation {
   keeps running: a stale tab never stops another issue's timer). Two chronix
   calls, so a timer changed in between is accepted. `issueId` must exist. Needs `time:write`. Same errors as
   `startIssueTimer` (403 `time.errors.email-unverified`, 409
-  `time.errors.not-linked`, 403 `time.errors.forbidden`, 503
-  `time.errors.unavailable`).
+  `time.errors.not-linked`, 403 `time.errors.forbidden`, 400
+  `time.errors.invalid-key`, 429 `time.errors.rate-limited`, 404
+  `issues.errors.not-found`, 503 `time.errors.unavailable`).
   """
   stopIssueTimer(issueId: ID!): LoggedTime
   """Brings an archived project back. Needs `project:manage`."""

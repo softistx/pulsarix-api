@@ -94,7 +94,7 @@ export const timeResolvers: Resolvers = {
   TimeSpent: {
     myRunningTimer: async (parent, _, ctx) => {
       const timer = await myTimer(ctx);
-      if (!isOnIssue(timer, parent.issueId)) return null;
+      if (!timer || !isOnIssue(timer, parent.issueId)) return null;
       return { startedAt: timer.startedAt, stoppedSeconds: null };
     },
   },

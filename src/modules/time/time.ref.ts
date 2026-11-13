@@ -20,7 +20,7 @@ export function refOf(issue: { id: string; key: string; title: string }) {
 export function isOnIssue(
   timer: LinkTimer | null | undefined,
   issueId: string,
-): timer is LinkTimer {
+): boolean {
   const ref = timer?.externalRef;
   return Boolean(timer) && ref?.kind === ISSUE && ref.id === issueId;
 }
