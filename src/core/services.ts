@@ -8,7 +8,7 @@ import type { Viewer } from "./auth/viewer";
 import { AcceptanceService, InvitationsService } from "./invitations";
 import { MembersService } from "./members";
 import { OrganisationsService } from "./organisations";
-import type { KernelLimits } from "./organisations/organisations.limits";
+import type { KernelLimits } from "./shared/limits";
 import type { Organisation } from "./tenancy";
 
 // What a request builds anew, so none is shared between requests: the kernel's

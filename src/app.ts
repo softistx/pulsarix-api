@@ -13,8 +13,8 @@ import { realtime } from "./config/redis";
 import { type Access, accessOf, type Membership } from "./core/access";
 import type { Auth } from "./core/auth";
 import { janusViewer, type Viewer } from "./core/auth/viewer";
-import type { KernelLimits } from "./core/organisations/organisations.limits";
 import { services } from "./core/services";
+import type { KernelLimits } from "./core/shared/limits";
 import { requestScope } from "./core/tenancy";
 import { type BaseOptions, createBase } from "./http/context";
 import { clientHeader } from "./http/csrf";
@@ -80,10 +80,10 @@ export function createApp(
   const access = options.access ?? accessOf(modules);
   const tenancy = options.tenancy ?? tenancyOf(membership);
   const limits = "limits" in options ? options.limits : realtime.limits;
-  // Without Redis nothing rate-limits organisation creation: said once.
+  // Without Redis nothing rate-limits these three actions: said once.
   if (!limits && Bun.env.NODE_ENV === "production") {
     console.warn(
-      "no rate limits (no Redis): organisation creation is not limited",
+      "no rate limits (no Redis): organisation creation, sign-up and acceptInvitation are not limited",
     );
   }
   const media = "media" in options ? options.media : serverMedia;

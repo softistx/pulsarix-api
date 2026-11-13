@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 // env.ts parses at import, so each case reads it in a process of its own.
 // `secret` undefined leaves API_PROXY_SECRET out of the environment.
-const run = async (nodeEnv: string, secret?: string) => {
+// `proxies` null leaves TRUSTED_PROXIES out; production needs it.
+const run = async (
+  nodeEnv: string,
+  secret?: string,
+  proxies: string | null = nodeEnv === "production" ? "172.16.0.0/12" : null,
+) => {
   const proc = Bun.spawn(
     [
       "bun",
@@ -21,6 +26,7 @@ const run = async (nodeEnv: string, secret?: string) => {
         TOTP_KEYS: "k:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
         REDIS_URL: "redis://localhost:6379",
         ...(secret === undefined ? {} : { API_PROXY_SECRET: secret }),
+        ...(proxies === null ? {} : { TRUSTED_PROXIES: proxies }),
       },
       stdout: "pipe",
       stderr: "pipe",
@@ -77,5 +83,25 @@ describe("API_PROXY_SECRET outside production", () => {
     const result = await run("development", secret);
     expect(result.code).toBe(0);
     expect(result.out).toBe(secret);
+  });
+});
+
+describe("TRUSTED_PROXIES in production", () => {
+  const secret = "s".repeat(32);
+
+  test("a missing or empty value stops the process", async () => {
+    for (const proxies of [null, "", " , "]) {
+      const result = await run("production", secret, proxies);
+      expect(result.code).not.toBe(0);
+      expect(result.err).toContain("TRUSTED_PROXIES");
+    }
+  });
+
+  test("a range is accepted", async () => {
+    expect((await run("production", secret, "172.16.0.0/12")).code).toBe(0);
+  });
+
+  test("it stays optional outside production", async () => {
+    expect((await run("development")).code).toBe(0);
   });
 });

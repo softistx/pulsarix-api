@@ -1,5 +1,4 @@
 import { defineRateLimit } from "@softistx/redis";
-import type { IpLimits } from "../shared/ip.limits";
 
 // The rate limit of organisation creation (src/config/limits.ts gathers the
 // limits, src/config/redis.ts wires them under the `pulsarix` prefix). The
@@ -24,10 +23,6 @@ export interface OrganisationLimits {
     ): Promise<{ allowed: boolean; retryAfter: number }>;
   };
 }
-
-// All the limits the kernel reads: organisation creation and the anonymous
-// mutations per address.
-export type KernelLimits = OrganisationLimits & Partial<IpLimits>;
 
 // Organisations an account may own at once.
 export const MAX_OWNED_ORGANISATIONS = 10;

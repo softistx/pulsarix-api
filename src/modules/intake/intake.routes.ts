@@ -56,8 +56,6 @@ const asStatus = (value: unknown): Status =>
     ? (value as Status)
     : 400;
 
-export { addressKey };
-
 const isPersisted = (id: unknown): id is PersistedId =>
   typeof id === "string" && Object.hasOwn(persistedOperations, id);
 

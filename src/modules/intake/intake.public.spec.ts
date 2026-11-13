@@ -8,7 +8,7 @@ import {
   intakeKit,
 } from "~/intake";
 import { coreMongo, tenancy } from "../../config/db";
-import { addressKey } from "./intake.routes";
+import { addressKey } from "../../core/shared/address";
 import type { Caller } from "./intake.submit";
 
 const trackingToken = (kit: IntakeKit) => {

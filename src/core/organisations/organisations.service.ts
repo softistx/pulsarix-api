@@ -6,14 +6,8 @@ import type {
 } from "@/generated/graphql/resolvers";
 import type { AppTenancy, CoreMongo } from "../../config/db";
 import type { JanusMembership, Viewer } from "../auth";
-import {
-  type FieldIssue,
-  fail,
-  invalid,
-  required,
-  tooManyAttempts,
-  unavailable,
-} from "../shared/errors";
+import { type FieldIssue, fail, invalid, required } from "../shared/errors";
+import { consumeOrRefuse } from "../shared/throttle";
 import { tenancyFailure } from "../tenancy";
 import { tooManyOrganisations } from "./organisations.errors";
 import {
@@ -98,19 +92,13 @@ export class OrganisationsService {
       throw tooManyOrganisations(MAX_OWNED_ORGANISATIONS);
     }
     if (!this.limits) return;
-    let result: { allowed: boolean; retryAfter: number };
-    try {
-      result = await this.limits.organisationCreate.consume({ accountId }, 1, {
-        timeoutMs: 1_000,
-      });
-    } catch (error) {
-      // Fail closed, like the intake: a limit that cannot be checked is a 503,
-      // never a free creation (each one provisions a database).
-      console.warn("organisation creation rate limit unavailable", error);
-      throw unavailable();
-    }
-    if (!result.allowed)
-      throw tooManyAttempts(Math.ceil(result.retryAfter / 1000));
+    // Fail closed, like the intake: a limit that cannot be checked is a 503,
+    // never a free creation (each one provisions a database).
+    await consumeOrRefuse(
+      this.limits.organisationCreate,
+      { accountId },
+      "organisation creation",
+    );
   }
 
   // Registers the organisation, creates and migrates its database, activates
