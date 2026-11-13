@@ -10,7 +10,12 @@ import {
   chronixClient,
   type RefTotal,
 } from "./chronix";
-import { chronixFailure, invalidKey, notLinked } from "./time.errors";
+import {
+  chronixFailure,
+  emailUnverified,
+  invalidKey,
+  notLinked,
+} from "./time.errors";
 import { openLinkKey, sealLinkKey } from "./time.seal";
 
 export type TimeMongo = ModuleMongo<"time">;
@@ -45,7 +50,9 @@ export class TimeService {
   constructor(
     private readonly mongo: TimeMongo,
     private readonly organisationId: string,
-    private readonly actorId: string,
+    // The acting account's e-mail: chronix's `X-Chronix-Actor`.
+    private readonly actorEmail: string,
+    private readonly emailVerified: boolean,
   ) {}
 
   private async linkDocument() {
@@ -98,7 +105,8 @@ export class TimeService {
   private async actor(): Promise<ChronixActorClient> {
     const client = await this.client();
     if (!client) throw notLinked();
-    return client.as(this.actorId);
+    if (!this.emailVerified) throw emailUnverified();
+    return client.as(this.actorEmail);
   }
 
   private async issue(issueId: string) {
@@ -180,7 +188,7 @@ export class TimeService {
       set(linked ? "UNAVAILABLE" : "UNLINKED");
       return views;
     }
-    const me = client.as(this.actorId);
+    const me = client.as(this.actorEmail);
     try {
       for (let i = 0; i < issueIds.length; i += MAX_REFS) {
         const chunk = issueIds.slice(i, i + MAX_REFS);

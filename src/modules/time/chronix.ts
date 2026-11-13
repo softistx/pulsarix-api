@@ -37,7 +37,9 @@ export interface LinkTimer {
 }
 export interface LinkEntry {
   id: string;
+  // chronix's own member id
   memberId: string;
+  memberEmail: string;
   memberName: string;
   date: string;
   startedAt: string | null;
@@ -88,8 +90,8 @@ export interface ChronixActorClient {
 export interface ChronixLinkClient {
   // Checks the key; no actor needed.
   link(): Promise<LinkInfo>;
-  // `janusUserId` is the janus `sub`, pulsarix's account id.
-  as(janusUserId: string): ChronixActorClient;
+  // `memberEmail`: the account's verified e-mail (`X-Chronix-Actor`).
+  as(memberEmail: string): ChronixActorClient;
 }
 export interface ChronixLinkOptions {
   baseUrl: string;
@@ -120,7 +122,7 @@ export type ChronixLinkFactory = (
 ) => ChronixLinkClient;
 
 const PROJECT = "id name clientName colour";
-const ENTRY = `id memberId memberName date startedAt endedAt durationSeconds
+const ENTRY = `id memberId memberEmail memberName date startedAt endedAt durationSeconds
   description partnerProjectId billable source locked project { ${PROJECT} }`;
 const TIMER = `entryId startedAt partnerProjectId description project { ${PROJECT} }`;
 

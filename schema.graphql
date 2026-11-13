@@ -928,7 +928,8 @@ type Mutation {
   signUp(input: SignUpInput!): SignInPayload!
   """
   Starts the viewer's timer on the issue (chronix stops and saves the one
-  running). Needs `time:write`. 409 `time.errors.not-linked`; 422
+  running). Needs `time:write`. 403 `time.errors.email-unverified` (the account's e-mail is
+  not verified); 409 `time.errors.not-linked`; 422
   `time.errors.project-not-mapped`; 403 `time.errors.forbidden`; 503
   `time.errors.unavailable`.
   """

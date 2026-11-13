@@ -7,10 +7,12 @@ type Permission = "time:read" | "time:write" | "time:manage";
 
 async function scoped(ctx: Context, permission: Permission) {
   const { mongo, tenant } = await requirePermission(ctx, permission);
+  const viewer = requireViewer(ctx);
   return new TimeService(
     mongo,
     tenant._id.toHexString(),
-    requireViewer(ctx).id,
+    viewer.email,
+    viewer.emailVerified,
   );
 }
 

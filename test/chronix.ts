@@ -49,7 +49,8 @@ export function createFakeChronixLink(
     durationSeconds: number,
   ): LinkEntry & { ref: ExternalRefInput | null } => ({
     id: `e${++sequence}`,
-    memberId: actor,
+    memberId: `m-${actor}`,
+    memberEmail: actor,
     memberName: actor,
     date: input.date,
     startedAt: null,
@@ -159,7 +160,7 @@ export function createFakeChronixLink(
                 id: ref.id,
                 totalSeconds: mine.reduce((n, e) => n + e.durationSeconds, 0),
                 actorSeconds: mine
-                  .filter((e) => e.memberId === actor)
+                  .filter((e) => e.memberEmail === actor)
                   .reduce((n, e) => n + e.durationSeconds, 0),
                 entryCount: mine.length,
                 running: [...timers.values()].some(

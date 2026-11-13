@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
+import { authApp, memberWith, ownerWithOrganisation, proveEmail } from "~/auth";
 import { createFakeChronixLink } from "~/chronix";
 import { codeOf } from "~/http";
 import { useChronix } from "./chronix";
@@ -42,12 +42,13 @@ interface TimeSpent {
 
 // An organisation with a project, two issues, an admin (the owner), a member
 // and a viewer; linked to chronix unless `linked` is false.
-async function setup(linked = true) {
+async function setup(linked = true, proveOwner = true) {
   fake.comeUp();
   const { owner, organisation } = await ownerWithOrganisation(kit);
   const asOwner = kit.client(owner.token, { organisation: organisation.id });
   const member = await memberWith(kit, organisation.id, owner.token, "member");
   const viewer = await memberWith(kit, organisation.id, owner.token, "viewer");
+  if (proveOwner) await proveEmail(kit, owner.email);
   const asMember = kit.client(member.token, { organisation: organisation.id });
   const asViewer = kit.client(viewer.token, { organisation: organisation.id });
   const { createProject: project } = await asOwner.call<{
@@ -60,7 +61,16 @@ async function setup(linked = true) {
       }>(Create, { input: { projectId: project.id, title, ...extra } })
     ).createIssue;
   if (linked) await asOwner.call(Link, { key: KEY });
-  return { owner, member, viewer, asOwner, asMember, asViewer, project, make };
+  return {
+    owner,
+    member,
+    viewer,
+    asOwner,
+    asMember,
+    asViewer,
+    project,
+    make,
+  };
 }
 
 describe("the estimate", () => {
@@ -262,7 +272,7 @@ describe("the time spent", () => {
 });
 
 describe("the timer and the manual log", () => {
-  test("startIssueTimer passes the member's janus id and the issue as reference", async () => {
+  test("startIssueTimer passes the member's verified e-mail and the issue as reference", async () => {
     const { member, asMember, project, make } = await setup();
     fake.mapProject(project.id);
     const issue = await make("Fix the login");
@@ -274,7 +284,7 @@ describe("the timer and the manual log", () => {
     const call = fake.calls.find((c) => c.op === "startTimer");
     expect(call).toMatchObject({
       key: KEY,
-      actor: member.id,
+      actor: member.email,
       input: {
         partnerProjectId: project.id,
         externalRef: {
@@ -294,6 +304,27 @@ describe("the timer and the manual log", () => {
     expect(next.startIssueTimer.stoppedSeconds).toBe(600);
   });
 
+  test("an unverified e-mail cannot start or log, yet the time still reads", async () => {
+    // The owner signed up and has not proven the address.
+    const { asOwner, project, make } = await setup(true, false);
+    fake.mapProject(project.id);
+    const issue = await make("Unverified");
+    const started = await asOwner.attempt(Start, { issueId: issue.id });
+    expect(codeOf(started)).toBe("time.errors.email-unverified");
+    const logged = await asOwner.attempt(Log, {
+      issueId: issue.id,
+      input: { date: "2026-11-02", durationSeconds: 600 },
+    });
+    expect(codeOf(logged)).toBe("time.errors.email-unverified");
+    const read = await asOwner.call<{ issue: { timeSpent: TimeSpent } }>(
+      Issue,
+      {
+        key: issue.key,
+      },
+    );
+    expect(read.issue.timeSpent.status).toBe("AVAILABLE");
+  });
+
   test("logIssueTime logs on the issue, as the acting member", async () => {
     const { member, asMember, project, make } = await setup();
     fake.mapProject(project.id);
@@ -311,7 +342,7 @@ describe("the timer and the manual log", () => {
       billable: false,
     });
     expect(fake.calls.find((c) => c.op === "logTime")).toMatchObject({
-      actor: member.id,
+      actor: member.email,
       input: { externalRef: { kind: "issue", id: issue.id } },
     });
   });

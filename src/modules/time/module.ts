@@ -25,6 +25,7 @@ export const timeModule = defineModule({
     "invalid-key",
     "unavailable",
     "forbidden",
+    "email-unverified",
     "project-not-mapped",
     "period-locked",
     "rate-limited",

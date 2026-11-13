@@ -64,6 +64,7 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Time tracking is unavailable right now. Try again in a moment.",
     "time.errors.forbidden":
       "You may not track time in the linked chronix organisation.",
+    "time.errors.email-unverified": "Verify your e-mail address to track time.",
     "time.errors.project-not-mapped":
       "This issue's project is not mapped to a chronix project yet.",
     "time.errors.period-locked": "This date is in a locked chronix period.",
@@ -184,6 +185,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Le suivi du temps est indisponible pour le moment. Réessayez dans un instant.",
     "time.errors.forbidden":
       "Vous ne pouvez pas saisir de temps dans l'organisation chronix reliée.",
+    "time.errors.email-unverified":
+      "Vérifiez votre adresse e-mail pour saisir du temps.",
     "time.errors.project-not-mapped":
       "Le projet de ce ticket n'est pas encore associé à un projet chronix.",
     "time.errors.period-locked":
