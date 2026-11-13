@@ -375,9 +375,7 @@ describe("the inbox", () => {
             id: string,
             patch: Record<string, unknown>,
           ) => Promise<unknown>;
-          findById: (
-            id: string,
-          ) => Promise<{
+          findById: (id: string) => Promise<{
             state: string;
             issueId: unknown;
             decidedBy: unknown;

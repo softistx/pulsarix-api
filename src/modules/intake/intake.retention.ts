@@ -32,6 +32,8 @@ export async function eraseSettled(
     await as.db.clientReports.update(report._id, {
       email: null,
       userAgent: null,
+      pageUrl: null,
+      metadata: [],
       trackingTokenHash: null,
       erasedAt: now,
     });

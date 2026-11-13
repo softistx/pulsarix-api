@@ -247,7 +247,7 @@ describe("a foreign origin is refused", () => {
 });
 
 describe("submitting a report", () => {
-  test("it is stored with what the sender gave and what the server saw", async () => {
+  test("it is stored (page URL without its query or fragment) with what the sender gave and what the server saw", async () => {
     const kit = await intakeKit();
     const { response, body } = await kit.submit(
       goodReport({
@@ -270,7 +270,7 @@ describe("submitting a report", () => {
       title: "The save button does nothing",
       state: "new",
       email: "Reporter@Client.test",
-      pageUrl: "https://app.client.test/settings?tab=1",
+      pageUrl: "https://app.client.test/settings",
       userAgent: "Spec/1.0",
       locale: "fr",
       metadata: [{ key: "plan", value: "pro" }],

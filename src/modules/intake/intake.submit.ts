@@ -139,7 +139,7 @@ function refused(error: z.ZodError): never {
   throw invalid(issues);
 }
 
-// A page URL as http(s) without credentials or fragment; null for anything else.
+// A page URL as http(s) without credentials, query or fragment; null for anything else.
 function pageUrlOf(given: string | null | undefined): string | null {
   if (!given) return null;
   try {
@@ -147,6 +147,7 @@ function pageUrlOf(given: string | null | undefined): string | null {
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
     url.username = "";
     url.password = "";
+    url.search = "";
     url.hash = "";
     return url.href.slice(0, 2_048);
   } catch {
