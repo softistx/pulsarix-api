@@ -31,7 +31,7 @@
     "@alxia/graphql": "^0.16.1",
     "@alxia/i18n": "^0.5.3",
     "@alxia/language": "^0.3.18",
-    "@alxia/media": "^0.6.2",
+    "@alxia/media": "^0.7.0",
     "@alxia/modules": "^0.4.0",
     "@alxia/tenancy": "^0.6.0",
     "@graphql-tools/merge": "^10.0.6",
