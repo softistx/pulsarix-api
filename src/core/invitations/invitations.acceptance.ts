@@ -57,6 +57,12 @@ export class AcceptanceService {
     private readonly core: CoreMongo,
     private readonly auth: Pick<Auth, "accounts" | "membership" | "clock">,
     private readonly locale: Locale,
+    // Where a failure nobody can be told about goes (the app has no logger of
+    // its own: the console, which the host collects).
+    private readonly log: (
+      message: string,
+      error: unknown,
+    ) => void = console.error,
   ) {}
 
   async accept(
@@ -177,21 +183,38 @@ export class AcceptanceService {
   }
 
   // The compensation of a failed grant: the claimed invitation is PENDING
-  // again. If that fails too, the grant's error is still the one thrown and
-  // this one is logged: the invitation then stays ACCEPTED with no role, so its
-  // link is spent, and an admin issues a fresh invitation.
+  // again. A failed put-back is tried once more (a dropped connection is
+  // usually over by then), but never after an `OptimisticLockError`: that means
+  // the invitation changed under us (revoked, or already put back), and a retry
+  // would only overwrite it. Before logging, the invitation is read again: only
+  // one still ACCEPTED is stuck (no role, its link spent, an admin issues a
+  // fresh invitation); one already PENDING or revoked needs nothing. The
+  // grant's error is the one thrown either way.
   private async release(claimed: InvitationDocument, accountId: string) {
-    try {
-      await this.core.as(accountId).db.invitations.update(claimed._id, {
-        status: "PENDING",
-        acceptedBy: null,
-        version: claimed.version,
-      });
-    } catch (error) {
-      console.error(
-        `invitation ${claimed._id.toHexString()}: could not put it back to PENDING after a failed grant`,
-        error,
-      );
+    const invitations = this.core.as(accountId).db.invitations;
+    let failure: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await invitations.update(claimed._id, {
+          status: "PENDING",
+          acceptedBy: null,
+          version: claimed.version,
+        });
+        return;
+      } catch (error) {
+        failure = error;
+        if (error instanceof OptimisticLockError) break;
+      }
     }
+    try {
+      const current = await invitations.findById(claimed._id);
+      if (current && current.status !== "ACCEPTED") return;
+    } catch {
+      // Unreadable: treat it as stuck and log.
+    }
+    this.log(
+      `invitation ${claimed._id.toHexString()}: could not put it back to PENDING after a failed grant (its link is spent; issue a fresh invitation)`,
+      failure,
+    );
   }
 }

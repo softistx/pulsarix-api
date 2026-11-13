@@ -36,6 +36,36 @@ join this table slice by slice.
 | `Retention`      | A report settled 90 days ago (declined: from the decision; closed: from the closing) loses its e-mail, user agent and tracking token (`erasedAt`); its text stays. The `intake-retention` queue runs it every night at 03:30 UTC over every organisation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `search`         | `search(query, kinds, first)` over issues (title, key, description), projects (key, name, description) and members (name, e-mail): one list per kind, best match first, at most `first` (1 to 50, default 10). Issues and projects use MongoDB text indexes (`issues_text`, `projects_text`; weights 10 on title, key and name, 1 on the description; no stemming, `default_language: none`), then a case-insensitive substring match fills the page (prefixes); an exact issue key (`ABC-12`) comes first. Members are matched in memory over the janus list (accent-insensitive; name, then e-mail). Each kind needs the permission of its module (`issue:read`, `project:read`, `member:read`): kinds default to those the viewer holds, and naming one the viewer lacks is 403. |
 
+## Roles and permissions
+
+One role per member per organisation (`src/core/access/roles.ts`); the grants are each module's
+`defaultGrants`. The owner holds every declared permission. `organisation:create` is not a role's
+permission: every signed-in account holds it (`src/core/access/account.ts`).
+
+| Permission                                            | owner | admin | member | viewer |
+| ----------------------------------------------------- | :---: | :---: | :----: | :----: |
+| `organisation:read`                                   |  yes  |  yes  |  yes   |  yes   |
+| `organisation:manage`                                 |  yes  |  yes  |   -    |   -    |
+| `member:read`                                         |  yes  |  yes  |  yes   |  yes   |
+| `member:manage` (invitations, role changes, removals) |  yes  |  yes  |   -    |   -    |
+| `member:assign_owner`                                 |  yes  |   -   |   -    |   -    |
+| `project:read`                                        |  yes  |  yes  |  yes   |  yes   |
+| `project:manage`                                      |  yes  |  yes  |   -    |   -    |
+| `issue:read`                                          |  yes  |  yes  |  yes   |  yes   |
+| `issue:write`                                         |  yes  |  yes  |  yes   |   -    |
+| `issue:delete`                                        |  yes  |  yes  |   -    |   -    |
+| `comment:read`                                        |  yes  |  yes  |  yes   |  yes   |
+| `comment:write`                                       |  yes  |  yes  |  yes   |   -    |
+| `comment:delete`                                      |  yes  |  yes  |   -    |   -    |
+| `attachment:read`                                     |  yes  |  yes  |  yes   |  yes   |
+| `attachment:write`                                    |  yes  |  yes  |  yes   |   -    |
+| `attachment:delete`                                   |  yes  |  yes  |   -    |   -    |
+| `intake:manage` (widget keys, reports)                |  yes  |  yes  |   -    |   -    |
+
+Inviting, changing a role, removing a member and enrolling a second factor also ask for a recent
+proof of identity (10 minutes; 403 `auth.errors.step-up-required`, then `requestStepUp` /
+`confirmStepUp`).
+
 ## Mail links
 
 The UI pages the mails link to, fixed here (the UI never renames them alone). Each posts its token

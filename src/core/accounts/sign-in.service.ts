@@ -14,8 +14,8 @@ const accountLocale = (
 // The sign-in flows, over janus: sign-up, a password, the second factor's
 // code, a link sent by e-mail, a forgotten password. Each janus refusal leaves
 // as the API's code (accounts.errors.ts). janus throttles the passwords of one
-// e-mail and the mails of one address itself; the per-IP limits join with the
-// slice that adds Redis.
+// e-mail and the mails of one address itself; the per-address limit of sign-up
+// is the resolver's (src/core/shared/throttle.ts).
 export class SignInService {
   constructor(
     private readonly auth: Auth,

@@ -31,6 +31,7 @@ describe("the limits over Redis", () => {
       realtime = await openRealtime(redis.uri, () => {});
       const limits = realtime.limits as unknown as IntakeLimits;
       expect(Object.keys(limits).sort()).toEqual([
+        "acceptInvitationIp",
         "intakeEmail",
         "intakeIpKey",
         "intakeKey",
@@ -38,6 +39,7 @@ describe("the limits over Redis", () => {
         "intakeReadIp",
         "intakeTrackingIp",
         "organisationCreate",
+        "signUpIp",
       ]);
       const kit = await intakeKit();
       const intake = new PublicIntake({

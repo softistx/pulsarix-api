@@ -3,6 +3,17 @@ import { z } from "zod";
 
 const production = Bun.env.NODE_ENV === "production";
 
+// A comma separated list; an empty value is unset.
+const trustedProxies = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  )
+  .transform((list) => (list.length > 0 ? list : undefined));
+
 // Required in production; elsewhere `fallback` stands in.
 const inProduction = <T extends z.ZodType>(schema: T, fallback: string) =>
   production ? schema : schema.prefault(fallback as never);
@@ -85,17 +96,13 @@ export const env = defineEnv({
   // address (the public endpoint's rate limits) is read from X-Forwarded-For
   // past these proxies only; never trust a header beyond them. Unset, the
   // address is the connection's: behind a proxy, every client shares one
-  // address and one rate limit.
-  TRUSTED_PROXIES: z
-    .string()
-    .transform((value) =>
-      value
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    )
-    .transform((list) => (list.length > 0 ? list : undefined))
-    .optional(),
+  // address and one rate limit. Required in production, so that the per-address
+  // limits never key on the UI container's address.
+  TRUSTED_PROXIES: production
+    ? trustedProxies.pipe(
+        z.array(z.string(), { error: "required in production" }),
+      )
+    : trustedProxies.optional(),
   // S3_*: the S3-compatible store of the attachments. All optional: without
   // S3_BUCKET, S3_ACCESS_KEY and S3_SECRET_KEY the media routes answer 503
   // `attachments.errors.unavailable` and nothing else changes. An empty value
