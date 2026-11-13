@@ -14,7 +14,7 @@ registry).
 | `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                  |
 | `backup`              | `deploy/backup/Dockerfile`   | nightly `mongodump --oplog`, offsite copy, media mirror                                                                            |
 | `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                    |
-| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui` once pulsarix-ui has its Dockerfile                                                              |
+| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui` once pulsarix-ui has its Dockerfile; serves the widget's `dist` (see "The widget bundle")        |
 
 No service publishes a port. Two networks: `internal`, private to the stack, holds every service;
 the external `proxy` network (nxgt-docker creates it) holds only `api` and `ui` as well, so Traefik
@@ -51,10 +51,20 @@ The Dockerfile runs it in the final image (`RUN bun --no-install dist/scripts/pd
 so a missing or wrong-libc binary fails `docker build`, not the first upload. A spec runs the same
 check on the host.
 
+## The widget bundle
+
+The UI serves the widget at `/widget/v1/*` from `WIDGET_DIST_DIR`; in production without it the
+route is 404. The compose file sets `WIDGET_DIST_DIR=/widget` on `ui` and bind-mounts pulsarix-widget's
+built `dist` there, read only, from `WIDGET_DIST` (default `../../pulsarix-widget/dist`, relative to
+`deploy/`). So the widget is not in the UI image: build it on the host before `up --ui`
+(`bun run build` in `pulsarix-widget`), and a new widget build needs no UI rebuild. A missing
+folder fails `up` (the mount never creates it empty). Traefik already sends every path but `/public/`
+to the UI, so no router changes.
+
 ## Migrations
 
 There is no migration step. Each organisation has its own database, created at runtime, so no
-deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true` (exactly `true`; the compose file sets it): validators and indexes are
+deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true` (declared in `src/config/env.ts`: `1`, `true`, `yes` or `on`; off in production when unset; the compose file sets it): validators and indexes are
 created on first use. For that the app user holds `readWriteAnyDatabase` and `dbAdminAnyDatabase`
 (the backup user holds `backup` only).
 
@@ -100,8 +110,10 @@ bun deploy/restore.ts --yes --confirm default    # DROPS and restores the collec
 ```
 
 The drill restores the latest dump into `drill_<timestamp>_*` databases, compares their
-collections with the ones the code defines (`src/modules/registry.ts`), prints PASS or FAIL and
-drops the scratch databases. It never touches live data. Run it after the first deploy and then
+collections with the ones the code defines (`src/modules/registry.ts`), checks that no project's
+`issueCounters` entry is behind its highest issue number (a counter kept apart from the issues; a
+counter behind would make the next issue collide on `(projectId, number)`; `deploy/numbering.ts`),
+prints PASS or FAIL and drops the scratch databases. It never touches live data. Run it after the first deploy and then
 monthly. `restore.ts` needs `--yes` and `--confirm <prefix|default>` naming the stack; stop `api`
 first when writes may land meanwhile. Options: `--file`, `--from-prefix` (another stack's offsite
 folder), `--database`. The Mongo users are not restored: `mongo-init` recreates them on `up`.
@@ -113,5 +125,5 @@ changes are additive (auto sync never drops); a data rollback is a restore.
 
 ## Not done yet
 
-The real staging deploy (this slice only prepared and dry-ran it), the `restore` check of issue
-key counters if a project counter is kept apart from its issues, and the UI image.
+The real staging deploy (this slice only prepared and dry-ran it), the offsite bucket, and the UI
+image (pulsarix-ui has no Dockerfile yet).

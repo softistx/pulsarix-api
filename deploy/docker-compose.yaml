@@ -427,6 +427,19 @@ services:
       PULSARIX_API_URL: http://${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api:3000/graphql
       APP_ORIGIN: ${PUBLIC_SCHEME:-https}://${UI_HOSTNAME:?}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+      # The widget's `dist`, which the UI serves at /widget/v1/*. Without it
+      # the route answers 404 in production.
+      WIDGET_DIST_DIR: /widget
+    volumes:
+      # pulsarix-widget's built `dist` (`bun run build` there), read only, from
+      # WIDGET_DIST (default: the sibling checkout). A missing folder fails
+      # `up` instead of being created empty.
+      - type: bind
+        source: ${WIDGET_DIST:-../../pulsarix-widget/dist}
+        target: /widget
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         [

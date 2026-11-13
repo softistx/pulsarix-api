@@ -146,4 +146,6 @@ mongosh --nodb --quiet --eval '
     else if (rest.startsWith("org_")) out.organisations[rest.slice(4)] = count(c.getSiblingDB(name));
   }
   print(JSON.stringify(out))'
+# The issue-number check (numbering.ts), on the scratch organisation databases.
+NUMBERING_PREFIX="\${SCRATCH}org_" mongosh --nodb --quiet --eval "$NUMBERING_PROGRAM"
 `;
