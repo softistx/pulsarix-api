@@ -40,6 +40,8 @@ export class TimeLink {
   // Checks the key with chronix, then stores it sealed with the chronix
   // organisation's name.
   async link(key: string) {
+    // An empty key is refused before anything is sent or sealed.
+    if (!key.trim()) throw invalidKey();
     const client = chronixClient({ baseUrl: env.CHRONIX_URL, key: key.trim() });
     let info: Awaited<ReturnType<ChronixLinkClient["link"]>>;
     try {
