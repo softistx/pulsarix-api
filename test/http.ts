@@ -19,7 +19,11 @@ export interface GraphQLFailure {
 export function http(
   kit: Pick<AuthApp, "app">,
   token: string | null,
-  options: { organisation?: string; language?: string } = {},
+  options: {
+    organisation?: string;
+    language?: string;
+    headers?: Record<string, string>;
+  } = {},
 ) {
   const attempt = async <T = Record<string, never>>(
     query: string,
@@ -36,6 +40,7 @@ export function http(
             [organisationHeader]: options.organisation,
           }),
           ...(options.language && { "accept-language": options.language }),
+          ...options.headers,
         },
         body: JSON.stringify({ query, variables }),
       }),

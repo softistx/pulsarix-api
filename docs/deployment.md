@@ -33,7 +33,8 @@ router: the UI's server calls it by container name.
 
 `TRUSTED_PROXIES=172.16.0.0/12` (the docker range) makes the API read the client address from
 `X-Forwarded-For` past Traefik only. It drives the intake rate limits, the anti-abuse checks and
-the auth audit. A range or addresses only: a hop count stops the API at startup. Never the
+the auth audit, and is required in production (the API refuses to start without it, so the
+per-address limits never key on the UI container's address). A range or addresses only: a hop count stops the API at startup. Never the
 `cloudflare` keyword, `X-Real-Ip` or `CF-Connecting-IP`.
 
 `API_PROXY_SECRET` (required: `openssl rand -hex 32`, at least 32 characters) is set on both the

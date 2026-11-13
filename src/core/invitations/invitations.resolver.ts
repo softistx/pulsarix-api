@@ -2,6 +2,7 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import type { Context } from "../../http/context";
 import { requirePermission, requireViewer } from "../access";
 import { idOrInvalid } from "../shared/ids";
+import { throttleIp } from "../shared/throttle";
 
 // The invitations service once the viewer manages members (`member:manage`).
 async function managerServices(ctx: Context) {
@@ -24,8 +25,10 @@ export const invitationsResolvers: Resolvers = {
       (await managerServices(ctx)).resend(idOrInvalid(id).toHexString()),
     revokeInvitation: async (_, { id }, ctx) =>
       (await managerServices(ctx)).revoke(idOrInvalid(id).toHexString()),
-    acceptInvitation: (_, { token, password }, ctx) =>
-      ctx.services.acceptance.accept(token, password),
+    acceptInvitation: async (_, { token, password }, ctx) => {
+      await throttleIp(ctx.services.limits?.acceptInvitationIp, ctx.ip);
+      return ctx.services.acceptance.accept(token, password);
+    },
   },
   Invitation: {
     id: (invitation) => invitation._id.toHexString(),
