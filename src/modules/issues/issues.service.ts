@@ -26,6 +26,7 @@ import {
   priorityLevel,
 } from "./issues.model";
 import { type IssueChange, issueChanged, issueRemoved } from "./issues.usage";
+import { distinct, estimateIssue, invalidField } from "./issues.validation";
 import { rankAfter, rankBetween } from "./rank";
 
 export type IssuesMongo = ModuleMongo<"issues">;
@@ -44,6 +45,7 @@ export interface CreateIssueInput {
   parentId?: string | null;
   startDate?: Date | null;
   dueDate?: Date | null;
+  estimateHours?: number | null;
   // Set by the intake module only (never by GraphQL's `CreateIssueInput`): the
   // client report this issue is made from.
   clientReportId?: ObjectId | null;
@@ -58,6 +60,7 @@ export interface UpdateIssueInput {
   parentId?: string | null;
   startDate?: Date | null;
   dueDate?: Date | null;
+  estimateHours?: number | null;
 }
 
 // The fields whose change the activity journal records. A move is the status
@@ -71,6 +74,7 @@ const TRACKED = [
   "parentId",
   "startDate",
   "dueDate",
+  "estimateHours",
 ] as const;
 const CREATED = [...TRACKED, "statusId"] as const;
 const MOVED = ["statusId", "rank"] as const;
@@ -82,21 +86,6 @@ type Changed = (
   issue: IssueDocument,
   changes: FieldChange[],
 ) => Promise<void>;
-
-// The ids given, as ObjectIds, each once.
-const distinct = (given: string[], path: string): ObjectId[] => {
-  const seen = new Map<string, ObjectId>();
-  for (const id of given) {
-    const objectId = idOrInvalid(id, path);
-    seen.set(objectId.toHexString(), objectId);
-  }
-  return [...seen.values()];
-};
-
-const invalidField = (path: string): FieldIssue => ({
-  path,
-  code: "validation.errors.invalid",
-});
 
 // Every write of a project's issues runs in one transaction that locks the
 // project (`lockProject`), so numbers, ranks and the checks against the
@@ -237,6 +226,12 @@ export class IssuesService {
       throw invalid([{ path: "title", code: "validation.errors.required" }]);
     }
     const projectId = idOrInvalid(input.projectId, "projectId");
+    if (
+      input.estimateHours != null &&
+      estimateIssue(input.estimateHours).length
+    ) {
+      throw invalid(estimateIssue(input.estimateHours));
+    }
     const statusId = input.statusId
       ? idOrInvalid(input.statusId, "statusId")
       : null;
@@ -273,6 +268,7 @@ export class IssuesService {
             : null,
           startDate: input.startDate ?? null,
           dueDate: input.dueDate ?? null,
+          estimateHours: input.estimateHours ?? null,
           rank: await this.endOfColumn(tx, status._id),
           reporterId: this.viewerId,
           clientReportId: input.clientReportId ?? null,
@@ -302,6 +298,7 @@ export class IssuesService {
     if (title === "") {
       issues.push({ path: "title", code: "validation.errors.required" });
     }
+    issues.push(...estimateIssue(input.estimateHours));
     if (issues.length > 0) throw invalid(issues);
     const current = await this.byId(id);
     return this.inProject(current.projectId, async (tx, _, changed) => {
@@ -347,6 +344,9 @@ export class IssuesService {
         }),
         ...(input.startDate !== undefined && { startDate: input.startDate }),
         ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+        ...(input.estimateHours !== undefined && {
+          estimateHours: input.estimateHours,
+        }),
       });
       const changes = changesBetween(issue, updated, TRACKED);
       if (changes.length > 0) await changed("updated", updated, changes);
