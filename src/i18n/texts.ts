@@ -71,6 +71,14 @@ export const texts: Record<Locale, Record<string, string>> = {
     "time.errors.project-not-mapped":
       "This issue's project is not mapped to a chronix project yet.",
     "time.errors.period-locked": "This date is in a locked chronix period.",
+    "time.errors.project-archived":
+      "The chronix project of this issue's project is archived.",
+    "time.errors.project-mapped":
+      "This chronix project is already mapped to another project.",
+    "time.errors.archived":
+      "The project or task of this entry was archived in chronix.",
+    "time.errors.catalogue-project-not-found":
+      "This chronix project does not exist.",
     "time.errors.rate-limited":
       "Too many time entries: try again in {retryAfter} seconds.",
     "comments.errors.not-found": "This comment does not exist.",
@@ -196,6 +204,14 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Le projet de ce ticket n'est pas encore associé à un projet chronix.",
     "time.errors.period-locked":
       "Cette date appartient à une période chronix verrouillée.",
+    "time.errors.project-archived":
+      "Le projet chronix associé au projet de ce ticket est archivé.",
+    "time.errors.project-mapped":
+      "Ce projet chronix est déjà associé à un autre projet.",
+    "time.errors.archived":
+      "Le projet ou la tâche de cette saisie a été archivé dans chronix.",
+    "time.errors.catalogue-project-not-found":
+      "Ce projet chronix n'existe pas.",
     "time.errors.rate-limited":
       "Trop de saisies de temps : réessayez dans {retryAfter} secondes.",
     "comments.errors.not-found": "Ce commentaire n'existe pas.",

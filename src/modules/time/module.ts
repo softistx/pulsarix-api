@@ -29,6 +29,10 @@ export const timeModule = defineModule({
     "key-mismatch",
     "project-not-mapped",
     "period-locked",
+    "project-archived",
+    "project-mapped",
+    "archived",
+    "catalogue-project-not-found",
     "rate-limited",
   ]),
 });

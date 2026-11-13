@@ -34,6 +34,21 @@ export const projectNotMapped = () =>
 export const periodLocked = () =>
   fail("time.errors.period-locked", { status: 409 });
 
+// The chronix project the issue's project maps to was archived (409).
+export const projectArchived = () =>
+  fail("time.errors.project-archived", { status: 409 });
+
+// The chronix project is already mapped to another partner project (409).
+export const projectMapped = () =>
+  fail("time.errors.project-mapped", { status: 409 });
+
+// The entry's project or task was archived in chronix meanwhile (409).
+export const archived = () => fail("time.errors.archived", { status: 409 });
+
+// `mapProject` named a chronix project that does not exist (404).
+export const catalogueProjectNotFound = () =>
+  fail("time.errors.catalogue-project-not-found", { status: 404 });
+
 export const rateLimited = (retryAfter: number) =>
   fail("time.errors.rate-limited", { status: 429, params: { retryAfter } });
 
@@ -43,12 +58,22 @@ export function chronixFailure(error: unknown): unknown {
   if (!(error instanceof ChronixLinkError)) return error;
   switch (error.code) {
     case "link.unauthenticated":
+    // The link was revoked during the request: like a refused key.
+    case "links.revoked":
       return invalidKey();
     case "link.actor-not-member":
     case "link.forbidden":
       return forbidden();
     case "link.project-not-mapped":
       return projectNotMapped();
+    case "links.project-archived":
+      return projectArchived();
+    case "links.project-mapped":
+      return projectMapped();
+    case "time.archived":
+      return archived();
+    case "catalogue.project-not-found":
+      return catalogueProjectNotFound();
     case "period.locked":
       return periodLocked();
     case "rate-limited":

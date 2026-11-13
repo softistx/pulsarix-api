@@ -38,6 +38,8 @@ export function createFakeChronixLink(
     LinkTimer & { ref: ExternalRefInput | null }
   >();
   let down = false;
+  // The next call is refused with this code (any code of the contract's §4).
+  let nextFailure: string | null = null;
   // The next `runningTimer` answers the timer, then it is gone (another
   // client stopped it between pulsarix's two calls).
   let vanishAfterRead = false;
@@ -81,6 +83,11 @@ export function createFakeChronixLink(
   ) {
     calls.push({ op, key, actor, ...(input !== undefined && { input }) });
     if (down) throw new ChronixUnavailableError("chronix is down");
+    if (nextFailure) {
+      const code = nextFailure;
+      nextFailure = null;
+      throw new ChronixLinkError(code, code);
+    }
     if (!keys.has(key) || revoked.has(key)) {
       throw new ChronixLinkError("link.unauthenticated", "unknown key");
     }
@@ -217,6 +224,10 @@ export function createFakeChronixLink(
     },
     comeUp: () => {
       down = false;
+    },
+    // The next call is refused with this code of the contract's §4.
+    failNext: (code: string) => {
+      nextFailure = code;
     },
     // A timer started in chronix itself, with no external reference.
     startUntrackedTimer: (actor: string, partnerProjectId: string) => {
