@@ -150,12 +150,19 @@ export class TimeService {
     }
   }
 
-  // Stops the member's timer (chronix has one per member, whatever its issue)
-  // and returns the saved entry, null when none ran.
+  // Stops the member's timer only when it runs on this issue: a stale tab on
+  // issue A must not stop the timer started on issue B. The saved entry, null
+  // when no timer runs or it runs elsewhere. The timer can change between the
+  // two chronix calls: accepted.
   async stopTimer(issueId: string) {
-    await this.issue(issueId);
+    const issue = await this.issue(issueId);
     const me = await this.actor();
     try {
+      const running = await me.runningTimer();
+      const ref = running?.externalRef;
+      if (!running || ref?.kind !== ISSUE || ref.id !== issue.id) {
+        return null;
+      }
       const entry = await me.stopTimer();
       return (
         entry && {

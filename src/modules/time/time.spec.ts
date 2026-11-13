@@ -527,6 +527,24 @@ describe("stopping the timer and reading the viewer's own", () => {
     fake.restoreKey(KEY);
   });
 
+  test("stop leaves a timer that runs on another issue alone", async () => {
+    const { asMember, project, make } = await setup();
+    fake.mapProject(project.id);
+    const a = await make("Stale tab");
+    const b = await make("Running");
+    await asMember.call(Start, { issueId: b.id });
+    fake.calls.length = 0;
+    const stopped = await asMember.call<{ stopIssueTimer: unknown }>(Stop, {
+      issueId: a.id,
+    });
+    expect(stopped.stopIssueTimer).toBeNull();
+    expect(fake.calls.some((c) => c.op === "stopTimer")).toBe(false);
+    const still = await asMember.call<{
+      issue: { timeSpent: { myRunningTimer: unknown } };
+    }>(Mine, { key: b.key });
+    expect(still.issue.timeSpent.myRunningTimer).not.toBeNull();
+  });
+
   test("an unmapped project is refused on start; stop has no project to map", async () => {
     const { asMember, make } = await setup();
     const issue = await make("Unmapped");
