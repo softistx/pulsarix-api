@@ -1,17 +1,25 @@
+import { parseTrustedProxies } from "@alxia/core";
 import { defineEnv } from "@alxia/env";
 import { z } from "zod";
 
 const production = Bun.env.NODE_ENV === "production";
 
-// A comma separated list; an empty value is unset.
+// A comma separated list of addresses, CIDR ranges or `cloudflare`, checked by
+// `parseTrustedProxies`: a range that trusts every address (`0.0.0.0/0`), a
+// port or a typo is refused here, not later in `createBase`. An empty value is unset.
 const trustedProxies = z
   .string()
-  .transform((value) =>
-    value
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean),
-  )
+  .transform((value, ctx) => {
+    try {
+      return parseTrustedProxies(value);
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return z.NEVER;
+    }
+  })
   .transform((list) => (list.length > 0 ? list : undefined));
 
 // Required in production; elsewhere `fallback` stands in.
