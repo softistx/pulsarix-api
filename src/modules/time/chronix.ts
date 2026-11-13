@@ -34,6 +34,8 @@ export interface LinkTimer {
   project: LinkProject;
   partnerProjectId: string | null;
   description: string | null;
+  // The reference the timer was started with, null when started in chronix without one.
+  externalRef: ExternalRefKey | null;
 }
 export interface LinkEntry {
   id: string;
@@ -124,7 +126,7 @@ export type ChronixLinkFactory = (
 const PROJECT = "id name clientName colour";
 const ENTRY = `id memberId memberEmail memberName date startedAt endedAt durationSeconds
   description partnerProjectId billable source locked project { ${PROJECT} }`;
-const TIMER = `entryId startedAt partnerProjectId description project { ${PROJECT} }`;
+const TIMER = `entryId startedAt partnerProjectId description externalRef { kind id } project { ${PROJECT} }`;
 
 interface GraphQLReply {
   data?: Record<string, unknown> | null;

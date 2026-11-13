@@ -7,6 +7,7 @@ import {
   type ChronixLinkClient,
   ChronixLinkError,
   ChronixUnavailableError,
+  type LinkTimer,
   type RefTotal,
 } from "./chronix";
 import { chronixClient } from "./chronix.client";
@@ -147,6 +148,35 @@ export class TimeService {
     } catch (error) {
       throw chronixFailure(error);
     }
+  }
+
+  // Stops the member's timer (chronix has one per member, whatever its issue)
+  // and returns the saved entry, null when none ran.
+  async stopTimer(issueId: string) {
+    await this.issue(issueId);
+    const me = await this.actor();
+    try {
+      const entry = await me.stopTimer();
+      return (
+        entry && {
+          id: entry.id,
+          date: entry.date,
+          durationSeconds: entry.durationSeconds,
+          description: entry.description,
+          billable: entry.billable,
+        }
+      );
+    } catch (error) {
+      throw chronixFailure(error);
+    }
+  }
+
+  // The member's running timer, null when none runs, nothing is linked or the
+  // e-mail is unverified. Throws what chronix throws: the caller degrades.
+  async runningTimer(): Promise<LinkTimer | null> {
+    const client = await this.client();
+    if (!client || !this.emailVerified) return null;
+    return client.as(this.actorEmail).runningTimer();
   }
 
   async logTime(

@@ -1,6 +1,7 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { can, requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
+import type { LinkTimer } from "./chronix";
 import { TimeService, type TimeSpentView } from "./time.service";
 
 type Permission = "time:read" | "time:write" | "time:manage";
@@ -47,6 +48,21 @@ function spent(ctx: Context, issueId: string): Promise<TimeSpentView> {
   );
 }
 
+// The viewer's timer is one per request, whatever the issues asked about.
+const timers = new WeakMap<object, Promise<LinkTimer | null>>();
+
+function myTimer(ctx: Context): Promise<LinkTimer | null> {
+  let timer = timers.get(ctx);
+  if (!timer) {
+    timer = (async () => {
+      if (!(await can(ctx, "time:write"))) return null;
+      return (await scoped(ctx, "time:write")).runningTimer();
+    })().catch(() => null);
+    timers.set(ctx, timer);
+  }
+  return timer;
+}
+
 export const timeResolvers: Resolvers = {
   Query: {
     timeLink: async (_, __, ctx) => (await scoped(ctx, "time:read")).status(),
@@ -65,8 +81,20 @@ export const timeResolvers: Resolvers = {
     },
     startIssueTimer: async (_, { issueId }, ctx) =>
       (await scoped(ctx, "time:write")).startTimer(issueId),
+    stopIssueTimer: async (_, { issueId }, ctx) =>
+      (await scoped(ctx, "time:write")).stopTimer(issueId),
     logIssueTime: async (_, { issueId, input }, ctx) =>
       (await scoped(ctx, "time:write")).logTime(issueId, input),
+  },
+  TimeSpent: {
+    myRunningTimer: async (parent, _, ctx) => {
+      const timer = await myTimer(ctx);
+      const ref = timer?.externalRef;
+      if (!timer || ref?.kind !== "issue" || ref.id !== parent.issueId) {
+        return null;
+      }
+      return { startedAt: timer.startedAt, stoppedSeconds: null };
+    },
   },
   Issue: {
     // Degrades to a status, whatever chronix does; the issue query never fails
@@ -81,6 +109,7 @@ export const timeResolvers: Resolvers = {
         mySeconds: "mySeconds" in view ? view.mySeconds : null,
         entryCount: "entryCount" in view ? view.entryCount : null,
         running: "running" in view ? view.running : null,
+        issueId: issue.id,
       };
     },
   },
