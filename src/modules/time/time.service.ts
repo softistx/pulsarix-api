@@ -7,6 +7,7 @@ import {
   type ChronixLinkClient,
   ChronixLinkError,
   ChronixUnavailableError,
+  type LinkTimer,
   type RefTotal,
 } from "./chronix";
 import { chronixClient } from "./chronix.client";
@@ -147,6 +148,42 @@ export class TimeService {
     } catch (error) {
       throw chronixFailure(error);
     }
+  }
+
+  // Stops the member's timer only when it runs on this issue: a stale tab on
+  // issue A must not stop the timer started on issue B. The saved entry, null
+  // when no timer runs or it runs elsewhere. The timer can change between the
+  // two chronix calls: accepted.
+  async stopTimer(issueId: string) {
+    const issue = await this.issue(issueId);
+    const me = await this.actor();
+    try {
+      const running = await me.runningTimer();
+      const ref = running?.externalRef;
+      if (!running || ref?.kind !== ISSUE || ref.id !== issue.id) {
+        return null;
+      }
+      const entry = await me.stopTimer();
+      return (
+        entry && {
+          id: entry.id,
+          date: entry.date,
+          durationSeconds: entry.durationSeconds,
+          description: entry.description,
+          billable: entry.billable,
+        }
+      );
+    } catch (error) {
+      throw chronixFailure(error);
+    }
+  }
+
+  // The member's running timer, null when none runs, nothing is linked or the
+  // e-mail is unverified. Throws what chronix throws: the caller degrades.
+  async runningTimer(): Promise<LinkTimer | null> {
+    const client = await this.client();
+    if (!client || !this.emailVerified) return null;
+    return client.as(this.actorEmail).runningTimer();
   }
 
   async logTime(

@@ -50,6 +50,7 @@ const config: CodegenConfig = {
           WidgetKey: "@/modules/intake/intake.model#WidgetKeyDocument",
           ClientReport: "@/modules/intake/intake.model#ClientReportDocument",
           ClientReportConnection: "@/modules/intake/intake.reports#ReportPage",
+          TimeSpent: "@/modules/time/time.model#TimeSpentParent",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",
         },

@@ -32,12 +32,18 @@ type TimeSpent {
   entryCount: Int
   "Whether someone's timer runs on the issue now."
   running: Boolean
+  """
+  The viewer's own running timer, when it runs on this issue. Null when none
+  does, when the viewer may not write time (`time:write`), when the organisation
+  is not linked, or when chronix does not answer.
+  """
+  myRunningTimer: IssueTimer
 }
 
 "A timer started on an issue."
 type IssueTimer {
   startedAt: DateTime!
-  "The seconds of the timer this one replaced (chronix saves it), null when none ran."
+  "On `startIssueTimer`: the seconds of the timer this one replaced (chronix saves it), null when none ran. Always null on `myRunningTimer`."
   stoppedSeconds: Int
 }
 
@@ -90,6 +96,16 @@ type Mutation {
   `time.errors.unavailable`.
   """
   startIssueTimer(issueId: ID!): IssueTimer!
+  """
+  Stops the viewer's running timer when it runs on this issue and returns the
+  entry chronix saved; null when none runs or it runs on another issue (it
+  keeps running: a stale tab never stops another issue's timer). Two chronix
+  calls, so a timer changed in between is accepted. `issueId` must exist. Needs `time:write`. Same errors as
+  `startIssueTimer` (403 `time.errors.email-unverified`, 409
+  `time.errors.not-linked`, 403 `time.errors.forbidden`, 503
+  `time.errors.unavailable`).
+  """
+  stopIssueTimer(issueId: ID!): LoggedTime
   """
   Logs time by hand on the issue. Needs `time:write`. 403
   `time.errors.email-unverified`; 409

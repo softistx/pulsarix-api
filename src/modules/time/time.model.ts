@@ -18,3 +18,14 @@ export const timeLinks = defineCollection({
   actors,
 });
 export type TimeLinkDocument = ReadDocumentOf<typeof timeLinks>;
+
+// What `Issue.timeSpent` hands its fields: the issue it is for (read by
+// `myRunningTimer`) beside the numbers.
+export interface TimeSpentParent {
+  issueId: string;
+  status: "AVAILABLE" | "UNLINKED" | "UNAVAILABLE" | "FORBIDDEN";
+  totalSeconds: number | null;
+  mySeconds: number | null;
+  entryCount: number | null;
+  running: boolean | null;
+}

@@ -132,6 +132,9 @@ export function createFakeChronixLink(
               project,
               partnerProjectId: input.partnerProjectId,
               description: input.description ?? null,
+              externalRef: input.externalRef
+                ? { kind: input.externalRef.kind, id: input.externalRef.id }
+                : null,
               ref: input.externalRef ?? null,
             };
             timers.set(actor, timer);
@@ -139,8 +142,21 @@ export function createFakeChronixLink(
           },
           async stopTimer() {
             guard(key, actor, "stopTimer");
+            const running = timers.get(actor);
+            if (!running) return null;
             timers.delete(actor);
-            return null;
+            const stopped = entryOf(
+              actor,
+              {
+                partnerProjectId: running.partnerProjectId ?? "",
+                date: "2026-11-13",
+                durationSeconds: 0,
+              },
+              running.ref,
+              300,
+            );
+            entries.push(stopped);
+            return stopped;
           },
           async logTime(input) {
             guard(key, actor, "logTime", input);
