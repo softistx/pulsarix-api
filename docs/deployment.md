@@ -108,6 +108,9 @@ service. `mongo-init` creates the backup user only when `MONGO_BACKUP_PASSWORD` 
 backup is on, there is no offsite copy and `restore.ts` / `restore-drill.ts` (which run inside the
 `backup` container) are unavailable.
 
+A stack that once ran with `--backup` and is redeployed without it keeps the old backup container;
+stop it with `docker compose --profile backup stop backup`.
+
 When enabled, the `backup` service dumps the whole Mongo instance with its oplog (one consistent moment) every
 night at `BACKUP_HOUR` (UTC) to the `backup-data` volume, copies the dump and a mirror of the
 media bucket offsite (`BACKUP_S3_*`, any S3-compatible bucket), keeps `BACKUP_RETENTION_DAYS`

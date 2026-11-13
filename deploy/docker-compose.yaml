@@ -3,8 +3,8 @@
 # Modelled on operix-api/deploy. One stack: mongo (a one-node replica set, auth
 # on), redis, minio, their init one-shots, the backup service and the API. The
 # UI (pulsarix-ui) is an optional service of the `ui` profile, added once that
-# repository ships its Dockerfile. The backup service is the `backup` profile. Run it with `bun deploy/deploy.ts` (see
-# docs/deployment.md); by hand, from this folder:
+# repository ships its Dockerfile. The backup service is the `backup` profile. Run it with
+# `bun deploy/deploy.ts` (see docs/deployment.md); by hand, from this folder:
 #
 #   cp .env.example .env     # fill every CHANGE_ME, chmod 600
 #   docker compose build && docker compose up -d
@@ -50,8 +50,8 @@
 #   MONGO_ROOT_PASSWORD is read only on the first start of an empty volume; the
 #   app and backup passwords are re-applied on every `up`. The replica set
 #   member is named after the container, never localhost.
-# - `backup` (profile `backup`, opt-in: deploy.ts --backup) dumps the whole Mongo instance, with its oplog (one consistent
-#   moment), every night to the backup-data volume, copies the dump and a mirror
+# - `backup` (profile `backup`, opt-in: deploy.ts --backup) dumps the
+#   whole Mongo instance, with its oplog (one consistent moment), every night to the backup-data volume, copies the dump and a mirror
 #   of the media bucket to an offsite S3 bucket, and mails BACKUP_ALERT_TO on
 #   failure. deploy/restore.ts and deploy/restore-drill.ts run inside it.
 # - MinIO is pinned by digest to Chainguard's build, as docker-compose.yml is.

@@ -78,6 +78,9 @@ describe("docker-compose.yaml", () => {
     expect(
       compose.services["mongo-init"]?.environment?.["BACKUP_PASSWORD"],
     ).toBe(v("MONGO_BACKUP_PASSWORD:-"));
+    expect(JSON.stringify(compose.services["mongo-init"]?.command)).toContain(
+      "if (process.env.BACKUP_PASSWORD)",
+    );
   });
 
   test("the API waits for a healthy Redis (the intake endpoint answers 503 without it) and gets REDIS_URL", () => {
