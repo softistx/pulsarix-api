@@ -13,11 +13,15 @@ registry).
 | `redis`               | `redis:7.4`                  | password, append-only. **Required**: rate limits, the digest queue, live events; the public intake endpoint answers 503 without it |
 | `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                  |
 | `backup`              | `deploy/backup/Dockerfile`   | nightly `mongodump --oplog`, offsite copy, media mirror                                                                            |
-| `api`                 | root `Dockerfile`            | the GraphQL API, port 3000 on the `proxy` network only                                                                             |
+| `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                    |
 | `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui` once pulsarix-ui has its Dockerfile                                                              |
 
-No service publishes a port. Traefik reaches `api` (and `ui`) by container name on the external
-`proxy` network, which nxgt-docker creates.
+No service publishes a port. Two networks: `internal`, private to the stack, holds every service;
+the external `proxy` network (nxgt-docker creates it) holds only `api` and `ui` as well, so Traefik
+reaches them by container name. `mongo`, `redis`, `minio` and `backup` are on `internal` only:
+another stack on `proxy` cannot reach them. This isolates the data services from the parc's other
+stacks, not from the API itself, and `api` stays reachable by any container on `proxy`. In
+development (`docker-compose.yml`) the published ports are bound to `127.0.0.1`.
 
 ## Routing and the client address
 
