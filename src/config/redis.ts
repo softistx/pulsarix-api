@@ -7,13 +7,13 @@ import {
 } from "@softistx/redis";
 import { RedisClient } from "bun";
 import * as channels from "../modules/activity/activity.channels";
-import * as limits from "../modules/intake/intake.limits";
 import { env } from "./env";
+import * as limits from "./limits";
 import * as queues from "./queues";
 
 // The live channels of the API (src/modules/activity/activity.channels.ts), its
 // queues (src/modules/notifications/notifications.queues.ts) and what closes
-// them. Queues and rate limits need Redis: without it `queues` and `limits`
+// them. The limits are in src/config/limits.ts. Queues and rate limits need Redis: without it `queues` and `limits`
 // are absent (the public endpoint then refuses, 503).
 export interface Realtime {
   readonly channels: ReturnType<

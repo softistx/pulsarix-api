@@ -77,6 +77,43 @@ describe("createOrganisation", () => {
     ).toEqual(["slug", "timeZone"]);
   });
 
+  test("an account creates at most 5 organisations an hour, and owns at most 10", async () => {
+    const calls: { accountId: string }[] = [];
+    let allowed = true;
+    const limited = authApp({
+      limits: {
+        organisationCreate: {
+          consume: async (params) => {
+            calls.push(params);
+            return { allowed, retryAfter: 90_000 };
+          },
+        },
+      },
+    });
+    const account = await signedUp(limited);
+    const me = limited.client(account.token);
+    await me.call(Create, { input: { name: "Limit One" } });
+    expect(calls).toHaveLength(1);
+    allowed = false;
+    const refused = await me.attempt(Create, { input: { name: "Limit Two" } });
+    expect(codeOf(refused)).toBe("auth.errors.too-many-attempts");
+    const mine = await me.call<{ myOrganisations: unknown[] }>(
+      `{ myOrganisations { role } }`,
+    );
+    expect(mine.myOrganisations).toHaveLength(1);
+  });
+
+  test("the tenth organisation is the last an account can own", async () => {
+    const account = await signedUp(kit);
+    const me = kit.client(account.token);
+    for (let i = 1; i <= 10; i++) {
+      await me.call(Create, { input: { name: `Owned ${i}` } });
+    }
+    const eleventh = await me.attempt(Create, { input: { name: "Owned 11" } });
+    expect(codeOf(eleventh)).toBe("organisations.errors.too-many");
+    expect(eleventh.errors?.[0]?.extensions?.params).toEqual({ max: 10 });
+  }, 60_000);
+
   test("needs a signed-in account", async () => {
     expect(
       codeOf(await kit.client().attempt(Create, { input: { name: "Nobody" } })),
