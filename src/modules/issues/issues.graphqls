@@ -25,6 +25,8 @@ type Issue {
   parentId: ID
   startDate: DateTime
   dueDate: DateTime
+  "The estimate in hours, or null. The time spent is `timeSpent` (chronix)."
+  estimateHours: Float
   "Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`."
   rank: String!
   "The member who made it."
@@ -109,11 +111,13 @@ input CreateIssueInput {
   parentId: ID
   startDate: DateTime
   dueDate: DateTime
+  "Hours, 0 to 100 000."
+  estimateHours: Float
 }
 
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
-`startDate` and `dueDate`, and is refused for the others. The status changes
+`startDate`, `dueDate` and `estimateHours`, and is refused for the others. The status changes
 with `moveIssue`.
 """
 input UpdateIssueInput {
@@ -125,6 +129,8 @@ input UpdateIssueInput {
   parentId: ID
   startDate: DateTime
   dueDate: DateTime
+  "Hours, 0 to 100 000; null clears it."
+  estimateHours: Float
 }
 
 type Query {

@@ -57,6 +57,22 @@ export const texts: Record<Locale, Record<string, string>> = {
       "An issue cannot be its own parent, nor the parent of one of its parents.",
     "issues.errors.bad-placement":
       "The issues named as neighbours must be in that status, in order.",
+    "time.errors.not-linked":
+      "This organisation is not linked to chronix: an admin links it first.",
+    "time.errors.invalid-key": "chronix refused this link key.",
+    "time.errors.unavailable":
+      "Time tracking is unavailable right now. Try again in a moment.",
+    "time.errors.forbidden":
+      "You may not track time in the linked chronix organisation.",
+    "time.errors.email-unverified":
+      "Your e-mail address is not verified, so time tracking is unavailable. Verify it first, for example by resetting your password.",
+    "time.errors.key-mismatch":
+      "This chronix key was not made for this organisation of Pulsarix. Create a link key for it in chronix.",
+    "time.errors.project-not-mapped":
+      "This issue's project is not mapped to a chronix project yet.",
+    "time.errors.period-locked": "This date is in a locked chronix period.",
+    "time.errors.rate-limited":
+      "Too many time entries: try again in {retryAfter} seconds.",
     "comments.errors.not-found": "This comment does not exist.",
     "comments.errors.not-yours":
       "Only the author or an admin can change this comment.",
@@ -165,6 +181,23 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Un ticket ne peut pas être son propre parent, ni le parent d'un de ses parents.",
     "issues.errors.bad-placement":
       "Les tickets voisins doivent être dans ce statut, dans l'ordre.",
+    "time.errors.not-linked":
+      "Cette organisation n'est pas reliée à chronix : un administrateur doit d'abord la relier.",
+    "time.errors.invalid-key": "chronix a refusé cette clé de liaison.",
+    "time.errors.unavailable":
+      "Le suivi du temps est indisponible pour le moment. Réessayez dans un instant.",
+    "time.errors.forbidden":
+      "Vous ne pouvez pas saisir de temps dans l'organisation chronix reliée.",
+    "time.errors.email-unverified":
+      "Votre adresse e-mail n'est pas vérifiée : le suivi du temps est indisponible. Vérifiez-la d'abord, par exemple en réinitialisant votre mot de passe.",
+    "time.errors.key-mismatch":
+      "Cette clé chronix n'a pas été créée pour cette organisation de Pulsarix. Créez-en une pour elle dans chronix.",
+    "time.errors.project-not-mapped":
+      "Le projet de ce ticket n'est pas encore associé à un projet chronix.",
+    "time.errors.period-locked":
+      "Cette date appartient à une période chronix verrouillée.",
+    "time.errors.rate-limited":
+      "Trop de saisies de temps : réessayez dans {retryAfter} secondes.",
     "comments.errors.not-found": "Ce commentaire n'existe pas.",
     "comments.errors.not-yours":
       "Seul l'auteur ou un administrateur peut modifier ce commentaire.",
