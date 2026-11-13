@@ -36,6 +36,6 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 
 `bun run verify` is the green bar: generate, `schema:print --check`, `biome ci`,
 `context:check`, `bun check`, `bun test`, production build. The specs need no Docker: they
-start an in-memory MongoDB replica set (`test/setup.ts`). CI runs it on pull requests
-into `develop` and `feat/v1`. Layout: `src/core/` (kernel), `src/modules/` (business
+start an in-memory MongoDB replica set (`test/setup.ts`). CI runs `bun run verify:pr` (the same steps, with only the specs a diff affects) on pull
+requests into `develop`. Layout: `src/core/` (kernel), `src/modules/` (business
 modules, listed only in `src/modules/registry.ts`).

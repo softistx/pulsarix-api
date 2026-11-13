@@ -1,12 +1,12 @@
 name: CI
 
-# Pull requests into develop and feat/v1 only: a push run would re-check the commit its PR
-# just checked. One job: `bun run verify` (generate, schema check, lint, typecheck, tests,
-# production build). Browser tests never run in CI. The extra matrices, when there are any,
-# run on a nightly schedule on develop.
+# Pull requests into develop only: a push run would re-check the commit its PR just
+# checked. One job: a pull request runs `bun run verify:pr` (generate, schema check, lint,
+# typecheck, build and only the specs its diff affects). The full `verify` runs on demand
+# (workflow_dispatch) and in the daily "chore: full pass" PR. Browser tests never run in CI.
 on:
   pull_request:
-    branches: [develop, feat/v1]
+    branches: [develop]
   workflow_dispatch:
 
 concurrency:
@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The affected-spec selection diffs against the base branch.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -70,7 +73,17 @@ jobs:
           make -C "$RUNNER_TEMP/redis-7.4.1" -j2 BUILD_TLS=no
           mkdir -p ~/redis-bin
           cp "$RUNNER_TEMP/redis-7.4.1/src/redis-server" ~/redis-bin/redis-server
-      - run: bun run verify
+      # Manual runs: the whole `verify`.
+      - if: github.event_name != 'pull_request'
+        run: bun run verify
+        env:
+          REDIS_BIN: ${{ steps.redis-bin.outputs.bin }}
+      # Pull requests: the same steps with `test:affected` (the specs that are or import a
+      # changed file; the whole suite when shared infrastructure changed) in place of `test`.
+      - if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          bun run verify:pr
         env:
           REDIS_BIN: ${{ steps.redis-bin.outputs.bin }}
       - name: Save bun install cache

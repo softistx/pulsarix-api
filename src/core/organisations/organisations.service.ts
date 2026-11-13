@@ -4,9 +4,14 @@ import type {
   UpdateOrganisationInput,
 } from "@/generated/graphql/resolvers";
 import type { AppTenancy, CoreMongo } from "../../config/db";
-import { tooManyAttempts } from "../accounts/accounts.errors";
 import type { JanusMembership, Viewer } from "../auth";
-import { type FieldIssue, fail, invalid, required } from "../shared/errors";
+import {
+  type FieldIssue,
+  fail,
+  invalid,
+  required,
+  tooManyAttempts,
+} from "../shared/errors";
 import { tenancyFailure } from "../tenancy";
 import { tooManyOrganisations } from "./organisations.errors";
 import {
@@ -95,7 +100,8 @@ export class OrganisationsService {
       1,
       { timeoutMs: 1_000 },
     );
-    if (result && !result.allowed) throw tooManyAttempts(result.retryAfter);
+    if (result && !result.allowed)
+      throw tooManyAttempts(Math.ceil(result.retryAfter / 1000));
   }
 
   // Registers the organisation, creates and migrates its database, activates

@@ -2,7 +2,13 @@
 // (fail.ts), the refused fields of an input (fields.ts), the @constraint
 // and coercion refusals reshaped as invalid inputs (constraints.ts) and the
 // Yoga plugin that applies them (plugin.ts).
-export { exhausted, fail, retryParams, unavailable } from "./fail";
+export {
+  exhausted,
+  fail,
+  retryParams,
+  tooManyAttempts,
+  unavailable,
+} from "./fail";
 export {
   type FieldIssue,
   invalid,
