@@ -349,6 +349,24 @@ describe("uploading", () => {
     );
   }, 60_000);
 
+  test("a zero-length upload is refused 422 and nothing is stored", async () => {
+    const w = await setup();
+    const response = await upload(
+      w,
+      w.member.token,
+      "issue",
+      w.issue.id,
+      new Uint8Array(0),
+    );
+    expect(response.status).toBe(422);
+    expect((await errorOf(response)).extensions["code"]).toBe(
+      "attachments.errors.undecodable",
+    );
+    expect(await bucketKeys(s3, `organisations/${w.organisation.id}/`)).toEqual(
+      [],
+    );
+  }, 60_000);
+
   test("a picture under 16 px is refused 422", async () => {
     const w = await setup();
     const response = await upload(
