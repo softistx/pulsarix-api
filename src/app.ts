@@ -13,7 +13,7 @@ import { realtime } from "./config/redis";
 import { type Access, accessOf, type Membership } from "./core/access";
 import type { Auth } from "./core/auth";
 import { janusViewer, type Viewer } from "./core/auth/viewer";
-import type { OrganisationLimits } from "./core/organisations/organisations.limits";
+import type { KernelLimits } from "./core/organisations/organisations.limits";
 import { services } from "./core/services";
 import { requestScope } from "./core/tenancy";
 import { type BaseOptions, createBase } from "./http/context";
@@ -72,7 +72,7 @@ export function createApp(
     intake?: PublicIntake;
     // The rate limits of the kernel (Redis's by default, none without Redis);
     // a spec gives its own.
-    limits?: OrganisationLimits | undefined;
+    limits?: KernelLimits | undefined;
   } = {},
 ) {
   const auth = options.auth ?? serverAuth();
@@ -140,7 +140,7 @@ type ContextDeps = {
   membership: Membership;
   access: Access;
   tenancy: AppTenancy;
-  limits?: OrganisationLimits | undefined;
+  limits?: KernelLimits | undefined;
 };
 
 export function graphqlContext({

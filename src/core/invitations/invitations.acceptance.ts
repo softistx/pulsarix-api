@@ -57,6 +57,12 @@ export class AcceptanceService {
     private readonly core: CoreMongo,
     private readonly auth: Pick<Auth, "accounts" | "membership" | "clock">,
     private readonly locale: Locale,
+    // Where a failure nobody can be told about goes (the app has no logger of
+    // its own: the console, which the host collects).
+    private readonly log: (
+      message: string,
+      error: unknown,
+    ) => void = console.error,
   ) {}
 
   async accept(
@@ -177,21 +183,30 @@ export class AcceptanceService {
   }
 
   // The compensation of a failed grant: the claimed invitation is PENDING
-  // again. If that fails too, the grant's error is still the one thrown and
-  // this one is logged: the invitation then stays ACCEPTED with no role, so its
-  // link is spent, and an admin issues a fresh invitation.
+  // again. A failed put-back is tried once more (a dropped connection or a
+  // primary election is usually over by then). If that fails too, the grant's
+  // error is still the one thrown and this one is logged: the invitation then
+  // stays ACCEPTED with no role, so its link is spent, and an admin issues a
+  // fresh invitation.
   private async release(claimed: InvitationDocument, accountId: string) {
-    try {
-      await this.core.as(accountId).db.invitations.update(claimed._id, {
+    const invitations = this.core.as(accountId).db.invitations;
+    const putBack = () =>
+      invitations.update(claimed._id, {
         status: "PENDING",
         acceptedBy: null,
         version: claimed.version,
       });
-    } catch (error) {
-      console.error(
-        `invitation ${claimed._id.toHexString()}: could not put it back to PENDING after a failed grant`,
-        error,
-      );
+    try {
+      await putBack();
+    } catch {
+      try {
+        await putBack();
+      } catch (error) {
+        this.log(
+          `invitation ${claimed._id.toHexString()}: could not put it back to PENDING after a failed grant (its link is spent; issue a fresh invitation)`,
+          error,
+        );
+      }
     }
   }
 }

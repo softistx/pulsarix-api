@@ -9,7 +9,7 @@ import {
 import { createApp } from "../src/app";
 import { coreMongo } from "../src/config/db";
 import { createAuth } from "../src/core/auth";
-import type { OrganisationLimits } from "../src/core/organisations/organisations.limits";
+import type { KernelLimits } from "../src/core/organisations/organisations.limits";
 import type { Media } from "../src/modules/attachments/attachments.storage";
 import type { PublicIntake } from "../src/modules/intake/intake.submit";
 import { type Http, http } from "./http";
@@ -46,7 +46,7 @@ export function authApp(
     media?: Media | undefined;
     intake?: PublicIntake;
     magicLink?: boolean;
-    limits?: OrganisationLimits;
+    limits?: KernelLimits;
   } = {},
 ) {
   const clock = fixedClock(Date.now());

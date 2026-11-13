@@ -8,7 +8,7 @@ import type { Viewer } from "./auth/viewer";
 import { AcceptanceService, InvitationsService } from "./invitations";
 import { MembersService } from "./members";
 import { OrganisationsService } from "./organisations";
-import type { OrganisationLimits } from "./organisations/organisations.limits";
+import type { KernelLimits } from "./organisations/organisations.limits";
 import type { Organisation } from "./tenancy";
 
 // What a request builds anew, so none is shared between requests: the kernel's
@@ -20,9 +20,11 @@ export function services(deps: {
   tenancy: Pick<AppTenancy, "provision">;
   request: Request;
   // The rate limits (none without Redis).
-  limits?: OrganisationLimits | undefined;
+  limits?: KernelLimits | undefined;
 }) {
   return {
+    // The per-address limits of the anonymous mutations (none without Redis).
+    limits: deps.limits,
     signIn: new SignInService(deps.auth, deps.request, localeOfRequest()),
     // The signed-in account on itself (a guard hands it the viewer).
     viewer: (viewer: Viewer) =>

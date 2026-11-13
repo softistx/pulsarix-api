@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   authApp,
   ownerWithOrganisation,
@@ -264,5 +264,107 @@ describe("sign-up, invite, accept, role change", () => {
     await asAdmin.call(Invite, {
       input: { email: uniqueEmail(), name: "M", role: "member" },
     });
+  });
+
+  test("inviting asks for a recent proof of identity (step-up)", async () => {
+    const { owner, organisation } = await ownerWithOrganisation(kit);
+    const asOwner = kit.client(owner.token, { organisation: organisation.id });
+    kit.clock.advance(11 * 60 * 1000);
+    expect(
+      codeOf(
+        await asOwner.attempt(Invite, {
+          input: {
+            email: uniqueEmail("stale"),
+            name: "Stale Invite",
+            role: "member",
+          },
+        }),
+      ),
+    ).toBe("auth.errors.step-up-required");
+  });
+});
+
+describe("the per-address limits of the anonymous mutations", () => {
+  const limit = (allowed: () => boolean, keys: string[]) => ({
+    consume: async (params: { ip: string }) => {
+      keys.push(params.ip);
+      return { allowed: allowed(), retryAfter: 90_000 };
+    },
+  });
+  const unused = {
+    organisationCreate: {
+      consume: async () => ({ allowed: true, retryAfter: 0 }),
+    },
+  };
+
+  test("sign-up and acceptInvitation are refused 429 past their limit", async () => {
+    let open = true;
+    const signUpKeys: string[] = [];
+    const acceptKeys: string[] = [];
+    const limited = authApp({
+      limits: {
+        ...unused,
+        signUpIp: limit(() => open, signUpKeys),
+        acceptInvitationIp: limit(() => open, acceptKeys),
+      },
+    });
+    const SignUp = `mutation($input: SignUpInput!) {
+      signUp(input: $input) { status }
+    }`;
+    const input = {
+      email: uniqueEmail("limited"),
+      password: specPassword,
+      name: "Limited",
+    };
+    await limited.client().call(SignUp, { input });
+    expect(signUpKeys).toHaveLength(1);
+    open = false;
+    expect(
+      codeOf(
+        await limited
+          .client()
+          .attempt(SignUp, { input: { ...input, email: uniqueEmail("l2") } }),
+      ),
+    ).toBe("auth.errors.too-many-attempts");
+    expect(
+      codeOf(
+        await limited
+          .client()
+          .attempt(Accept, { token: "x", password: specPassword }),
+      ),
+    ).toBe("auth.errors.too-many-attempts");
+    expect(acceptKeys).toHaveLength(1);
+  });
+
+  test("a limiter that throws is a 503, never a free pass", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const broken = authApp({
+        limits: {
+          ...unused,
+          signUpIp: {
+            consume: async () => {
+              throw new Error("redis down");
+            },
+          },
+        },
+      });
+      const refused = await broken
+        .client()
+        .attempt(
+          `mutation($input: SignUpInput!) { signUp(input: $input) { status } }`,
+          {
+            input: {
+              email: uniqueEmail("down"),
+              password: specPassword,
+              name: "Down",
+            },
+          },
+        );
+      expect(codeOf(refused)).toBe("auth.errors.unavailable");
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

@@ -1,5 +1,6 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { permissionsOfAccount, requireViewer } from "../access";
+import { throttleIp } from "../shared/throttle";
 
 // The account flows are anonymous by nature (sign-up, sign-in, links, the
 // second factor's challenge); `viewer` reads the context's viewer and refuses
@@ -14,7 +15,10 @@ export const accounts: Resolvers = {
     permissions: () => [...permissionsOfAccount()],
   },
   Mutation: {
-    signUp: (_, { input }, ctx) => ctx.services.signIn.signUp(input),
+    signUp: async (_, { input }, ctx) => {
+      await throttleIp(ctx.services.limits?.signUpIp, ctx.ip);
+      return ctx.services.signIn.signUp(input);
+    },
     signIn: (_, { input }, ctx) => ctx.services.signIn.signIn(input),
     confirmSecondFactor: (_, { challenge, code }, ctx) =>
       ctx.services.signIn.confirmSecondFactor(challenge, code),

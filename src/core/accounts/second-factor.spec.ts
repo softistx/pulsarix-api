@@ -235,6 +235,24 @@ describe("the TOTP second factor", () => {
     expect(after.signIn.status).toBe("SIGNED_IN");
   });
 
+  test("enrolling asks for a recent proof", async () => {
+    const email = uniqueEmail("totp");
+    const signedUp = await kit
+      .client()
+      .call<{ signUp: { session: { token: string } } }>(SignUp, {
+        input: { email, password: specPassword, name: "Person" },
+      });
+    await proveEmail(kit, email);
+    kit.clock.advance(11 * 60 * 1000);
+    expect(
+      codeOf(
+        await kit
+          .client(signedUp.signUp.session.token)
+          .attempt(`mutation { enrollSecondFactor { secret } }`),
+      ),
+    ).toBe("auth.errors.step-up-required");
+  });
+
   test("disabling the factor asks for a recent proof", async () => {
     const account = await accountWithSecondFactor();
     kit.clock.advance(11 * 60 * 1000);
