@@ -13,7 +13,7 @@ import {
 import type { Services } from "../core/services";
 import { unavailable } from "../core/shared/errors";
 import { i18n } from "../i18n";
-import { proxyIp } from "./proxy-ip";
+import { clientIp } from "./client-ip";
 
 export type { Viewer } from "../core/auth/viewer";
 
@@ -51,10 +51,10 @@ export function createBase(options: BaseOptions = {}) {
   // The client address (`ip`) is the connection's, or, behind the proxies of
   // TRUSTED_PROXIES, the one they appended to X-Forwarded-For. When
   // API_PROXY_SECRET is set, only a request that carries it (the UI's server)
-  // gets the forwarded address honoured (src/http/proxy-ip.ts).
+  // gets the forwarded address honoured (`clientIp`).
   const base = env.TRUSTED_PROXIES
     ? alxia({
-        ip: proxyIp({
+        ip: clientIp({
           trusted: env.TRUSTED_PROXIES,
           secret: env.API_PROXY_SECRET,
         }),
