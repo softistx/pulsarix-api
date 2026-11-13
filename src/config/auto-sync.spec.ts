@@ -14,7 +14,7 @@ describe("autoSyncOf", () => {
 });
 
 // env.ts parses at import, so each case reads it in a process of its own.
-const parsed = async (nodeEnv: string, flag?: string) => {
+const run = async (nodeEnv: string, flag?: string) => {
   const proc = Bun.spawn(
     ["bun", "-e", 'console.log((await import("./env")).env.MONGO_AUTO_SYNC)'],
     {
@@ -35,9 +35,11 @@ const parsed = async (nodeEnv: string, flag?: string) => {
     },
   );
   const out = (await new Response(proc.stdout).text()).trim();
-  await proc.exited;
-  return out;
+  const code = await proc.exited;
+  return { out, code };
 };
+const parsed = async (nodeEnv: string, flag?: string) =>
+  (await run(nodeEnv, flag)).out;
 
 describe("MONGO_AUTO_SYNC in production", () => {
   test("is off when unset or empty", async () => {
@@ -52,5 +54,10 @@ describe("MONGO_AUTO_SYNC in production", () => {
 
   test("stays off for false", async () => {
     expect(await parsed("production", "false")).toBe("false");
+  });
+
+  test("an unknown value stops the process", async () => {
+    const { code } = await run("production", "maybe");
+    expect(code).not.toBe(0);
   });
 });

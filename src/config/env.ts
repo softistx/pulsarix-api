@@ -120,6 +120,11 @@ export const env = defineEnv({
       .default("")
       .transform((value) => ["1", "true", "yes", "on"].includes(value)),
   ),
+  // API_PROXY_SECRET: the secret pulsarix-ui's server sends as
+  // `x-pulsarix-proxy-secret` (the same variable on both services). Set, the
+  // forwarded client address is honoured only on a request that carries it;
+  // unset (development), TRUSTED_PROXIES alone decides. An empty value is unset.
+  API_PROXY_SECRET: unsetIfEmpty,
   // MONGO_AUTO_SYNC: create the validators and indexes of a collection on its
   // first use. Always on outside production; in production only when this is
   // 1, true, yes or on (deploy/docker-compose.yaml sets true: the app user has

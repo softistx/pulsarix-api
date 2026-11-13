@@ -29,9 +29,10 @@ const connection = await connectMongo(env.MONGO_URI, {
 });
 
 // Development and tests create the validators and indexes before a collection's
-// first use. In production they do not, unless MONGO_AUTO_SYNC=true (deploy/: the
-// API's Mongo user holds the dbAdmin role, so each organisation database made
-// at runtime gets its validators and indexes on first use).
+// first use. In production they do not, unless MONGO_AUTO_SYNC is 1, true, yes or
+// on (deploy/ sets true: the API's Mongo user holds the dbAdmin role, so each
+// organisation database made at runtime gets its validators and indexes on
+// first use).
 const autoSync = autoSyncOf(
   Bun.env.NODE_ENV === "production",
   env.MONGO_AUTO_SYNC,
