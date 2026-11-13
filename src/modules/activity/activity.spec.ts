@@ -430,6 +430,8 @@ describe("when publishing goes wrong", () => {
     }>(CreateIssue, { input: { projectId: project.id, title: "Twice" } });
 
     expect(attempts).toBe(2);
+    // Run again by `retryWriteConflicts` (one pause), not by the driver.
+    expect(pause).toHaveBeenCalledTimes(1);
     const { nodes } = await journal(asOwner, { projectId: project.id });
     expect(nodes.map((row) => row.verb)).toEqual(["created"]);
     expect(nodes[0]?.issueId).toBe(created.id);
@@ -439,7 +441,7 @@ describe("when publishing goes wrong", () => {
   });
 
   test("a stream ends once the viewer's role no longer allows it", async () => {
-    const { asOwner, project, member, live } = await setup();
+    const { asOwner, organisation, project, member, live } = await setup();
     const was = STREAM_LIMITS.checkEveryMs;
     STREAM_LIMITS.checkEveryMs = 50;
     restore.push(() => {
@@ -449,15 +451,37 @@ describe("when publishing goes wrong", () => {
     const reports = await live(member.token)(Reports, {
       projectId: project.id,
     });
-    expect((await reports.next(300))?.errors).toBeUndefined();
+    restore.push(() => {
+      void reports.close();
+    });
+    const report = (reportId: string) =>
+      realtime.channels.clientReportReceived.publish({
+        organisationId: organisation.id,
+        projectId: project.id,
+        reportId,
+        title: reportId,
+        at: new Date().toISOString(),
+      });
+    // Positive control: while allowed, an event arrives.
+    await Bun.sleep(100);
+    await report("before");
+    const heard = await reports.next(1_000);
+    expect(heard?.data).toMatchObject({
+      clientReportReceived: { reportId: "before" },
+    });
 
     await asOwner.call(ChangeRole, { id: member.id, role: "viewer" });
 
-    // The check runs on its own, with no event to prompt it.
+    // The recheck runs on its own, with no event to prompt it: the stream ends
+    // well before the wait would time out (a timeout also reads as null).
+    const started = Date.now();
     const ended = await reports.next(3_000);
-    expect(ended === null || ended.errors !== undefined).toBe(true);
+    expect(Date.now() - started).toBeLessThan(1_500);
+    if (ended) expect(ended.errors).toBeDefined();
+
+    // And it stays closed: a later event is not delivered.
+    await report("after");
     expect(await reports.next(500)).toBeNull();
-    await reports.close();
   });
 
   test("a failed publish is logged and skipped: the write stands", async () => {
