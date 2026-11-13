@@ -412,6 +412,29 @@ describe("the timer and the manual log", () => {
     });
   });
 
+  test("the chronix link codes added to contract v1 have their own errors", async () => {
+    const { asMember, project, make } = await setup();
+    fake.mapProject(project.id);
+    const issue = await make("New codes");
+    const cases: [string, string][] = [
+      ["links.project-archived", "time.errors.project-archived"],
+      ["links.project-mapped", "time.errors.project-mapped"],
+      ["time.archived", "time.errors.archived"],
+      [
+        "catalogue.project-not-found",
+        "time.errors.catalogue-project-not-found",
+      ],
+      // Revoked during the request: treated like a refused key.
+      ["links.revoked", "time.errors.invalid-key"],
+    ];
+    for (const [chronixCode, code] of cases) {
+      fake.failNext(chronixCode);
+      expect(codeOf(await asMember.attempt(Start, { issueId: issue.id }))).toBe(
+        code,
+      );
+    }
+  });
+
   test("refusals: not linked, not mapped, locked period, viewer, outage", async () => {
     const { asOwner, asMember, asViewer, project, make } = await setup();
     const issue = await make("Edge cases");
