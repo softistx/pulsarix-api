@@ -13,6 +13,7 @@ import { env } from "../../config/env";
 // `pulsarix:chronix-link-key`) and the organisation id as additional data.
 // Those open through `openLegacy` below, read-only: nothing new is sealed that
 // way, and a stored value is never rewritten here.
+const TAG_LENGTH = 16;
 const PURPOSE = "pulsarix:chronix-link-key";
 
 // Built once, at first use: the unknown-key warning is capped per sealer.
@@ -50,6 +51,7 @@ function openLegacy(sealed: string, organisationId: string): string | null {
   if (!key) return null;
   try {
     const raw = Buffer.from(body, "base64url");
+    if (raw.length <= TAG_LENGTH) return null;
     const derived = Buffer.from(
       hkdfSync(
         "sha256",
@@ -63,11 +65,12 @@ function openLegacy(sealed: string, organisationId: string): string | null {
       "aes-256-gcm",
       derived,
       Buffer.from(iv, "base64url"),
+      { authTagLength: TAG_LENGTH },
     );
     decipher.setAAD(Buffer.from(organisationId));
-    decipher.setAuthTag(raw.subarray(raw.length - 16));
+    decipher.setAuthTag(raw.subarray(raw.length - TAG_LENGTH));
     return Buffer.concat([
-      decipher.update(raw.subarray(0, raw.length - 16)),
+      decipher.update(raw.subarray(0, raw.length - TAG_LENGTH)),
       decipher.final(),
     ]).toString("utf8");
   } catch {

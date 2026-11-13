@@ -137,6 +137,14 @@ describe("the organisation's link", () => {
     );
     const bad = await asOwner.attempt(Link, { key: "chx_link_wrong" });
     expect(codeOf(bad)).toBe("time.errors.invalid-key");
+    // Empty: refused by the input schema. Blank: refused by the guard before
+    // anything is sent or sealed.
+    expect(codeOf(await asOwner.attempt(Link, { key: "" }))).toBe(
+      "validation.errors.invalid-input",
+    );
+    expect(codeOf(await asOwner.attempt(Link, { key: "   " }))).toBe(
+      "time.errors.invalid-key",
+    );
     expect(
       (await asOwner.call<{ timeLink: { linked: boolean } }>(TimeLink)).timeLink
         .linked,
@@ -220,6 +228,23 @@ describe("the organisation's link", () => {
     expect(openLinkKey(legacy, "org-1")).toBe(KEY);
     expect(openLinkKey(legacy, "org-2")).toBeNull();
     expect(openLinkKey(`${legacy}x`, "org-1")).toBeNull();
+  });
+
+  test("a value sealed by the old code, kept as a literal, still opens", () => {
+    // Made once by develop's sealLinkKey (before sealerFor) with the test key
+    // and organisation "org-1".
+    const frozen =
+      "v1.dev.l8pFHNwyxjSFIjCG.3Umf5y1XVB4AEx26wXMlu8SyCMypS048jDemSmw";
+    expect(openLinkKey(frozen, "org-1")).toBe(KEY);
+    expect(openLinkKey(frozen, "org-2")).toBeNull();
+  });
+
+  test("a legacy value whose body is no longer than the tag does not open", () => {
+    for (const bytes of [0, 4, 8, 12, 16]) {
+      const body = randomBytes(bytes).toString("base64url");
+      const iv = randomBytes(12).toString("base64url");
+      expect(openLinkKey(`v1.dev.${iv}.${body}`, "org-1")).toBeNull();
+    }
   });
 });
 
