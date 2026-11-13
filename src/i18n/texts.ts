@@ -60,6 +60,8 @@ export const texts: Record<Locale, Record<string, string>> = {
     "comments.errors.not-found": "This comment does not exist.",
     "comments.errors.not-yours":
       "Only the author or an admin can change this comment.",
+    "comments.errors.public-author-only":
+      "Only the author can make a comment public or private.",
     "comments.errors.mention-not-member":
       "A mention names someone who is not a member of this organisation.",
     "intake.errors.unknown-key": "This widget key does not exist.",
@@ -166,6 +168,8 @@ export const texts: Record<Locale, Record<string, string>> = {
     "comments.errors.not-found": "Ce commentaire n'existe pas.",
     "comments.errors.not-yours":
       "Seul l'auteur ou un administrateur peut modifier ce commentaire.",
+    "comments.errors.public-author-only":
+      "Seul l'auteur peut rendre un commentaire public ou privé.",
     "comments.errors.mention-not-member":
       "Une mention désigne quelqu'un qui n'est pas membre de cette organisation.",
     "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",

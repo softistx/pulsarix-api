@@ -12,6 +12,7 @@ import {
   commentNotFound,
   commentNotYours,
   mentionNotMember,
+  publicAuthorOnly,
 } from "./comments.errors";
 import type { CommentDocument } from "./comments.model";
 import { type CommentChange, commentChanged } from "./comments.usage";
@@ -172,6 +173,9 @@ export class CommentsService {
       throw invalid([{ path: "body", code: "validation.errors.required" }]);
     }
     const current = await this.changeable(id);
+    if (input.public != null && current.authorId !== this.viewerId) {
+      throw publicAuthorOnly();
+    }
     const resolved =
       input.body != null && input.body.trim() !== current.body
         ? await this.resolve(input.body)

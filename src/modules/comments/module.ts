@@ -33,6 +33,7 @@ export const commentsModule = defineModule({
   codes: defineCodes("comments", [
     "not-found",
     "not-yours",
+    "public-author-only",
     "mention-not-member",
   ]),
 });

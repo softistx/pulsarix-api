@@ -7,6 +7,11 @@ export const commentNotFound = () =>
 export const commentNotYours = () =>
   fail("comments.errors.not-yours", { status: 403 });
 
+// Only the author sets or changes a comment's `public` flag (what the tracking
+// page shows to the reporter): a moderator can delete a comment, not publish it.
+export const publicAuthorOnly = () =>
+  fail("comments.errors.public-author-only", { status: 403 });
+
 // A mention names an account that is no member of the organisation: 400 on
 // `body`, with the offending ids as param.
 export const mentionNotMember = (ids: string[]) =>
