@@ -103,6 +103,7 @@ x-api-env: &api-env
   MAIL_URL: ${MAIL_URL:?}
   REDIS_URL: redis://:${REDIS_PASSWORD:?}@${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-redis:6379
   TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+  API_PROXY_SECRET: ${API_PROXY_SECRET:?}
   TOTP_KEYS: ${TOTP_KEYS:?}
   PULSARIX_MAGIC_LINK: ${PULSARIX_MAGIC_LINK:-false}
   MONGO_AUTO_SYNC: "true"
@@ -427,6 +428,10 @@ services:
       PULSARIX_API_URL: http://${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api:3000/graphql
       APP_ORIGIN: ${PUBLIC_SCHEME:-https}://${UI_HOSTNAME:?}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+      # Sent to the API as x-pulsarix-proxy-secret; the UI refuses to start in
+      # production without it (32 characters or more), and the API honours the
+      # forwarded client address only on a request that carries it.
+      API_PROXY_SECRET: ${API_PROXY_SECRET:?}
       # The widget's `dist`, which the UI serves at /widget/v1/*. Without it
       # the route answers 404 in production.
       WIDGET_DIST_DIR: /widget

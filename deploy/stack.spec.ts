@@ -77,6 +77,13 @@ describe("docker-compose.yaml", () => {
     expect(composeText).not.toMatch(/CF-Connecting-IP|X-Real-Ip/i);
   });
 
+  test("API_PROXY_SECRET is required and the same variable on the api and the ui", () => {
+    expect(apiEnv["API_PROXY_SECRET"]).toBe(v("API_PROXY_SECRET:?"));
+    expect(compose.services["ui"]?.environment?.["API_PROXY_SECRET"]).toBe(
+      v("API_PROXY_SECRET:?"),
+    );
+  });
+
   test("production settings: https origin, required TOTP keys, auto sync for the per-organisation databases", () => {
     expect(apiEnv["NODE_ENV"]).toBe("production");
     expect(apiEnv["UI_ORIGIN"]).toContain(v("UI_HOSTNAME:?"));

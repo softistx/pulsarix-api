@@ -36,6 +36,14 @@ router: the UI's server calls it by container name.
 the auth audit. A range or addresses only: a hop count stops the API at startup. Never the
 `cloudflare` keyword, `X-Real-Ip` or `CF-Connecting-IP`.
 
+`API_PROXY_SECRET` (required: `openssl rand -hex 32`, at least 32 characters) is set on both the
+`ui` and the `api` service from the same variable. The UI sends it as `x-pulsarix-proxy-secret`.
+For `/graphql` (and the media routes) the API honours the forwarded client address only on a
+request that carries it (constant-time compare); any other request gets the connection's address.
+`/public/` is exempt: the widget's browsers call it through Traefik, which cannot add the secret,
+so it keeps `TRUSTED_PROXIES` alone, or every visitor would share Traefik's address and one rate
+limit. Unset in development, only `TRUSTED_PROXIES` decides.
+
 ## The API image
 
 Bun 1.4.4 (the version CI uses), **glibc** (`oven/bun:1.4.4-slim`, Debian), linux x64 and arm64.
@@ -64,9 +72,10 @@ to the UI, so no router changes.
 ## Migrations
 
 There is no migration step. Each organisation has its own database, created at runtime, so no
-deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true` (declared in `src/config/env.ts`: `1`, `true`, `yes` or `on`; off in production when unset; the compose file sets it): validators and indexes are
-created on first use. For that the app user holds `readWriteAnyDatabase` and `dbAdminAnyDatabase`
-(the backup user holds `backup` only).
+deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true` (declared in
+`src/config/env.ts`: `1`, `true`, `yes` or `on`; off in production when unset; the compose file
+sets it): validators and indexes are created on first use. For that the app user holds
+`readWriteAnyDatabase` and `dbAdminAnyDatabase` (the backup user holds `backup` only).
 
 ## First deploy
 

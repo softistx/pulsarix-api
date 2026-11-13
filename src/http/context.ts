@@ -1,4 +1,4 @@
-import { alxia, defineMiddleware, forwardedIp } from "@alxia/core";
+import { alxia, defineMiddleware } from "@alxia/core";
 import type { GraphQLContext } from "@alxia/graphql";
 import type { ViewerMemberships } from "@alxia/tenancy";
 import { StoreFailure } from "@softistx/janus";
@@ -13,6 +13,7 @@ import {
 import type { Services } from "../core/services";
 import { unavailable } from "../core/shared/errors";
 import { i18n } from "../i18n";
+import { proxyIp } from "./proxy-ip";
 
 export type { Viewer } from "../core/auth/viewer";
 
@@ -48,9 +49,16 @@ export function createBase(options: BaseOptions = {}) {
   });
 
   // The client address (`ip`) is the connection's, or, behind the proxies of
-  // TRUSTED_PROXIES, the one they appended to X-Forwarded-For.
+  // TRUSTED_PROXIES, the one they appended to X-Forwarded-For. When
+  // API_PROXY_SECRET is set, only a request that carries it (the UI's server)
+  // gets the forwarded address honoured (src/http/proxy-ip.ts).
   const base = env.TRUSTED_PROXIES
-    ? alxia({ ip: forwardedIp({ trusted: env.TRUSTED_PROXIES }) })
+    ? alxia({
+        ip: proxyIp({
+          trusted: env.TRUSTED_PROXIES,
+          secret: env.API_PROXY_SECRET,
+        }),
+      })
     : alxia();
   return base.decorate({ env }).use(i18n).use(requestIdOf).use(viewerOf);
 }
