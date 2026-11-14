@@ -9,6 +9,7 @@ import {
   intakeReadIp,
   intakeTrackingIp,
 } from "../src/modules/intake/intake.limits";
+import { serverIntake } from "../src/modules/intake/intake.server";
 import {
   type IntakeLimits,
   type Limiter,
@@ -86,24 +87,31 @@ export const goodReport = (extra: Record<string, unknown> = {}) => ({
 // The app with its public intake over a memory mailer, a counting limiter and a
 // recorded live channel; one organisation with a project and a widget key.
 export async function intakeKit(
-  options: { limits?: IntakeLimits | undefined } = {},
+  options: {
+    limits?: IntakeLimits | undefined;
+    // Build the intake as the server does (`serverIntake`), so a report
+    // reaches the real live channel instead of the `published` list.
+    server?: boolean;
+  } = {},
 ) {
   const site = nextSite();
   const mailer = createMemoryMailer();
   const published: ReportReceived[] = [];
   const limits = "limits" in options ? options.limits : countingLimits();
-  const intake = new PublicIntake({
-    core: coreMongo,
-    tenancy,
-    limits,
-    mailer,
-    from: { name: "pulsarix", address: "noreply@pulsarix.test" },
-    uiOrigin,
-    log: () => {},
-    publish: async (event) => {
-      published.push(event);
-    },
-  });
+  const intake = options.server
+    ? serverIntake(tenancy, { limits, mailer, log: () => {} })
+    : new PublicIntake({
+        core: coreMongo,
+        tenancy,
+        limits,
+        mailer,
+        from: { name: "pulsarix", address: "noreply@pulsarix.test" },
+        uiOrigin,
+        log: () => {},
+        publish: async (event) => {
+          published.push(event);
+        },
+      });
   const kit = authApp({ intake });
   const { owner, organisation } = await ownerWithOrganisation(kit);
   const asOwner = kit.client(owner.token, { organisation: organisation.id });

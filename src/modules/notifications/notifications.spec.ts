@@ -143,6 +143,36 @@ describe("notifications", () => {
     await own.close();
   });
 
+  test("each notification is delivered live to its recipient only, with the running unread count", async () => {
+    const { asOwner, issue, ada, bob, live } = await setup();
+    const adaStream = await live(ada.token);
+    const bobStream = await live(bob.token);
+
+    const first = await issue("First", ada.id);
+    await issue("Second", ada.id);
+
+    const one = (await adaStream.next())?.data?.notificationReceived;
+    const two = (await adaStream.next())?.data?.notificationReceived;
+    expect(one).toMatchObject({ kind: "assigned", unreadCount: 1 });
+    expect(two).toMatchObject({ kind: "assigned", unreadCount: 2 });
+    expect(one?.notificationId).not.toBe(two?.notificationId);
+    // Bob was not told, and nothing else follows for Ada.
+    expect(await bobStream.quiet()).toBe(true);
+    expect(await adaStream.quiet()).toBe(true);
+
+    // A reassignment is delivered to the new assignee.
+    await asOwner.call(UpdateIssue, {
+      id: first.id,
+      input: { assigneeId: bob.id },
+    });
+    expect((await bobStream.next())?.data?.notificationReceived).toMatchObject({
+      kind: "assigned",
+      unreadCount: 1,
+    });
+    await adaStream.close();
+    await bobStream.close();
+  });
+
   test("an edit that keeps a mention does not tell the member again; a new one does", async () => {
     const { asOwner, issue, ada, bob, inbox } = await setup();
     const created = await issue();

@@ -3,19 +3,26 @@ import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
 import { eraseAll } from "./intake.retention";
-import { type IntakeLimits, PublicIntake } from "./intake.submit";
+import {
+  type IntakeDeps,
+  type IntakeLimits,
+  PublicIntake,
+} from "./intake.submit";
 
 // The public intake as the server runs it: the core database, the given
 // tenancy store, the Redis rate limits (none without Redis: the endpoint then
 // refuses, 503), the server's mailer, and the live channel of the inbox.
+// `overrides` is for specs: the limits and mailer a spec has no Redis or SMTP for.
 export function serverIntake(
   tenancy: Pick<AppTenancy, "resolve" | "databaseOf">,
+  overrides: Partial<Pick<IntakeDeps, "limits" | "mailer" | "log">> = {},
 ) {
   return new PublicIntake({
     core: coreMongo,
     tenancy,
     limits: realtime.limits as unknown as IntakeLimits | undefined,
     mailer,
+    ...overrides,
     from: { name: "pulsarix", address: env.MAIL_FROM },
     uiOrigin: env.UI_ORIGIN,
     publish: async (event) => {
