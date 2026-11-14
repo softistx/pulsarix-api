@@ -7,6 +7,7 @@ import {
   type IntakeKit,
   intakeKit,
 } from "~/intake";
+import { subscribe } from "~/sse";
 import { coreMongo, tenancy } from "../../config/db";
 import { addressKey } from "../../core/shared/address";
 import type { Caller } from "./intake.submit";
@@ -592,4 +593,57 @@ test("IPv6 clients are limited by their /64", () => {
   expect(addressKey("::ffff:203.0.113.7")).toBe("203.0.113.7");
   expect(addressKey("fe80::1%en0")).toBe("fe80:0:0:0::/64");
   expect(addressKey(undefined)).toBe("unknown");
+});
+
+const Reports = `subscription($projectId: ID!) {
+  clientReportReceived(projectId: $projectId) { reportId title at }
+}`;
+
+describe("a report reaches the team's inbox live", () => {
+  test("a submitted report is delivered on clientReportReceived to that project's readers only", async () => {
+    // The intake as the server builds it, so the publish under test is the
+    // server's own, not the kit's recorder.
+    const kit = await intakeKit({ server: true });
+    const other = await kit.asOwner.call<{ createProject: { id: string } }>(
+      `mutation($input: CreateProjectInput!) { createProject(input: $input) { id } }`,
+      { input: { key: "OTH", name: "Other" } },
+    );
+    const open = (projectId: string) =>
+      subscribe<{
+        clientReportReceived: { reportId: string; title: string; at: string };
+      }>(
+        kit.kit,
+        kit.owner.token,
+        { organisation: kit.organisation.id },
+        Reports,
+        { projectId },
+      );
+    const inbox = await open(kit.project.id);
+    const elsewhere = await open(other.createProject.id);
+    expect(inbox.status).toBe(200);
+    // Let both readers register before the report arrives.
+    await Bun.sleep(100);
+
+    const { body } = await kit.submit();
+    const data = body?.data as unknown as {
+      submitClientReport: { reportId: string };
+    };
+    const reportId = data.submitClientReport.reportId;
+    await kit.intake.settled();
+
+    const event = (await inbox.next())?.data?.clientReportReceived;
+    expect(event).toMatchObject({
+      reportId,
+      title: "The save button does nothing",
+    });
+    expect(Number.isNaN(Date.parse(event?.at ?? ""))).toBe(false);
+    expect(await elsewhere.quiet()).toBe(true);
+
+    // A refused report is delivered to no one.
+    await kit.submit({ ...goodReport(), filledInMs: 10 });
+    await kit.intake.settled();
+    expect(await inbox.quiet()).toBe(true);
+    await inbox.close();
+    await elsewhere.close();
+  });
 });
