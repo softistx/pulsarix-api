@@ -25,7 +25,7 @@
         "@softistx/mail": "^1.5.0",
         "@softistx/mail-smtp": "^1.1.0",
         "@softistx/mongo": "^0.28.0",
-        "@softistx/redis": "^0.20.0",
+        "@softistx/redis": "^0.21.0",
         "@softistx/s3": "^0.13.0",
         "graphql": "^17.0.2",
         "graphql-yoga": "^5.24.2",
@@ -328,7 +328,7 @@
 
     "@softistx/mongo": ["@softistx/mongo@0.28.0", "https://npm.pkg.github.com/download/@softistx/mongo/0.28.0/f771b728fc08caf46c7ca998e56207c1a585a96f", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-KX5dTBkHlQ/X6YNW9WvUb5bugfuqCzgm4suIY2j/fEJHQ2x8x12HD1VHv3yxMw8TA/n5d8abcEMjhp6rKwRlIQ=="],
 
-    "@softistx/redis": ["@softistx/redis@0.20.0", "https://npm.pkg.github.com/download/@softistx/redis/0.20.0/d813fae458b84d0815a118ebf3bfb04e5f6bf341", { "peerDependencies": { "redis-memory-server": ">=0.17.1 <0.18", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-RMDE2iaVuEavbLz7BN2EPyY3H3/OVRyHgXowEYsEfvKjC1UexZ4/odtShgeWTbpRiuk+P3yg8z4NVorN0I7ppg=="],
+    "@softistx/redis": ["@softistx/redis@0.21.0", "https://npm.pkg.github.com/download/@softistx/redis/0.21.0/cec79a94f05e1e4c6479cf128358d086ece64947", { "peerDependencies": { "redis-memory-server": ">=0.17.1 <0.18", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-kN7fYxEGoi8VXu02GI+VxnifhmQ2Vmehn4LzZh3XgnSR1Hl5VI3rzKSwjNTUcWifkPelGR6igU6b9qYO4WwOFw=="],
 
     "@softistx/s3": ["@softistx/s3@0.13.0", "https://npm.pkg.github.com/download/@softistx/s3/0.13.0/67fcf5e89a28b555c5467f2e5a6d0a61c68a7b78", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-0U0zavWQ4R4AwPfUFXA1QNRENsjxyV4reu10mkqC1MYTk94X3CqBXcbQFO+LpZmy7K8Y6xWY1mrqw4yGtN3aNw=="],
 
