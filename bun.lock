@@ -18,7 +18,7 @@
         "@napi-rs/canvas": "^1.1.0",
         "@nxgt/graphql-scalars": "^0.7.1",
         "@nxgt/graphql-validation": "^0.8.1",
-        "@softistx/chronix-react": "^0.1.0",
+        "@softistx/chronix-react": "^0.2.0",
         "@softistx/image": "^0.6.0",
         "@softistx/janus": "^0.60.0",
         "@softistx/janus-mail": "^0.26.0",
@@ -489,7 +489,7 @@
 
     "@repeaterjs/repeater": ["@repeaterjs/repeater@3.1.0", "", {}, "sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ=="],
 
-    "@softistx/chronix-react": ["@softistx/chronix-react@0.1.0", "https://npm.pkg.github.com/download/@softistx/chronix-react/0.1.0/a74e964c35f74c689f3108cc4d67c120e4d5a778", { "peerDependencies": { "@softistx/material": "^3.204.0", "react": "^19.0.0", "react-dom": "^19.0.0" } }, "sha512-Np2hof5W0TrU+RrMRmZ2IDenUMghBZj1v+H4ix2EWC0IBmVvX0hKBFkgH3EIw/DhPnAbgkbo5YRrXCY1y02S3g=="],
+    "@softistx/chronix-react": ["@softistx/chronix-react@0.2.0", "https://npm.pkg.github.com/download/@softistx/chronix-react/0.2.0/dc6fa06c263eff6a7ea47b5a13ac52a256541397", { "peerDependencies": { "@softistx/material": "^3.204.0", "react": "^19.0.0", "react-dom": "^19.0.0" } }, "sha512-Kb9eZwmZp0KCWcNGG9Tejwiis0flAx21WO+LvFFhdegzqisvwJWxQm/JAz9BlWUoWyeJj7bCUtu4RTSTpOacEw=="],
 
     "@softistx/i18n": ["@softistx/i18n@3.2.0", "https://npm.pkg.github.com/download/@softistx/i18n/3.2.0/4ff3ef8ccca00d6e653b6c4d8fc090967bb3239d", { "dependencies": { "@formatjs/icu-messageformat-parser": "^3.5.20", "intl-messageformat": "^12.1.2", "lodash": "^4.18.1" }, "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-A3EIW8MEd2gOJH3tisUGVBBAEOn/IxPrLCXRPOFCjG+h8cR7nePB61xVqJ9K0aJTP1W9WqDijiV4lhvSnoaSNg=="],
 

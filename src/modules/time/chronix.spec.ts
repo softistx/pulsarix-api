@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ChronixLinkError,
   ChronixUnavailableError,
+  createChronixLinkClient,
 } from "@softistx/chronix-react/server";
 import type { GraphQLError } from "graphql";
 import { chronixFailure } from "./time.errors";
@@ -53,6 +54,35 @@ describe("chronix errors as the API's errors", () => {
       params: { retryAfter: 12 },
     });
     expect(limited()).toMatchObject({ params: { retryAfter: 60 } });
+  });
+
+  test("a 429 with no code, from the real client, ends as rate-limited with its Retry-After", async () => {
+    const answer = (headers: Record<string, string>) =>
+      createChronixLinkClient({
+        baseUrl: "https://chronix.test",
+        key: "chx_link_any",
+        fetch: Object.assign(
+          async () => new Response("slow down", { status: 429, headers }),
+          { preconnect: () => {} },
+        ),
+      })
+        .as("member@example.test")
+        .runningTimer()
+        .then(
+          () => {
+            throw new Error("expected a refusal");
+          },
+          (error: unknown) => mapped(error),
+        );
+    expect(await answer({ "Retry-After": "7" })).toMatchObject({
+      code: "time.errors.rate-limited",
+      status: 429,
+      params: { retryAfter: 7 },
+    });
+    expect(await answer({})).toMatchObject({
+      code: "time.errors.rate-limited",
+      params: { retryAfter: 60 },
+    });
   });
 
   test("an error that is not chronix's passes through", () => {
