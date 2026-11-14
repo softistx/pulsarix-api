@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@alxia/access": "^0.2.3",
-    "@alxia/core": "^0.22.0",
+    "@alxia/core": "^0.24.0",
     "@alxia/env": "^0.5.0",
     "@alxia/graphql": "^0.16.2",
     "@alxia/i18n": "^0.5.3",
