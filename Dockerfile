@@ -9,9 +9,9 @@ WORKDIR /app
 # The in-memory Mongo and Redis are for the specs only: no binary download.
 ENV MONGOMS_DISABLE_POSTINSTALL=1 REDISMS_DISABLE_POSTINSTALL=1
 COPY package.json bun.lock* bunfig.toml* ./
-# GITHUB_TOKEN (read:packages) is a build secret for the @softistx scope:
-# docker build --secret id=GITHUB_TOKEN,env=GITHUB_TOKEN
-RUN --mount=type=secret,id=GITHUB_TOKEN,env=GITHUB_TOKEN bun install --frozen-lockfile
+# NPM_REGISTRY_TOKEN (read) is a build secret for the @softistx scope (npm.softistx.com):
+# docker build --secret id=NPM_REGISTRY_TOKEN,env=NPM_REGISTRY_TOKEN
+RUN --mount=type=secret,id=NPM_REGISTRY_TOKEN,env=NPM_REGISTRY_TOKEN bun install --frozen-lockfile
 COPY . .
 # dist/server.js, and dist/scripts/pdf-preview-check.js (run below).
 RUN bun run build && bun run build:scripts
