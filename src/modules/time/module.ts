@@ -10,7 +10,7 @@ import { timeResolvers } from "./time.resolver";
 // of truth. The estimate is a field of the issue (issues module).
 export const timeModule = defineModule({
   name: "time",
-  dependsOn: ["access", "organisations", "issues"],
+  dependsOn: ["access", "organisations", "projects", "issues"],
   collections: { timeLinks },
   typeDefs: [timeTypeDefs],
   resolvers: timeResolvers as never,
@@ -30,6 +30,7 @@ export const timeModule = defineModule({
     "project-not-mapped",
     "period-locked",
     "project-archived",
+    "pulsarix-project-archived",
     "project-mapped",
     "archived",
     "catalogue-project-not-found",

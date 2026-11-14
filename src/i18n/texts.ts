@@ -71,6 +71,8 @@ export const texts: Record<Locale, Record<string, string>> = {
     "time.errors.project-not-mapped":
       "This issue's project is not mapped to a chronix project yet.",
     "time.errors.period-locked": "This date is in a locked chronix period.",
+    "time.errors.pulsarix-project-archived":
+      "This issue's project is archived: no timer can start and no time can be logged on it.",
     "time.errors.project-archived":
       "The chronix project of this issue's project is archived.",
     "time.errors.project-mapped":
@@ -204,6 +206,8 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Le projet de ce ticket n'est pas encore associé à un projet chronix.",
     "time.errors.period-locked":
       "Cette date appartient à une période chronix verrouillée.",
+    "time.errors.pulsarix-project-archived":
+      "Le projet de ce ticket est archivé : aucun minuteur ne peut démarrer et aucun temps ne peut y être saisi.",
     "time.errors.project-archived":
       "Le projet chronix associé au projet de ce ticket est archivé.",
     "time.errors.project-mapped":
