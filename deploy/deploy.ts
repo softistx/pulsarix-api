@@ -40,10 +40,10 @@ import {
   DEPLOY_DIR,
   fail,
   flagValue,
-  REGISTRY_TOKEN_FILE,
-  registryToken,
   loadStack,
   parseEnv,
+  REGISTRY_TOKEN_FILE,
+  registryToken,
   resolvePrefix,
   uiContext,
 } from "./lib";

@@ -5,9 +5,9 @@ import { join } from "node:path";
 import {
   composeEnv,
   DEPLOY_DIR,
-  registryToken,
   mongoRootUri,
   parseEnv,
+  registryToken,
   resolvePrefix,
 } from "./lib";
 
