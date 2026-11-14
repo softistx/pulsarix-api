@@ -1,18 +1,63 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createCipheriv, hkdfSync, randomBytes } from "node:crypto";
+import {
+  createFakeChronixLink,
+  type FakeChronixLink,
+  type FakeChronixLinkOptions,
+} from "@softistx/chronix-react/server/testing";
 import { parseSealingKeys } from "@softistx/janus";
 import { authApp, memberWith, ownerWithOrganisation, proveEmail } from "~/auth";
-import { createFakeChronixLink } from "~/chronix";
 import { codeOf } from "~/http";
 import { env } from "../../config/env";
 import { useChronix } from "./chronix.client";
 import { openLinkKey, sealLinkKey } from "./time.seal";
 
-const fake = createFakeChronixLink({ organisationName: "Acme Time" });
-const kit = authApp({ chronix: fake.factory });
-beforeAll(() => useChronix(fake.factory));
-
 const KEY = "chx_link_good";
+// The package's fake is made for one organisation (its link answers that
+// organisation and this application), so each setup builds its own; the
+// factory the app holds follows the current one.
+let fake: FakeChronixLink = createFakeChronixLink();
+const factory: FakeChronixLink["factory"] = (options) => fake.factory(options);
+const kit = authApp({ chronix: factory });
+beforeAll(() => useChronix(factory));
+
+// chronix's project "p1" is the one every pulsarix project is mapped to.
+const CHRONIX_PROJECT = "p1";
+// Calls are read from the last reset, since the fake's list only grows.
+let seen = 0;
+const resetCalls = () => {
+  seen = fake.calls.length;
+};
+const calls = () => fake.calls.slice(seen);
+// chronix's clock, set at each fake, moved by `tick`.
+let clock = new Date("2026-11-13T10:00:00.000Z");
+const tick = (seconds: number) => {
+  clock = new Date(clock.getTime() + seconds * 1000);
+};
+const mapProject = (partnerProjectId: string) =>
+  fake.map(partnerProjectId, CHRONIX_PROJECT);
+
+// A fresh chronix for one organisation, whose link key is `KEY`, made for
+// pulsarix and that organisation unless `options` say otherwise.
+function useFake(organisationId: string, options: FakeChronixLinkOptions = {}) {
+  const partnerApp = options.partnerApp ?? "pulsarix";
+  const partnerOrganisationId = options.partnerOrganisationId ?? organisationId;
+  clock = new Date("2026-11-13T10:00:00.000Z");
+  fake = createFakeChronixLink({
+    now: () => clock,
+    organisationName: "Acme Time",
+    everyoneIsMember: true,
+    ...options,
+    partnerApp,
+    partnerOrganisationId,
+  });
+  fake.issueKey(KEY, {
+    organisationId: partnerOrganisationId,
+    app: partnerApp,
+  });
+  fake.addProject({ id: CHRONIX_PROJECT, name: "Pulsarix work" });
+  resetCalls();
+}
 const CreateProject = `mutation($input: CreateProjectInput!) {
   createProject(input: $input) { id key }
 }`;
@@ -47,11 +92,13 @@ interface TimeSpent {
 
 // An organisation with a project, two issues, an admin (the owner), a member
 // and a viewer; linked to chronix unless `linked` is false.
-async function setup(linked = true, proveOwner = true) {
-  fake.comeUp();
-  fake.setMembers(null);
+async function setup(
+  linked = true,
+  proveOwner = true,
+  chronix: FakeChronixLinkOptions = {},
+) {
   const { owner, organisation } = await ownerWithOrganisation(kit);
-  fake.issueKey(KEY, { organisationId: organisation.id });
+  useFake(organisation.id, chronix);
   const asOwner = kit.client(owner.token, { organisation: organisation.id });
   const member = await memberWith(kit, organisation.id, owner.token, "member");
   const viewer = await memberWith(kit, organisation.id, owner.token, "viewer");
@@ -153,16 +200,22 @@ describe("the organisation's link", () => {
 
   test("a key made for another application or organisation is refused", async () => {
     const { asOwner, organisation } = await setup(false);
-    fake.issueKey("chx_link_other_app", {
-      organisationId: organisation.id,
-      app: "operix",
-    });
-    fake.issueKey("chx_link_other_org", { organisationId: "someone-else" });
-    for (const key of ["chx_link_other_app", "chx_link_other_org"]) {
-      expect(codeOf(await asOwner.attempt(Link, { key }))).toBe(
+    // chronix answers the link of another application, then of another
+    // organisation, for the key it was given.
+    for (const other of [
+      { partnerApp: "operix" },
+      { partnerOrganisationId: "someone-else" },
+    ]) {
+      useFake(organisation.id, other);
+      expect(codeOf(await asOwner.attempt(Link, { key: KEY }))).toBe(
         "time.errors.key-mismatch",
       );
     }
+    // A key issued for nobody here is refused by chronix itself.
+    useFake(organisation.id);
+    expect(codeOf(await asOwner.attempt(Link, { key: "chx_link_other" }))).toBe(
+      "time.errors.invalid-key",
+    );
     expect(
       (await asOwner.call<{ timeLink: { linked: boolean } }>(TimeLink)).timeLink
         .linked,
@@ -267,7 +320,7 @@ describe("the time spent", () => {
 
   test("reads the totals from chronix, with the viewer's own share", async () => {
     const { asOwner, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Tracked");
     await asOwner.call(Log, {
       issueId: issue.id,
@@ -295,7 +348,7 @@ describe("the time spent", () => {
     await make("One");
     await make("Two");
     await make("Three");
-    fake.calls.length = 0;
+    resetCalls();
     const list = await asOwner.call<{
       issues: { nodes: { timeSpent: { status: string } }[] };
     }>(List, { projectId: project.id });
@@ -304,12 +357,12 @@ describe("the time spent", () => {
       "AVAILABLE",
       "AVAILABLE",
     ]);
-    expect(fake.calls.filter((c) => c.op === "totals")).toHaveLength(1);
+    expect(calls().filter((c) => c.op === "totals")).toHaveLength(1);
   });
 
   test("a chronix outage leaves the issue page working: time unavailable, no error", async () => {
     const { asOwner, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("During an outage", { estimateHours: 3 });
     fake.goDown();
     const read = await asOwner.attempt<{
@@ -363,14 +416,14 @@ describe("the time spent", () => {
 describe("the timer and the manual log", () => {
   test("startIssueTimer passes the member's verified e-mail and the issue as reference", async () => {
     const { member, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Fix the login");
-    fake.calls.length = 0;
+    resetCalls();
     const started = await asMember.call<{
       startIssueTimer: { startedAt: string; stoppedSeconds: number | null };
     }>(Start, { issueId: issue.id });
     expect(started.startIssueTimer.stoppedSeconds).toBeNull();
-    const call = fake.calls.find((c) => c.op === "startTimer");
+    const call = calls().find((c) => c.op === "startTimer");
     expect(call).toMatchObject({
       key: KEY,
       actor: member.email,
@@ -387,6 +440,7 @@ describe("the timer and the manual log", () => {
     expect(input?.externalRef.url).toContain(`/issues/${issue.key}`);
     // A second timer stops the first: its seconds are told.
     const second = await make("Another");
+    tick(600);
     const next = await asMember.call<{
       startIssueTimer: { stoppedSeconds: number | null };
     }>(Start, { issueId: second.id });
@@ -396,7 +450,7 @@ describe("the timer and the manual log", () => {
   test("an unverified e-mail cannot start or log, and the time reads FORBIDDEN without a call", async () => {
     // The owner signed up and has not proven the address.
     const { asOwner, project, make } = await setup(true, false);
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Unverified");
     const started = await asOwner.attempt(Start, { issueId: issue.id });
     expect(codeOf(started)).toBe("time.errors.email-unverified");
@@ -405,21 +459,22 @@ describe("the timer and the manual log", () => {
       input: { date: "2026-11-02", durationSeconds: 600 },
     });
     expect(codeOf(logged)).toBe("time.errors.email-unverified");
-    fake.calls.length = 0;
+    resetCalls();
     const read = await asOwner.call<{ issue: { timeSpent: TimeSpent } }>(
       Issue,
       { key: issue.key },
     );
     expect(read.issue.timeSpent.status).toBe("FORBIDDEN");
     expect(read.issue.timeSpent.totalSeconds).toBeNull();
-    expect(fake.calls).toEqual([]);
+    expect(calls()).toEqual([]);
   });
 
   test("an account that is not a member in chronix: FORBIDDEN on reads, forbidden on writes", async () => {
-    const { member, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    const { member, asMember, project, make } = await setup(true, true, {
+      everyoneIsMember: false,
+    });
+    mapProject(project.id);
     const issue = await make("Not a member");
-    fake.setMembers(["someone-else@example.test"]);
     const read = await asMember.call<{ issue: { timeSpent: TimeSpent } }>(
       Issue,
       { key: issue.key },
@@ -437,7 +492,7 @@ describe("the timer and the manual log", () => {
         }),
       ),
     ).toBe("time.errors.forbidden");
-    fake.setMembers([member.email]);
+    fake.addMember(member.email);
     const back = await asMember.call<{ issue: { timeSpent: TimeSpent } }>(
       Issue,
       { key: issue.key },
@@ -447,9 +502,9 @@ describe("the timer and the manual log", () => {
 
   test("logIssueTime logs on the issue, as the acting member", async () => {
     const { member, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Log me");
-    fake.calls.length = 0;
+    resetCalls();
     const logged = await asMember.call<{
       logIssueTime: { date: string; durationSeconds: number };
     }>(Log, {
@@ -461,7 +516,7 @@ describe("the timer and the manual log", () => {
       durationSeconds: 1800,
       billable: false,
     });
-    expect(fake.calls.find((c) => c.op === "logTime")).toMatchObject({
+    expect(calls().find((c) => c.op === "logTime")).toMatchObject({
       actor: member.email,
       input: { externalRef: { kind: "issue", id: issue.id } },
     });
@@ -469,7 +524,7 @@ describe("the timer and the manual log", () => {
 
   test("the chronix link codes added to contract v1 have their own errors", async () => {
     const { asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("New codes");
     const cases: [string, string][] = [
       ["links.project-archived", "time.errors.project-archived"],
@@ -497,7 +552,7 @@ describe("the timer and the manual log", () => {
     expect(codeOf(await asMember.attempt(Start, { issueId: issue.id }))).toBe(
       "time.errors.project-not-mapped",
     );
-    fake.mapProject(project.id);
+    mapProject(project.id);
     fake.lockPeriod("2026-01-01");
     expect(
       codeOf(
@@ -536,15 +591,16 @@ describe("the timer and the manual log", () => {
 describe("stopping the timer and reading the viewer's own", () => {
   test("stopIssueTimer saves the entry as the acting member, then answers null when none runs", async () => {
     const { member, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Stop me");
     await asMember.call(Start, { issueId: issue.id });
-    fake.calls.length = 0;
+    resetCalls();
+    tick(300);
     const stopped = await asMember.call<{
       stopIssueTimer: { durationSeconds: number } | null;
     }>(Stop, { issueId: issue.id });
     expect(stopped.stopIssueTimer?.durationSeconds).toBe(300);
-    expect(fake.calls.find((c) => c.op === "stopTimer")).toMatchObject({
+    expect(calls().find((c) => c.op === "stopTimer")).toMatchObject({
       key: KEY,
       actor: member.email,
     });
@@ -556,12 +612,12 @@ describe("stopping the timer and reading the viewer's own", () => {
 
   test("a viewer cannot stop, and nothing is called", async () => {
     const { asViewer, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Viewer stop");
-    fake.calls.length = 0;
+    resetCalls();
     const result = await asViewer.attempt(Stop, { issueId: issue.id });
     expect(codeOf(result)).toBe("auth.errors.forbidden");
-    expect(fake.calls).toEqual([]);
+    expect(calls()).toEqual([]);
   });
 
   test("stopping with no link, an unverified e-mail or an unknown issue is refused", async () => {
@@ -585,14 +641,15 @@ describe("stopping the timer and reading the viewer's own", () => {
   });
 
   test("chronix failures on stop go through chronixFailure", async () => {
-    const { member, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    const { member, asMember, project, make } = await setup(true, true, {
+      everyoneIsMember: false,
+    });
+    mapProject(project.id);
     const issue = await make("Failing stop");
-    fake.setMembers(["someone-else@example.test"]);
     expect(codeOf(await asMember.attempt(Stop, { issueId: issue.id }))).toBe(
       "time.errors.forbidden",
     );
-    fake.setMembers([member.email]);
+    fake.addMember(member.email);
     fake.goDown();
     expect(codeOf(await asMember.attempt(Stop, { issueId: issue.id }))).toBe(
       "time.errors.unavailable",
@@ -607,16 +664,16 @@ describe("stopping the timer and reading the viewer's own", () => {
 
   test("stop leaves a timer that runs on another issue alone", async () => {
     const { asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const a = await make("Stale tab");
     const b = await make("Running");
     await asMember.call(Start, { issueId: b.id });
-    fake.calls.length = 0;
+    resetCalls();
     const stopped = await asMember.call<{ stopIssueTimer: unknown }>(Stop, {
       issueId: a.id,
     });
     expect(stopped.stopIssueTimer).toBeNull();
-    expect(fake.calls.some((c) => c.op === "stopTimer")).toBe(false);
+    expect(calls().some((c) => c.op === "stopTimer")).toBe(false);
     const still = await asMember.call<{
       issue: { timeSpent: { myRunningTimer: unknown } };
     }>(Mine, { key: b.key });
@@ -625,29 +682,29 @@ describe("stopping the timer and reading the viewer's own", () => {
 
   test("stop leaves a timer that has no reference alone", async () => {
     const { member, asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Untracked");
     fake.startUntrackedTimer(member.email, project.id);
-    fake.calls.length = 0;
+    resetCalls();
     const stopped = await asMember.call<{ stopIssueTimer: unknown }>(Stop, {
       issueId: issue.id,
     });
     expect(stopped.stopIssueTimer).toBeNull();
-    expect(fake.calls.some((c) => c.op === "stopTimer")).toBe(false);
+    expect(calls().some((c) => c.op === "stopTimer")).toBe(false);
   });
 
   test("a timer that vanishes between the two chronix calls stops as null", async () => {
     const { asMember, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Race");
     await asMember.call(Start, { issueId: issue.id });
     fake.vanishAfterNextRead();
-    fake.calls.length = 0;
+    resetCalls();
     const stopped = await asMember.call<{ stopIssueTimer: unknown }>(Stop, {
       issueId: issue.id,
     });
     expect(stopped.stopIssueTimer).toBeNull();
-    expect(fake.calls.map((c) => c.op)).toEqual(["runningTimer", "stopTimer"]);
+    expect(calls().map((c) => c.op)).toEqual(["runningTimer", "stopTimer"]);
   });
 
   test("an unmapped project is refused on start; stop has no project to map", async () => {
@@ -664,7 +721,7 @@ describe("stopping the timer and reading the viewer's own", () => {
 
   test("myRunningTimer shows the timer on its issue only, and null after the stop", async () => {
     const { asMember, asOwner, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Mine");
     const other = await make("Not mine");
     type Mine = {
@@ -702,15 +759,15 @@ describe("stopping the timer and reading the viewer's own", () => {
 
   test("myRunningTimer is null for a viewer (no call), without a link, and when chronix is down", async () => {
     const { asMember, asViewer, project, make } = await setup();
-    fake.mapProject(project.id);
+    mapProject(project.id);
     const issue = await make("Quiet");
     await asMember.call(Start, { issueId: issue.id });
-    fake.calls.length = 0;
+    resetCalls();
     const seen = await asViewer.call<{
       issue: { timeSpent: { myRunningTimer: unknown } };
     }>(Mine, { key: issue.key });
     expect(seen.issue.timeSpent.myRunningTimer).toBeNull();
-    expect(fake.calls.some((c) => c.op === "runningTimer")).toBe(false);
+    expect(calls().some((c) => c.op === "runningTimer")).toBe(false);
     fake.goDown();
     const down = await asMember.call<{
       issue: { timeSpent: { status: string; myRunningTimer: unknown } };
@@ -728,11 +785,11 @@ describe("stopping the timer and reading the viewer's own", () => {
   test("myRunningTimer is null for an unverified e-mail, with no chronix call", async () => {
     const { asOwner, make } = await setup(true, false);
     const issue = await make("Unverified");
-    fake.calls.length = 0;
+    resetCalls();
     const seen = await asOwner.call<{
       issue: { timeSpent: { status: string; myRunningTimer: unknown } };
     }>(Mine, { key: issue.key });
     expect(seen.issue.timeSpent.myRunningTimer).toBeNull();
-    expect(fake.calls).toEqual([]);
+    expect(calls()).toEqual([]);
   });
 });
