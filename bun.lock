@@ -9,7 +9,7 @@
         "@alxia/core": "^0.24.0",
         "@alxia/env": "^0.5.0",
         "@alxia/graphql": "^0.16.2",
-        "@alxia/i18n": "^0.5.3",
+        "@alxia/i18n": "^0.6.0",
         "@alxia/language": "^0.3.20",
         "@alxia/media": "^0.7.1",
         "@alxia/modules": "^0.4.0",
@@ -20,9 +20,9 @@
         "@nxgt/graphql-validation": "^0.8.1",
         "@softistx/chronix-react": "^0.2.2",
         "@softistx/image": "^0.6.0",
-        "@softistx/janus": "^0.61.0",
-        "@softistx/janus-mail": "^0.26.1",
-        "@softistx/janus-mongo": "^0.27.1",
+        "@softistx/janus": "^0.62.0",
+        "@softistx/janus-mail": "^0.26.3",
+        "@softistx/janus-mongo": "^0.27.3",
         "@softistx/mail": "^1.5.0",
         "@softistx/mail-smtp": "^1.1.0",
         "@softistx/mongo": "^0.28.0",
@@ -59,7 +59,7 @@
 
     "@alxia/graphql": ["@alxia/graphql@0.16.2", "", { "peerDependencies": { "@alxia/core": "^0.23.0", "graphql": "^16.11.0 || ^17.0.0", "graphql-ws": "^6.1.0", "graphql-yoga": "^5.16.0 || ^6.0.0", "typescript": "^6.0.3 || ^7.0.0" }, "optionalPeers": ["graphql-ws"] }, "sha512-l+72cxlxYL82e99JBzjeq4h+DHGnSDX6BT06mKQRjit5xTpCvm4nyVV7Nh/NgeP5Ta1nDBm2/nqWs3h4TSVPZw=="],
 
-    "@alxia/i18n": ["@alxia/i18n@0.5.3", "", { "peerDependencies": { "@alxia/core": "^0.22.0", "@alxia/language": "^0.3.18", "@softistx/i18n": "^3.2.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-kO24NM934qUB7cVsFU8P8Hp1k6LYplEQdX+wKmbEpv9fRoT7dVvif9Dmj1RDrzglCMMbkZaG+l9maUy9G1780Q=="],
+    "@alxia/i18n": ["@alxia/i18n@0.6.0", "", { "peerDependencies": { "@alxia/core": "^0.24.0", "@alxia/language": "^0.3.20", "@softistx/i18n": "^3.2.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-npPJCcojdFSIPf8Z4dpK05/Xst28qvKZgFe1NFFufIuoSKPOvFikYZtfwBWU+Okat7l3uG+mHX93HwFkKEweTQ=="],
 
     "@alxia/language": ["@alxia/language@0.3.20", "", { "peerDependencies": { "@alxia/core": "^0.24.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-7ywMtPXt5Inv3mQXLgZTBVTc3coJ/gW1pzBoDxN8fFoDiytyrOmJtg752fB1ZiCw4cckgsXHolXNCJIQEE1lCA=="],
 
@@ -319,11 +319,11 @@
 
     "@softistx/image": ["@softistx/image@0.6.0", "", { "peerDependencies": { "@napi-rs/canvas": "^1.1.0", "@softistx/s3": "^0.13.0", "pdfjs-dist": "^6.5.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-YFgHQ2m1GZrdsh3SUhAU/xDurUNXqAHPJ5Ea7OTB4kmaZbLcj7D1CjnLRklDy8fkKFlaMzERB+qTn3ZJ/XtYZQ=="],
 
-    "@softistx/janus": ["@softistx/janus@0.61.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-osaqzGDlGnXGEr8SKy9pJpohNWJ7r7F0QWlfPVv4xtvcO0s5+13mM9WdtZAGnLAK1twiFyMNfclOvd4xNdrwrQ=="],
+    "@softistx/janus": ["@softistx/janus@0.62.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-W8Zb10rQ9Uo83TS2lONw0XuLQaj3nYsc1fhvdAOq5xQmCa8GCt5K7V8dGq+dQU+FZOwRpeUXHFnlI7LRhtTiKQ=="],
 
-    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.1", "", { "peerDependencies": { "@softistx/janus": "^0.61.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-DAbpXBEgx6kY1zKoWhhZhzCb7K4Y7Ip2Re85h5Vw4bZGLmJ8sFf0y10doINS9sLj4rATBKKWwq5Z9TkPwWPSaQ=="],
+    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.3", "", { "peerDependencies": { "@softistx/janus": "^0.62.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-H/vpxq+KsTPfsGj8C9y8pQKY5T3iacvyB/LWDwlUrXdqh7BewIaRKmzkNoYRZgY551qCxnpgtpw3Kqy+jlNGQg=="],
 
-    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.27.1", "", { "peerDependencies": { "@softistx/janus": "^0.61.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-mxXbBaxm8p3ruo6OtdoPjR06ovJyjuHCdji56lhC06AMkyhmfpc/RBxrJcDnB5GvAss5PDegxoEpO4FbQdFSjA=="],
+    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.27.3", "", { "peerDependencies": { "@softistx/janus": "^0.62.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-ht1Qb6xqgRakbM74vpduA4rLuNxzCbry4UbN7cYS8jvmToeix/o+nWqke2x0xQcCWCd5BhTGUkLUuw3q+96nMA=="],
 
     "@softistx/mail": ["@softistx/mail@1.5.0", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-Uli7pJE07nz2IhKKs3s7Jyq4QuHkHoS2YWNlC4mBPnUTWQCa2IIzEBc2ko/ExYAU9lMjgUMM4UI4SkW1De39bg=="],
 
