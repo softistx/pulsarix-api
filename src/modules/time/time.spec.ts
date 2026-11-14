@@ -68,6 +68,7 @@ const Update = `mutation($id: ID!, $input: UpdateIssueInput!) {
   updateIssue(id: $id, input: $input) { estimateHours }
 }`;
 const Link = `mutation($key: String!) { linkChronix(key: $key) { linked organisationName } }`;
+const ArchiveProject = `mutation($id: ID!) { archiveProject(id: $id) { id archivedAt } }`;
 const Unlink = `mutation { unlinkChronix { linked organisationName } }`;
 const TimeLink = `{ timeLink { linked organisationName } }`;
 const Issue = `query($key: String!) { issue(key: $key) {
@@ -543,6 +544,31 @@ describe("the timer and the manual log", () => {
         code,
       );
     }
+  });
+
+  test("an archived pulsarix project refuses startIssueTimer and logIssueTime, not stopIssueTimer", async () => {
+    const { member, asOwner, asMember, project, make } = await setup();
+    mapProject(project.id);
+    const issue = await make("Archived soon");
+    await asMember.call(Start, { issueId: issue.id });
+    await asOwner.call(ArchiveProject, { id: project.id });
+    resetCalls();
+    const start = await asMember.attempt(Start, { issueId: issue.id });
+    expect(codeOf(start)).toBe("time.errors.pulsarix-project-archived");
+    const log = await asMember.attempt(Log, {
+      issueId: issue.id,
+      input: { date: "2026-11-12", durationSeconds: 600 },
+    });
+    expect(codeOf(log)).toBe("time.errors.pulsarix-project-archived");
+    expect(calls().filter((c) => c.op !== "runningTimer")).toEqual([]);
+    // The timer started before the archive can still be stopped.
+    const stopped = await asMember.call<{
+      stopIssueTimer: { id: string } | null;
+    }>(Stop, { issueId: issue.id });
+    expect(stopped.stopIssueTimer).not.toBeNull();
+    expect(calls().find((c) => c.op === "stopTimer")).toMatchObject({
+      actor: member.email,
+    });
   });
 
   test("refusals: not linked, not mapped, locked period, viewer, outage", async () => {

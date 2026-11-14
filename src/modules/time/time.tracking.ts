@@ -5,7 +5,13 @@ import type {
 } from "@softistx/chronix-react/server";
 import { idOrInvalid } from "../../core/shared/ids";
 import { issueNotFound } from "../issues/public";
-import { chronixFailure, emailUnverified, notLinked } from "./time.errors";
+import { isProjectArchived } from "../projects/public";
+import {
+  chronixFailure,
+  emailUnverified,
+  notLinked,
+  pulsarixProjectArchived,
+} from "./time.errors";
 import type { TimeLink, TimeMongo } from "./time.link";
 import { isOnIssue, refOf } from "./time.ref";
 
@@ -42,9 +48,19 @@ export class TimeTracking {
     return issue;
   }
 
+  // Starts and logs are refused on an archived project; a stop is not, so a
+  // timer started before the archive can still be stopped.
+  private async activeIssue(issueId: string) {
+    const issue = await this.issue(issueId);
+    if (await isProjectArchived(this.mongo, issue.projectId)) {
+      throw pulsarixProjectArchived();
+    }
+    return issue;
+  }
+
   // The project's id is its chronix `partnerProjectId` (mapped in chronix).
   async startTimer(issueId: string) {
-    const issue = await this.issue(issueId);
+    const issue = await this.activeIssue(issueId);
     const me = await this.actor();
     try {
       const { timer, stopped } = await me.startTimer({
@@ -93,7 +109,7 @@ export class TimeTracking {
       billable?: boolean | null | undefined;
     },
   ) {
-    const issue = await this.issue(issueId);
+    const issue = await this.activeIssue(issueId);
     const me = await this.actor();
     try {
       const entry = await me.logTime({

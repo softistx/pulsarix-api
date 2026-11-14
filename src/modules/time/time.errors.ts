@@ -37,6 +37,11 @@ export const projectNotMapped = () =>
 export const periodLocked = () =>
   fail("time.errors.period-locked", { status: 409 });
 
+// The issue's own pulsarix project is archived: no timer starts and no time
+// is logged on it (409). Distinct from `projectArchived`, the chronix side.
+export const pulsarixProjectArchived = () =>
+  fail("time.errors.pulsarix-project-archived", { status: 409 });
+
 // The chronix project the issue's project maps to was archived (409).
 export const projectArchived = () =>
   fail("time.errors.project-archived", { status: 409 });
