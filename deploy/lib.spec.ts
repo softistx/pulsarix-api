@@ -5,9 +5,9 @@ import { join } from "node:path";
 import {
   composeEnv,
   DEPLOY_DIR,
-  githubToken,
   mongoRootUri,
   parseEnv,
+  registryToken,
   resolvePrefix,
 } from "./lib";
 
@@ -123,22 +123,18 @@ describe("the compose file", () => {
   });
 });
 
-describe("githubToken", () => {
-  const file = join(mkdtempSync(join(tmpdir(), "ght-")), "github-token");
-  writeFileSync(file, "ghp_file\nsecond line\n");
+describe("registryToken", () => {
+  const file = join(mkdtempSync(join(tmpdir(), "ght-")), "npm-registry-token");
+  writeFileSync(file, "tok_file\nsecond line\n");
   test("prefers the environment, then the file's first line", () => {
-    expect(githubToken({ GITHUB_TOKEN: " ghp_env " }, file)).toBe("ghp_env");
-    expect(githubToken({}, file)).toBe("ghp_file");
+    expect(registryToken({ NPM_REGISTRY_TOKEN: " tok_env " }, file)).toBe(
+      "tok_env",
+    );
+    expect(registryToken({}, file)).toBe("tok_file");
   });
-  test("falls back to gh auth token, trimmed, after the file", () => {
+  test("is undefined with neither", () => {
     const none = join(tmpdir(), "no-such-token-file");
-    expect(githubToken({}, none, () => "gho_cli\n")).toBe("gho_cli");
-    expect(githubToken({}, file, () => "gho_cli")).toBe("ghp_file");
-  });
-  test("is undefined with none of the three", () => {
-    const none = join(tmpdir(), "no-such-token-file");
-    expect(githubToken({}, none, () => undefined)).toBeUndefined();
-    expect(githubToken({}, none, () => "  ")).toBeUndefined();
+    expect(registryToken({}, none)).toBeUndefined();
   });
 });
 

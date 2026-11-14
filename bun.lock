@@ -313,27 +313,27 @@
 
     "@repeaterjs/repeater": ["@repeaterjs/repeater@3.1.0", "", {}, "sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ=="],
 
-    "@softistx/chronix-react": ["@softistx/chronix-react@0.2.2", "https://npm.pkg.github.com/download/@softistx/chronix-react/0.2.2/a12c54615529fbdb083602fe31302d4c0e0de412", {}, "sha512-9e+tbx4R3alVLeZQ0Chw6FQhfOYkDMj+rPB2+f5EzMx799nmgMzmnel5BLhbRzX6wNXJ8AxgvX3RVHeOejmeSA=="],
+    "@softistx/chronix-react": ["@softistx/chronix-react@0.2.2", "", {}, "sha512-9e+tbx4R3alVLeZQ0Chw6FQhfOYkDMj+rPB2+f5EzMx799nmgMzmnel5BLhbRzX6wNXJ8AxgvX3RVHeOejmeSA=="],
 
-    "@softistx/i18n": ["@softistx/i18n@3.2.0", "https://npm.pkg.github.com/download/@softistx/i18n/3.2.0/4ff3ef8ccca00d6e653b6c4d8fc090967bb3239d", { "dependencies": { "@formatjs/icu-messageformat-parser": "^3.5.20", "intl-messageformat": "^12.1.2", "lodash": "^4.18.1" }, "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-A3EIW8MEd2gOJH3tisUGVBBAEOn/IxPrLCXRPOFCjG+h8cR7nePB61xVqJ9K0aJTP1W9WqDijiV4lhvSnoaSNg=="],
+    "@softistx/i18n": ["@softistx/i18n@3.2.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "^3.5.20", "intl-messageformat": "^12.1.2", "lodash": "^4.18.1" }, "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-A3EIW8MEd2gOJH3tisUGVBBAEOn/IxPrLCXRPOFCjG+h8cR7nePB61xVqJ9K0aJTP1W9WqDijiV4lhvSnoaSNg=="],
 
-    "@softistx/image": ["@softistx/image@0.6.0", "https://npm.pkg.github.com/download/@softistx/image/0.6.0/8ef8f958f10eb16732fc428be1a30cdb920aad51", { "peerDependencies": { "@napi-rs/canvas": "^1.1.0", "@softistx/s3": "^0.13.0", "pdfjs-dist": "^6.5.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-YFgHQ2m1GZrdsh3SUhAU/xDurUNXqAHPJ5Ea7OTB4kmaZbLcj7D1CjnLRklDy8fkKFlaMzERB+qTn3ZJ/XtYZQ=="],
+    "@softistx/image": ["@softistx/image@0.6.0", "", { "peerDependencies": { "@napi-rs/canvas": "^1.1.0", "@softistx/s3": "^0.13.0", "pdfjs-dist": "^6.5.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-YFgHQ2m1GZrdsh3SUhAU/xDurUNXqAHPJ5Ea7OTB4kmaZbLcj7D1CjnLRklDy8fkKFlaMzERB+qTn3ZJ/XtYZQ=="],
 
-    "@softistx/janus": ["@softistx/janus@0.61.0", "https://npm.pkg.github.com/download/@softistx/janus/0.61.0/4bd8f6e89e1084a223ba065064bbd1365392ea5e", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-osaqzGDlGnXGEr8SKy9pJpohNWJ7r7F0QWlfPVv4xtvcO0s5+13mM9WdtZAGnLAK1twiFyMNfclOvd4xNdrwrQ=="],
+    "@softistx/janus": ["@softistx/janus@0.61.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-osaqzGDlGnXGEr8SKy9pJpohNWJ7r7F0QWlfPVv4xtvcO0s5+13mM9WdtZAGnLAK1twiFyMNfclOvd4xNdrwrQ=="],
 
-    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.1", "https://npm.pkg.github.com/download/@softistx/janus-mail/0.26.1/6b76746f912499336ecc0f292700ee47a5c11193", { "peerDependencies": { "@softistx/janus": "^0.61.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-DAbpXBEgx6kY1zKoWhhZhzCb7K4Y7Ip2Re85h5Vw4bZGLmJ8sFf0y10doINS9sLj4rATBKKWwq5Z9TkPwWPSaQ=="],
+    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.1", "", { "peerDependencies": { "@softistx/janus": "^0.61.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-DAbpXBEgx6kY1zKoWhhZhzCb7K4Y7Ip2Re85h5Vw4bZGLmJ8sFf0y10doINS9sLj4rATBKKWwq5Z9TkPwWPSaQ=="],
 
-    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.27.1", "https://npm.pkg.github.com/download/@softistx/janus-mongo/0.27.1/74cf90d15d280a6dd32cd35c93792f5a3bf121d7", { "peerDependencies": { "@softistx/janus": "^0.61.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-mxXbBaxm8p3ruo6OtdoPjR06ovJyjuHCdji56lhC06AMkyhmfpc/RBxrJcDnB5GvAss5PDegxoEpO4FbQdFSjA=="],
+    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.27.1", "", { "peerDependencies": { "@softistx/janus": "^0.61.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-mxXbBaxm8p3ruo6OtdoPjR06ovJyjuHCdji56lhC06AMkyhmfpc/RBxrJcDnB5GvAss5PDegxoEpO4FbQdFSjA=="],
 
-    "@softistx/mail": ["@softistx/mail@1.5.0", "https://npm.pkg.github.com/download/@softistx/mail/1.5.0/d0b70a52f9638beca562c1c3c00b6318dcc0fc79", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-Uli7pJE07nz2IhKKs3s7Jyq4QuHkHoS2YWNlC4mBPnUTWQCa2IIzEBc2ko/ExYAU9lMjgUMM4UI4SkW1De39bg=="],
+    "@softistx/mail": ["@softistx/mail@1.5.0", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-Uli7pJE07nz2IhKKs3s7Jyq4QuHkHoS2YWNlC4mBPnUTWQCa2IIzEBc2ko/ExYAU9lMjgUMM4UI4SkW1De39bg=="],
 
-    "@softistx/mail-smtp": ["@softistx/mail-smtp@1.1.0", "https://npm.pkg.github.com/download/@softistx/mail-smtp/1.1.0/cc16a5e7fceb86282696158e5ea3b95d3c602393", { "peerDependencies": { "@softistx/mail": "^1.3.0", "nodemailer": ">=7.0.0 <11", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-+8gFDtoSqXEKmEob8OCq++PJjonwCMr+FMAWg+Zz11xo4Nc3nXLUTJjQOjqDSLyj39XHDxfN5thX5nxDLi83ng=="],
+    "@softistx/mail-smtp": ["@softistx/mail-smtp@1.1.0", "", { "peerDependencies": { "@softistx/mail": "^1.3.0", "nodemailer": ">=7.0.0 <11", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-+8gFDtoSqXEKmEob8OCq++PJjonwCMr+FMAWg+Zz11xo4Nc3nXLUTJjQOjqDSLyj39XHDxfN5thX5nxDLi83ng=="],
 
-    "@softistx/mongo": ["@softistx/mongo@0.28.0", "https://npm.pkg.github.com/download/@softistx/mongo/0.28.0/f771b728fc08caf46c7ca998e56207c1a585a96f", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-KX5dTBkHlQ/X6YNW9WvUb5bugfuqCzgm4suIY2j/fEJHQ2x8x12HD1VHv3yxMw8TA/n5d8abcEMjhp6rKwRlIQ=="],
+    "@softistx/mongo": ["@softistx/mongo@0.28.0", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-KX5dTBkHlQ/X6YNW9WvUb5bugfuqCzgm4suIY2j/fEJHQ2x8x12HD1VHv3yxMw8TA/n5d8abcEMjhp6rKwRlIQ=="],
 
-    "@softistx/redis": ["@softistx/redis@0.21.0", "https://npm.pkg.github.com/download/@softistx/redis/0.21.0/cec79a94f05e1e4c6479cf128358d086ece64947", { "peerDependencies": { "redis-memory-server": ">=0.17.1 <0.18", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-kN7fYxEGoi8VXu02GI+VxnifhmQ2Vmehn4LzZh3XgnSR1Hl5VI3rzKSwjNTUcWifkPelGR6igU6b9qYO4WwOFw=="],
+    "@softistx/redis": ["@softistx/redis@0.21.0", "", { "peerDependencies": { "redis-memory-server": ">=0.17.1 <0.18", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-kN7fYxEGoi8VXu02GI+VxnifhmQ2Vmehn4LzZh3XgnSR1Hl5VI3rzKSwjNTUcWifkPelGR6igU6b9qYO4WwOFw=="],
 
-    "@softistx/s3": ["@softistx/s3@0.13.0", "https://npm.pkg.github.com/download/@softistx/s3/0.13.0/67fcf5e89a28b555c5467f2e5a6d0a61c68a7b78", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-0U0zavWQ4R4AwPfUFXA1QNRENsjxyV4reu10mkqC1MYTk94X3CqBXcbQFO+LpZmy7K8Y6xWY1mrqw4yGtN3aNw=="],
+    "@softistx/s3": ["@softistx/s3@0.13.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-0U0zavWQ4R4AwPfUFXA1QNRENsjxyV4reu10mkqC1MYTk94X3CqBXcbQFO+LpZmy7K8Y6xWY1mrqw4yGtN3aNw=="],
 
     "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 

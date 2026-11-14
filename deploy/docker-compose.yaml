@@ -65,14 +65,13 @@ networks:
   proxy:
     external: true
 
-# Build-time only (bun install of the private @softistx/* packages): deploy.ts
-# reads the token from $GITHUB_TOKEN or ~/.config/pulsarix/github-token. The API
-# Dockerfile asks for the secret id GITHUB_TOKEN, the UI's for github_token.
+# Build-time only (bun install of the @softistx/* packages from npm.softistx.com):
+# deploy.ts reads the token from $NPM_REGISTRY_TOKEN or
+# ~/.config/pulsarix/npm-registry-token. Both Dockerfiles ask for the secret id
+# NPM_REGISTRY_TOKEN.
 secrets:
-  GITHUB_TOKEN:
-    environment: GITHUB_TOKEN
-  github_token:
-    environment: GITHUB_TOKEN
+  NPM_REGISTRY_TOKEN:
+    environment: NPM_REGISTRY_TOKEN
 
 volumes:
   mongo-data:
@@ -382,7 +381,7 @@ services:
       context: ..
       dockerfile: Dockerfile
       secrets:
-        - GITHUB_TOKEN
+        - NPM_REGISTRY_TOKEN
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api
     depends_on:
       mongo-init:
@@ -427,7 +426,7 @@ services:
       context: ${UI_CONTEXT:-../../pulsarix-ui}
       dockerfile: Dockerfile
       secrets:
-        - github_token
+        - NPM_REGISTRY_TOKEN
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-ui
     depends_on:
       api:

@@ -125,7 +125,7 @@ export function deploySteps(input: {
     {
       name: "token",
       detail:
-        "a GitHub Packages token (read:packages) for the image build, from $GITHUB_TOKEN, ~/.config/pulsarix/github-token or `gh auth token`",
+        "the npm.softistx.com read token for the image build, from $NPM_REGISTRY_TOKEN or ~/.config/pulsarix/npm-registry-token",
     },
     {
       name: "build",

@@ -13,43 +13,28 @@ import { $ } from "bun";
 export const DEPLOY_DIR = dirname(new URL(import.meta.url).pathname);
 export const API_ROOT = resolve(DEPLOY_DIR, "..");
 
-/** Where the VPS keeps the GitHub Packages token (a classic PAT, read:packages). */
-export const GITHUB_TOKEN_FILE = resolve(
+/** Where the VPS keeps the npm.softistx.com read token (first line). */
+export const REGISTRY_TOKEN_FILE = resolve(
   homedir(),
-  ".config/pulsarix/github-token",
+  ".config/pulsarix/npm-registry-token",
 );
 
-/** `gh auth token`'s output, or undefined when gh is missing or exits non-zero. */
-export function ghAuthToken(): string | undefined {
-  try {
-    const r = Bun.spawnSync(["gh", "auth", "token"], {
-      stdout: "pipe",
-      stderr: "ignore",
-    });
-    return r.exitCode === 0 ? r.stdout.toString() : undefined;
-  } catch {
-    return undefined; // gh is not installed
-  }
-}
-
 /**
- * The token that lets the image build install the private @softistx/*
- * packages: `$GITHUB_TOKEN`, else the first line of `file`, else the GitHub
- * CLI's (`gh auth token`, through `gh`, never logged). Undefined when none
- * gives one.
+ * The token that lets the image build install the @softistx/* packages from
+ * npm.softistx.com: `$NPM_REGISTRY_TOKEN`, else the first line of `file`.
+ * Undefined when neither gives one.
  */
-export function githubToken(
+export function registryToken(
   shell: Record<string, string | undefined>,
-  file: string = GITHUB_TOKEN_FILE,
-  gh: () => string | undefined = ghAuthToken,
+  file: string = REGISTRY_TOKEN_FILE,
 ): string | undefined {
-  const fromEnv = shell["GITHUB_TOKEN"]?.trim();
+  const fromEnv = shell["NPM_REGISTRY_TOKEN"]?.trim();
   if (fromEnv) return fromEnv;
   if (existsSync(file)) {
     const line = readFileSync(file, "utf8").split("\n")[0]?.trim();
     if (line) return line;
   }
-  return gh()?.trim() || undefined;
+  return undefined;
 }
 
 /** A flag's value (`--env file`), or undefined. Exits on a flag with no value. */
@@ -171,8 +156,8 @@ export async function loadStack(args: string[]): Promise<Stack> {
     return fail(error instanceof Error ? error.message : String(error));
   }
   const env = composeEnv(process.env, values, prefix);
-  const token = githubToken(process.env);
-  if (token !== undefined) env["GITHUB_TOKEN"] = token;
+  const token = registryToken(process.env);
+  if (token !== undefined) env["NPM_REGISTRY_TOKEN"] = token;
   const files = ["-f", `${DEPLOY_DIR}/docker-compose.yaml`];
   return {
     envFile,

@@ -13,7 +13,7 @@
  *                               [--file mongo-<ts>.tar | latest]
  *
  * Needs `bun install` on the host once (it imports the code's collection
- * lists, so the GitHub Packages token is needed). The expected collections come from the code: the modules' core collections plus
+ * lists, so the npm.softistx.com read token is needed). The expected collections come from the code: the modules' core collections plus
  * janus's for the core database, the modules' organisation collections for each
  * organisation (src/modules/registry.ts, the one list).
  */

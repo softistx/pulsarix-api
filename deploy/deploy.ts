@@ -7,10 +7,9 @@
  * the health wait does work. Migrations are not a step: the API creates each
  * database's validators and indexes on first use (MONGO_AUTO_SYNC).
  *
- * The images install the private @softistx/* packages (GitHub Packages): the
- * build needs a token with read:packages, from $GITHUB_TOKEN or
- * ~/.config/pulsarix/github-token, or `gh auth token`, handed to BuildKit as a
- * secret.
+ * The images install the private @softistx/* packages (npm.softistx.com): the
+ * build needs the read token, from $NPM_REGISTRY_TOKEN or
+ * ~/.config/pulsarix/npm-registry-token, handed to BuildKit as a secret.
  *
  *   bun deploy/deploy.ts [--env deploy/.env] [--prefix staging]
  *                        [--no-pull] [--ui] [--backup] [--timeout 300]
@@ -41,10 +40,10 @@ import {
   DEPLOY_DIR,
   fail,
   flagValue,
-  GITHUB_TOKEN_FILE,
-  githubToken,
   loadStack,
   parseEnv,
+  REGISTRY_TOKEN_FILE,
+  registryToken,
   resolvePrefix,
   uiContext,
 } from "./lib";
@@ -140,9 +139,9 @@ if (!options.noPull) {
   step("skip", "git pull (--no-pull)");
 }
 
-if (githubToken(process.env) === undefined)
+if (registryToken(process.env) === undefined)
   fail(
-    `no GitHub Packages token: the image build installs the private @softistx/* packages. Export GITHUB_TOKEN, or log gh in with read:packages (gh auth refresh -s read:packages), or put a classic token with read:packages in ${GITHUB_TOKEN_FILE} (mode 600)`,
+    `no registry token: the image build installs the @softistx/* packages from npm.softistx.com. Export NPM_REGISTRY_TOKEN, or put the read token in ${REGISTRY_TOKEN_FILE} (mode 600)`,
   );
 const profile = [
   ...(options.ui ? ["--profile", "ui"] : []),
