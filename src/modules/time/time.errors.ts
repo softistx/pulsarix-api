@@ -1,5 +1,8 @@
+import {
+  isChronixLinkError,
+  isChronixUnavailable,
+} from "@softistx/chronix-react/server";
 import { fail } from "../../core/shared/errors";
-import { ChronixLinkError, ChronixUnavailableError } from "./chronix";
 
 // No chronix link in this organisation.
 export const notLinked = () => fail("time.errors.not-linked", { status: 409 });
@@ -54,8 +57,8 @@ export const rateLimited = (retryAfter: number) =>
 
 // A chronix failure as the API's error, for the mutations.
 export function chronixFailure(error: unknown): unknown {
-  if (error instanceof ChronixUnavailableError) return unavailable();
-  if (!(error instanceof ChronixLinkError)) return error;
+  if (isChronixUnavailable(error)) return unavailable();
+  if (!isChronixLinkError(error)) return error;
   switch (error.code) {
     case "link.unauthenticated":
     // The link was revoked during the request: like a refused key.

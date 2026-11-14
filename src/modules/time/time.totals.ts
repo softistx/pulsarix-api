@@ -1,9 +1,9 @@
 import {
   type ChronixLinkClient,
-  ChronixLinkError,
-  ChronixUnavailableError,
+  isChronixLinkError,
+  isChronixUnavailable,
   type RefTotal,
-} from "./chronix";
+} from "@softistx/chronix-react/server";
 import type { TimeLink } from "./time.link";
 import { ISSUE } from "./time.ref";
 
@@ -72,13 +72,13 @@ export async function issueTotals(
     }
   } catch (error) {
     const forbidden =
-      error instanceof ChronixLinkError &&
+      isChronixLinkError(error) &&
       (error.code === "link.actor-not-member" ||
         error.code === "link.forbidden");
     if (
       !forbidden &&
-      !(error instanceof ChronixUnavailableError) &&
-      !(error instanceof ChronixLinkError)
+      !isChronixUnavailable(error) &&
+      !isChronixLinkError(error)
     ) {
       throw error;
     }

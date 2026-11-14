@@ -12,7 +12,7 @@ import { createAuth } from "../src/core/auth";
 import type { KernelLimits } from "../src/core/shared/limits";
 import type { Media } from "../src/modules/attachments/attachments.storage";
 import type { PublicIntake } from "../src/modules/intake/intake.submit";
-import type { ChronixLinkFactory } from "../src/modules/time/chronix";
+import type { ChronixLinkFactory } from "../src/modules/time/chronix.client";
 import { type Http, http } from "./http";
 
 export const uiOrigin = "https://ui.pulsarix.test";

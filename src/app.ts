@@ -29,8 +29,10 @@ import { publicRoutes } from "./modules/intake/intake.routes";
 import { serverIntake } from "./modules/intake/intake.server";
 import type { PublicIntake } from "./modules/intake/intake.submit";
 import { modules } from "./modules/registry";
-import type { ChronixLinkFactory } from "./modules/time/chronix";
-import { useChronix } from "./modules/time/chronix.client";
+import {
+  type ChronixLinkFactory,
+  useChronix,
+} from "./modules/time/chronix.client";
 
 // The largest body /graphql reads.
 export const BODY_LIMIT = 100 * 1024;

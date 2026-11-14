@@ -1,7 +1,8 @@
+// Temporary, until softistx/chronix-ui#39
 import {
+  type ChronixActorClient,
   type ChronixLinkClient,
   ChronixLinkError,
-  type ChronixLinkFactory,
   ChronixUnavailableError,
   type ExternalRefInput,
   type LinkEntry,
@@ -9,12 +10,14 @@ import {
   type LinkTimer,
   type LogTimeInput,
   type RefTotal,
-} from "../src/modules/time/chronix";
+} from "@softistx/chronix-react/server";
+import type { ChronixLinkFactory } from "../src/modules/time/chronix.client";
+
+type Used = "runningTimer" | "startTimer" | "stopTimer" | "logTime" | "totals";
 
 // An in-memory chronix link API, written against the contract (link-api.md §3
 // schema, §4 errors, §5 client) until `@softistx/chronix-react/server/testing`
-// is published. Temporary, until @softistx/chronix-react R0
-// (softistx/chronix-ui#8): swap for its `createFakeChronixLink()`.
+// is published; kept for the key, failure and race hooks the package's fake lacks.
 export function createFakeChronixLink(
   options: { organisationName?: string } = {},
 ) {
@@ -72,6 +75,7 @@ export function createFakeChronixLink(
     billable: input.billable ?? true,
     source: "pulsarix",
     locked: false,
+    externalRef: ref && { app: "pulsarix", url: null, ...ref },
     ref,
   });
 
@@ -102,7 +106,11 @@ export function createFakeChronixLink(
   };
 
   const factory: ChronixLinkFactory = ({ key }) => {
-    const client: ChronixLinkClient = {
+    // Only the calls pulsarix makes are implemented (no projects, entries,
+    // mapping or live timer).
+    const client: Omit<ChronixLinkClient, "as"> & {
+      as(actor: string): Pick<ChronixActorClient, Used>;
+    } = {
       async link() {
         guard(key, null, "link");
         return {
@@ -110,6 +118,7 @@ export function createFakeChronixLink(
           partnerOrganisationId: keys.get(key)?.organisationId ?? "",
           organisationName: options.organisationName ?? "Acme Time",
           timeZone: "UTC",
+          mappings: [],
         };
       },
       as(actor) {
@@ -148,7 +157,7 @@ export function createFakeChronixLink(
               partnerProjectId: input.partnerProjectId,
               description: input.description ?? null,
               externalRef: input.externalRef
-                ? { kind: input.externalRef.kind, id: input.externalRef.id }
+                ? { app: "pulsarix", url: null, ...input.externalRef }
                 : null,
               ref: input.externalRef ?? null,
             };
@@ -211,7 +220,7 @@ export function createFakeChronixLink(
         };
       },
     };
-    return client;
+    return client as ChronixLinkClient;
   };
 
   return {

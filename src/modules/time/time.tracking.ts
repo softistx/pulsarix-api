@@ -1,6 +1,10 @@
+import type {
+  ChronixActorClient,
+  LinkEntry,
+  LinkTimer,
+} from "@softistx/chronix-react/server";
 import { idOrInvalid } from "../../core/shared/ids";
 import { issueNotFound } from "../issues/public";
-import type { ChronixActorClient, LinkEntry, LinkTimer } from "./chronix";
 import { chronixFailure, emailUnverified, notLinked } from "./time.errors";
 import type { TimeLink, TimeMongo } from "./time.link";
 import { isOnIssue, refOf } from "./time.ref";
