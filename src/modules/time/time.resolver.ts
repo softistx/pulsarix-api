@@ -1,7 +1,7 @@
+import type { LinkTimer } from "@softistx/chronix-react/server";
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { can, requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
-import type { LinkTimer } from "./chronix";
 import { TimeLink } from "./time.link";
 import { isOnIssue } from "./time.ref";
 import { issueTotals, type TimeSpentView } from "./time.totals";

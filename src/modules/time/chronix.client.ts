@@ -1,14 +1,18 @@
 import {
-  type ChronixLinkFactory,
-  type ChronixLinkOptions,
+  type ChronixLinkClient,
+  type ChronixLinkClientOptions,
   createChronixLinkClient,
-} from "./chronix";
+} from "@softistx/chronix-react/server";
 
-// The factory the app runs with: the HTTP client; a spec gives its own
-// (`createApp({ chronix })`). Kept out of `chronix.ts`, which is removed whole
-// when `@softistx/chronix-react/server` replaces the port.
+// What the app builds a client with: the package's HTTP client by default; a
+// spec gives its own (`createApp({ chronix })`).
+export type ChronixLinkFactory = (
+  options: ChronixLinkClientOptions,
+) => ChronixLinkClient;
+
 let factory: ChronixLinkFactory = createChronixLinkClient;
 export const useChronix = (next: ChronixLinkFactory | undefined) => {
   factory = next ?? createChronixLinkClient;
 };
-export const chronixClient = (options: ChronixLinkOptions) => factory(options);
+export const chronixClient = (options: ChronixLinkClientOptions) =>
+  factory(options);
