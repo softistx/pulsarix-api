@@ -108,6 +108,13 @@ export const texts: Record<Locale, Record<string, string>> = {
     "intake.errors.report-decided": "This report has been decided already.",
     "intake.errors.invalid-origin":
       '"{origin}" is not an origin: use https://host[:port], with no path.',
+    "intake.errors.file-unsupported-type":
+      "Only PNG, JPEG and WebP pictures and PDF files can be attached.",
+    "intake.errors.file-undecodable":
+      "This file is empty, damaged or too small to be read.",
+    "intake.errors.file-too-large": "This file is too large: at most {max} MB.",
+    "intake.errors.file-too-many-pixels":
+      "This picture is too large: at most {max} megapixels.",
     "attachments.errors.not-found": "This attachment does not exist.",
     "attachments.errors.too-many":
       "No more than {max} files can be attached here.",
@@ -244,6 +251,14 @@ export const texts: Record<Locale, Record<string, string>> = {
     "intake.errors.report-decided": "Ce signalement a déjà été traité.",
     "intake.errors.invalid-origin":
       "« {origin} » n'est pas une origine : utilisez https://hôte[:port], sans chemin.",
+    "intake.errors.file-unsupported-type":
+      "Seules les images PNG, JPEG et WebP et les fichiers PDF peuvent être joints.",
+    "intake.errors.file-undecodable":
+      "Ce fichier est vide, abîmé ou trop petit pour être lu.",
+    "intake.errors.file-too-large":
+      "Ce fichier est trop volumineux : {max} Mo au plus.",
+    "intake.errors.file-too-many-pixels":
+      "Cette image est trop grande : {max} mégapixels au plus.",
     "attachments.errors.not-found": "Cette pièce jointe n'existe pas.",
     "attachments.errors.too-many":
       "On ne peut pas joindre plus de {max} fichiers ici.",

@@ -61,3 +61,27 @@ export const invalidOrigin = (origin: string) =>
     field: "allowedOrigins",
     params: { origin: origin.slice(0, 100) },
   });
+
+// The refusals of an upload to the `report-files` kind (intake.files.kinds.ts).
+// 415: not a PNG, JPEG, WebP or PDF, or its first bytes say otherwise (SVG, GIF
+// and HEIC included).
+export const fileUnsupportedType = () =>
+  fail("intake.errors.file-unsupported-type", { status: 415 });
+
+// 422: empty, damaged, or smaller than the 16 px a picture needs.
+export const fileUndecodable = () =>
+  fail("intake.errors.file-undecodable", { status: 422 });
+
+// 413: over the byte limit; `max` is in MB.
+export const fileTooLarge = (maxBytes: number) =>
+  fail("intake.errors.file-too-large", {
+    params: { max: Math.round(maxBytes / (1024 * 1024)) },
+    status: 413,
+  });
+
+// 422: the picture claims more pixels than the limit; `max` is in megapixels.
+export const fileTooManyPixels = (maxPixels: number) =>
+  fail("intake.errors.file-too-many-pixels", {
+    params: { max: Math.round(maxPixels / 1_000_000) },
+    status: 422,
+  });
