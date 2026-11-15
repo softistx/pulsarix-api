@@ -6,8 +6,10 @@ import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { type FieldIssue, invalid } from "../../core/shared/errors";
 import type { Locale } from "../../i18n/locale";
 import { withoutMarkers } from "../comments/public";
+import { countOnKey, reasonOf } from "./intake.counters";
 import {
   attachmentsDisabled,
+  fileNotFound,
   keyDisabled,
   originNotAllowed,
   reportNotFound,
@@ -22,6 +24,7 @@ import { trackingMail } from "./intake.mail";
 import {
   type ClientReportDocument,
   PUBLIC_KEY,
+  type ReportFileRole,
   type ReportState,
   reportLocale,
   type WidgetKeyDocument,
@@ -210,14 +213,31 @@ export interface Submitted {
   files: FileTicket[];
 }
 
+// A file the reporter attached, as the tracking page shows it: its name and
+// role, and whether a thumbnail can be read (a picture's 256 px rendition;
+// never the original, never a PDF).
+export interface TrackedFile {
+  id: string;
+  role: ReportFileRole;
+  name: string;
+  thumbnail: boolean;
+}
+
 export interface Tracked {
   state: ReportState;
   title: string;
   createdAt: Date;
   replies: { at: Date; body: string }[];
+  files: TrackedFile[];
 }
 
 const MAX_REPLIES = 50;
+// The states in which a report file has its bytes (a pending slot has none).
+const STORED = ["quarantined", "released"] as const;
+// The reporter gets a thumbnail of a picture only: a PDF's preview is not
+// offered back.
+const hasThumbnail = (file: { previewKey: string | null; mime: string }) =>
+  file.previewKey !== null && file.mime !== "application/pdf";
 
 // The public side of the intake: the widget's three reads and writes and the
 // tracking page's. Nothing here trusts the caller. A key reads its own
@@ -370,12 +390,19 @@ export class PublicIntake {
       organisationId: key.organisationId.toHexString(),
     });
 
-    // Every declared file is checked before anything is made (plan §17, A12).
+    // Every declared file is checked before anything is made (plan §17, A12);
+    // a refusal is counted on the key (A13).
     const declaredFiles = report.files ?? [];
-    if (declaredFiles.length > 0 && !key.attachmentsEnabled) {
-      throw attachmentsDisabled();
+    let files: CheckedFile[];
+    try {
+      if (declaredFiles.length > 0 && !key.attachmentsEnabled) {
+        throw attachmentsDisabled();
+      }
+      files = checkFiles(declaredFiles);
+    } catch (error) {
+      this.countRefusal(key._id, error);
+      throw error;
     }
-    const files = checkFiles(declaredFiles);
 
     // A bot that fills the hidden field is told it worked, and nothing is
     // kept: its tickets are decoys, signed like the others, whose PUT stores
@@ -508,11 +535,9 @@ export class PublicIntake {
     };
   }
 
-  // The tracking page's read: the state, and the replies marked public. Nothing
-  // else of the report or its issue leaves (no author, no id, no private
-  // comment).
-  async status(token: string, ip: string): Promise<Tracked> {
-    await this.limit((l) => l.intakeTrackingIp, { ip });
+  // The report a tracking token opens, with its organisation's database; 404
+  // for a token that is malformed, unknown or erased.
+  private async reportOf(token: string) {
     const parsed = parseTrackingToken(token);
     if (!parsed) throw reportNotFound();
     const tenant = await this.deps.tenancy.resolve(parsed.organisationId);
@@ -523,7 +548,16 @@ export class PublicIntake {
     const report = await mongo.db.clientReports.findFirst({
       trackingTokenHash: parsed.hash,
     });
-    if (!report) throw reportNotFound();
+    if (!report || report.erasedAt) throw reportNotFound();
+    return { mongo, report, organisationId: parsed.organisationId };
+  }
+
+  // The tracking page's read: the state, the replies marked public, and the
+  // reporter's own files (name, role, whether a thumbnail exists). Nothing else
+  // of the report or its issue leaves (no author, no id, no private comment).
+  async status(token: string, ip: string): Promise<Tracked> {
+    await this.limit((l) => l.intakeTrackingIp, { ip });
+    const { mongo, report } = await this.reportOf(token);
     const replies = report.issueId
       ? await mongo.db.comments.findMany({
           filter: { issueId: report.issueId, public: true },
@@ -531,6 +565,10 @@ export class PublicIntake {
           limit: MAX_REPLIES,
         })
       : [];
+    const files = await mongo.db.clientReportFiles.findMany({
+      filter: { reportId: report._id, state: { $in: STORED } },
+      sort: { _id: 1 },
+    });
     return {
       state: report.state,
       title: report.title,
@@ -539,6 +577,52 @@ export class PublicIntake {
         at: reply.createdAt,
         body: withoutMarkers(reply.body),
       })),
+      files: files.map((file) => ({
+        id: file.id,
+        role: file.role,
+        name: file.fileName,
+        thumbnail: hasThumbnail(file),
+      })),
     };
+  }
+
+  // The thumbnail of one of the reporter's pictures: where it sits, once the
+  // token, the file and the picture's kind are checked (the tracking page's
+  // read limit applies). Never the original, never a PDF.
+  async thumbnailOf(
+    token: string,
+    fileId: string,
+    ip: string,
+  ): Promise<{ organisationId: string; storageKey: string }> {
+    await this.limit((l) => l.intakeTrackingIp, { ip });
+    if (!/^[0-9a-f]{24}$/.test(fileId)) throw fileNotFound();
+    const { mongo, report, organisationId } = await this.reportOf(token);
+    const file = await mongo.db.clientReportFiles.findFirst({
+      _id: new ObjectId(fileId),
+      reportId: report._id,
+      state: { $in: STORED },
+    });
+    if (!file?.storageKey || !hasThumbnail(file)) throw fileNotFound();
+    return { organisationId, storageKey: file.storageKey };
+  }
+
+  // Counts a refusal of the file traffic on the key (A13), whatever its
+  // reason is called; any error that is not one of the closed list is left
+  // alone. In the background: a counter never fails the request.
+  countRefusal(keyId: ObjectId, error: unknown) {
+    const reason = reasonOf(
+      (error as { extensions?: { code?: unknown } } | null)?.extensions?.code,
+    );
+    if (!reason) return;
+    this.background(() =>
+      countOnKey(this.deps.core.db.widgetKeys, keyId, { refusal: reason }),
+    );
+  }
+
+  // Counts a file stored on the key (A13).
+  countUpload(keyId: ObjectId) {
+    this.background(() =>
+      countOnKey(this.deps.core.db.widgetKeys, keyId, { upload: true }),
+    );
   }
 }

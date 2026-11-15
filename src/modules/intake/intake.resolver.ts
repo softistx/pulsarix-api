@@ -2,6 +2,12 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
 import { IssuesService } from "../issues/public";
+import {
+  filePreviewUrl,
+  filesOfReport,
+  fileUrl,
+  releasedFilesOfIssue,
+} from "./intake.files.team";
 import { type KeysCore, WidgetKeysService } from "./intake.keys";
 import { ReportsService } from "./intake.reports";
 
@@ -42,6 +48,10 @@ export const intakeResolvers: Resolvers = {
       (await keysOf(ctx)).list(projectId),
     clientReports: async (_, { projectId, state, first, after }, ctx) =>
       (await reportsOf(ctx)).list(projectId, state, first, after),
+    issueClientReportFiles: async (_, { issueId }, ctx) => {
+      const { mongo } = await requirePermission(ctx, "attachment:read");
+      return releasedFilesOfIssue(mongo as never, issueId);
+    },
   },
   Mutation: {
     createWidgetKey: async (_, { input }, ctx) =>
@@ -58,9 +68,24 @@ export const intakeResolvers: Resolvers = {
   },
   WidgetKey: {
     projectId: (key) => key.projectId.toHexString(),
+    refusals: (key) =>
+      Object.entries(key.refusals)
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
   },
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,
+    // Quarantined files are the inbox's: the field asks for the permission
+    // the report's own queries ask for, whatever parent it comes from.
+    files: async (report, _, ctx) => {
+      const { mongo } = await requirePermission(ctx, "issue:write");
+      return filesOfReport(mongo as never, report._id);
+    },
+  },
+  ClientReportFile: {
+    reportId: (file) => file.reportId.toHexString(),
+    url: (file) => fileUrl(file),
+    previewUrl: (file) => filePreviewUrl(file),
   },
 };

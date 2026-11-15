@@ -34,6 +34,11 @@ export const widgetKeys = defineCollection({
     active: z.boolean().default(true),
     // "Screenshots and files": off, the key takes no file (A12).
     attachmentsEnabled: z.boolean().default(true),
+    // Counters of the key's file traffic (A13), shown on the key's page:
+    // files stored, and refusals by reason (the code's slug, from a closed list:
+    // intake.counters.ts). Raw `$inc`s: they do not touch `version`.
+    uploads: z.number().int().min(0).default(0),
+    refusals: z.record(z.string(), z.number().int().min(0)).default({}),
     revokedAt: z.date().nullable().default(null),
     lastUsedAt: z.date().nullable().default(null),
   }),

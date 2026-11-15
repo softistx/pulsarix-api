@@ -62,3 +62,8 @@ export function answerOf(
     ),
   };
 }
+
+// The tracking page's thumbnail route and the header its token travels in
+// (intake.tracking.routes.ts); the token stays out of the URL, which logs keep.
+export const TRACKING_HEADER = "x-pulsarix-tracking";
+export const TRACKING_FILES_PATH = "/public/tracking/files";

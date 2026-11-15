@@ -5,6 +5,7 @@ import { idOrInvalid } from "../../core/shared/ids";
 import type { IssuesService } from "../issues/public";
 import { projectNotFound } from "../projects/public";
 import { reportDecided, reportNotFound } from "./intake.errors";
+import { releaseFiles } from "./intake.files.team";
 import type { ClientReportDocument, ReportState } from "./intake.model";
 
 export type IntakeMongo = ModuleMongo<"intake">;
@@ -113,6 +114,8 @@ export class ReportsService {
         clientReportId: report._id,
       });
       created = true;
+      // The files go to the issue in place (intake.files.team.ts).
+      await releaseFiles(this.mongo, report._id);
       // `issueId` was set in the issue's own transaction (intake.closing.ts).
       return await this.byId(claimed._id.toHexString());
     } catch (error) {

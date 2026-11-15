@@ -1,6 +1,7 @@
 import { alxia } from "@alxia/core";
 import type { MediaContext } from "@alxia/media";
 import { GraphQLError } from "graphql";
+import { ObjectId } from "mongodb";
 import { addressKey } from "../../core/shared/address";
 import { localeOfRequest } from "../../i18n/locale";
 import type { Media } from "../attachments/public";
@@ -10,7 +11,7 @@ import { reportFilesRoutes } from "./intake.files.routes";
 import { answerOf, corsHeaders, secure } from "./intake.http";
 import { normaliseOrigin } from "./intake.origins";
 import type { Caller, PublicIntake } from "./intake.submit";
-import { TICKET_HEADER } from "./intake.tickets";
+import { readTicket, TICKET_HEADER } from "./intake.tickets";
 import { type Admission, ReportUploads } from "./intake.uploads";
 
 const UPLOAD_PATH = "/public/media/report-files";
@@ -87,6 +88,17 @@ export function uploadRoutes(
             },
           );
         };
+        // The key a refusal is counted on (A13): the signed ticket's, and only
+        // once the key's own `Origin` check has passed.
+        const ticket = request.headers.get(TICKET_HEADER);
+        const claims = ticket
+          ? readTicket(intake.deps.ticketSecret, ticket)
+          : null;
+        const count = (error: unknown) => {
+          if (claims && caller.originGranted) {
+            intake.countRefusal(new ObjectId(claims.keyId), error);
+          }
+        };
         try {
           if (request.method === "OPTIONS") {
             const known =
@@ -149,7 +161,19 @@ export function uploadRoutes(
             throw error;
           }
           const body: unknown = await stored.json().catch(() => null);
-          if (stored.status !== 200) await uploads.release(admission);
+          if (stored.status !== 200) {
+            await uploads.release(admission);
+            // The media route's own refusals (type, size, pixels).
+            count({
+              extensions: {
+                code: (
+                  body as {
+                    errors?: { extensions?: { code?: unknown } }[];
+                  } | null
+                )?.errors?.[0]?.extensions?.code,
+              },
+            });
+          }
           const retry = stored.headers.get("retry-after");
           return reply(stored.status, body, {
             headers: {
@@ -159,7 +183,10 @@ export function uploadRoutes(
             },
           });
         } catch (error) {
-          if (error instanceof GraphQLError) return refuse(error);
+          if (error instanceof GraphQLError) {
+            count(error);
+            return refuse(error);
+          }
           if ((error as { status?: number }).status === 413) {
             return reply(413, { errors: [] }, { headers: secure });
           }
