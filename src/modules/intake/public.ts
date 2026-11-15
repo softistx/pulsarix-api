@@ -1,4 +1,12 @@
 // What other modules may import from intake.
 
-export type { ClientReportDocument, ReportState } from "./intake.model";
-export { startRetentionWorker } from "./intake.server";
+export { purgeOrganisationFiles } from "./intake.files.storage";
+export type {
+  ClientReportDocument,
+  ClientReportFileDocument,
+  ReportState,
+} from "./intake.model";
+export {
+  startFilesRetentionWorker,
+  startRetentionWorker,
+} from "./intake.server";

@@ -6,15 +6,15 @@ registry).
 
 ## What runs
 
-| Service               | Image                        | Role                                                                                                                               |
-| --------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `mongo`               | `mongo:8.0`                  | one-node replica set, auth on (keyfile from `MONGO_KEYFILE`)                                                                       |
-| `mongo-init`          | `mongo:8.0`                  | one-shot: the app user, and the backup user when `MONGO_BACKUP_PASSWORD` is set (re-applied on every `up`)                         |
-| `redis`               | `redis:7.4`                  | password, append-only. **Required**: rate limits, the digest queue, live events; the public intake endpoint answers 503 without it |
-| `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                  |
-| `backup`              | `deploy/backup/Dockerfile`   | profile `backup`, started with `--backup`: nightly `mongodump --oplog`, offsite copy, media mirror                                 |
-| `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                    |
-| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui`;                                serves the widget's `dist` (see "The widget bundle")             |
+| Service               | Image                        | Role                                                                                                                                                           |
+| --------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mongo`               | `mongo:8.0`                  | one-node replica set, auth on (keyfile from `MONGO_KEYFILE`)                                                                                                   |
+| `mongo-init`          | `mongo:8.0`                  | one-shot: the app user, and the backup user when `MONGO_BACKUP_PASSWORD` is set (re-applied on every `up`)                                                     |
+| `redis`               | `redis:7.4`                  | password, append-only. **Required**: rate limits, the digest and report-files retention queues, live events; the public intake endpoint answers 503 without it |
+| `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                                              |
+| `backup`              | `deploy/backup/Dockerfile`   | profile `backup`, started with `--backup`: nightly `mongodump --oplog`, offsite copy, media mirror                                                             |
+| `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                                                |
+| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui`;                                serves the widget's `dist` (see "The widget bundle")                                         |
 
 No service publishes a port. Two networks: `internal`, private to the stack, holds every service;
 the external `proxy` network (nxgt-docker creates it) holds only `api` and `ui` as well, so Traefik

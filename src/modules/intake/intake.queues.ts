@@ -19,3 +19,20 @@ export const intakeRetention = defineQueue({
     nightly: { cron: "30 3 * * *", timezone: "UTC", data: {} },
   },
 });
+
+// The purge of report files (plan §17, A11): pending slots after 15 minutes,
+// a declined report's files after 7 days, a never-triaged report's after 90.
+// Every 5 minutes, so a slot goes soon after its ticket's deadline; each run
+// removes what is due and nothing else, and is safe to repeat.
+export const intakeFilesRetention = defineQueue({
+  name: "intake-files-retention",
+  schema: z.object({}),
+  attempts: 3,
+  backoff: { base: "1m", max: "15m" },
+  timeout: "10m",
+  keepCompleted: false,
+  keepFailed: "7d",
+  schedules: {
+    frequent: { cron: "*/5 * * * *", timezone: "UTC", data: {} },
+  },
+});

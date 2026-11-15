@@ -3,7 +3,7 @@ import { defineCodes } from "../../i18n/define-codes";
 import { registerIssueChange } from "../issues/public";
 import { followIssue } from "./intake.closing";
 import intakeTypeDefs from "./intake.graphqls" with { type: "text" };
-import { clientReports, widgetKeys } from "./intake.model";
+import { clientReportFiles, clientReports, widgetKeys } from "./intake.model";
 import { intakeResolvers } from "./intake.resolver";
 
 // A report follows its issue to its end (intake.closing.ts).
@@ -15,9 +15,16 @@ registerIssueChange(followIssue);
 // mounted by src/app.ts at /public/graphql, which is not part of /graphql).
 export const intakeModule = defineModule({
   name: "intake",
-  dependsOn: ["access", "organisations", "projects", "issues", "comments"],
+  dependsOn: [
+    "access",
+    "organisations",
+    "projects",
+    "issues",
+    "comments",
+    "attachments",
+  ],
   coreCollections: { widgetKeys },
-  collections: { clientReports },
+  collections: { clientReportFiles, clientReports },
   typeDefs: [intakeTypeDefs],
   resolvers: intakeResolvers as never,
   // Keys are managed by admins; the inbox is worked with `issue:write`.
@@ -36,5 +43,9 @@ export const intakeModule = defineModule({
     "not-found",
     "report-decided",
     "invalid-origin",
+    "file-unsupported-type",
+    "file-undecodable",
+    "file-too-large",
+    "file-too-many-pixels",
   ]),
 });

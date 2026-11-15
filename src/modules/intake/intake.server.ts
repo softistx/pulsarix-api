@@ -2,6 +2,8 @@ import { type AppTenancy, coreMongo } from "../../config/db";
 import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
+import type { Media } from "../attachments/public";
+import { purgeAllReportFiles } from "./intake.files.retention";
 import { eraseAll } from "./intake.retention";
 import {
   type IntakeDeps,
@@ -47,5 +49,21 @@ export function startRetentionWorker(
     await eraseAll(tenancy);
   });
   worker.on("error", (error) => log("intake retention worker", error));
+  return worker;
+}
+
+// Starts the worker of the report files purge (the server calls it once). With
+// no file store (S3 not configured) there is nothing to purge and no job.
+export function startFilesRetentionWorker(
+  tenancy: Pick<AppTenancy, "eachTenant">,
+  media: Media | undefined,
+  log = console.warn,
+) {
+  const queue = realtime.queues?.intakeFilesRetention;
+  if (!queue || !media) return null;
+  const worker = queue.work(async () => {
+    await purgeAllReportFiles(tenancy, media);
+  });
+  worker.on("error", (error) => log("report files retention worker", error));
   return worker;
 }
