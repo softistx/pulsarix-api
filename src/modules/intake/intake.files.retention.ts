@@ -11,7 +11,7 @@ export const DECLINED_FILES_DAYS = 7;
 export const UNTRIAGED_FILES_DAYS = 90;
 export const PENDING_SLOT_MINUTES = 15;
 const DAY_MS = 86_400_000;
-const PAGE = 500;
+const PAGE_SIZE = 500;
 
 type FilesMongo = ModuleMongo<"intake">;
 
@@ -33,6 +33,7 @@ export async function purgeReportFiles(
   media: Media,
   organisationId: string,
   now = new Date(),
+  PAGE = PAGE_SIZE,
 ): Promise<FilesPurged> {
   const files = mongo.db.clientReportFiles;
   const purged: FilesPurged = {

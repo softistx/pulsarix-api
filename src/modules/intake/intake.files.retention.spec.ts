@@ -134,6 +134,20 @@ describe("the report files purge", () => {
     expect(await mongo.db.clientReportFiles.findById(fresh._id)).toBeDefined();
   });
 
+  test("more due files than a page are all purged", async () => {
+    const { mongo, organisationId, report, file } = await setup();
+    const now = new Date();
+    const due = new Date(now.getTime() - DECLINED_FILES_DAYS * DAY);
+    for (let n = 0; n < 3; n++) {
+      const id = await report({ state: "declined", decidedAt: due });
+      await file(id);
+      await file(id);
+    }
+    const purged = await purgeReportFiles(mongo, media, organisationId, now, 2);
+    expect(purged.declined).toBe(6);
+    expect(await mongo.db.clientReportFiles.count({})).toBe(0);
+  });
+
   test("a report nobody triaged loses its files after 90 days, an accepted one never", async () => {
     const { mongo, organisationId, report, file, objects } = await setup();
     const now = new Date();
