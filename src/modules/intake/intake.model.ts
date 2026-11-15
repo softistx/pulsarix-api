@@ -32,6 +32,8 @@ export const widgetKeys = defineCollection({
     label: z.string().trim().min(1).max(100),
     allowedOrigins: z.array(origin).min(1).max(20),
     active: z.boolean().default(true),
+    // "Screenshots and files": off, the key takes no file (A12).
+    attachmentsEnabled: z.boolean().default(true),
     revokedAt: z.date().nullable().default(null),
     lastUsedAt: z.date().nullable().default(null),
   }),
@@ -148,6 +150,9 @@ export const clientReportFiles = defineCollection({
     height: z.number().int().min(1).nullable().default(null),
     state: reportFileState.default("pending"),
     expiresAt: z.date().nullable().default(null),
+    // When an upload took the slot: one at a time (a lease of a minute), and
+    // released when it fails, so a retry is possible until `expiresAt`.
+    claimedAt: z.date().nullable().default(null),
   }),
   timestamps: true,
   indexes: [

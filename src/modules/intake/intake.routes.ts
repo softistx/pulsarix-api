@@ -8,6 +8,7 @@ import {
   persistedOnly,
   unsupportedMedia,
 } from "./intake.errors";
+import { answerOf, corsHeaders, secure } from "./intake.http";
 import { normaliseOrigin } from "./intake.origins";
 import {
   type PersistedId,
@@ -20,70 +21,8 @@ import type { Caller, PublicIntake } from "./intake.submit";
 // description plus a title and 2 KB of metadata.
 export const PUBLIC_BODY_LIMIT = 64 * 1024;
 
-// Every answer: nothing is cached, sniffed, indexed or leaked through a
-// referrer (the tracking token travels in the page's path, not here, but the
-// answers hold reports).
-const secure = {
-  "cache-control": "no-store",
-  "x-content-type-options": "nosniff",
-  "referrer-policy": "no-referrer",
-  "x-robots-tag": "noindex",
-} as const;
-
-const corsHeaders = (origin: string) => ({
-  "access-control-allow-origin": origin,
-  vary: "Origin",
-});
-
-type Status =
-  | 200
-  | 204
-  | 400
-  | 403
-  | 404
-  | 405
-  | 409
-  | 413
-  | 415
-  | 429
-  | 500
-  | 503;
-const statuses: readonly number[] = [
-  400, 403, 404, 405, 409, 413, 415, 429, 500, 503,
-];
-const asStatus = (value: unknown): Status =>
-  typeof value === "number" && statuses.includes(value)
-    ? (value as Status)
-    : 400;
-
 const isPersisted = (id: unknown): id is PersistedId =>
   typeof id === "string" && Object.hasOwn(persistedOperations, id);
-
-// A GraphQL error as the endpoint answers it: ours (a coded refusal) and the
-// validation of a document's variables as they are; anything else (a bug, a
-// database failure) is masked, its detail kept in the log.
-function answerOf(
-  error: GraphQLError,
-  log: (message: string, error: unknown) => void,
-): { body: unknown; status: Status } {
-  const original = error.originalError;
-  if (original && !(original instanceof GraphQLError)) {
-    log("public intake failed", original);
-    return {
-      body: {
-        message: "Internal error",
-        extensions: { code: "internal-error", http: { status: 500 } },
-      },
-      status: 500,
-    };
-  }
-  return {
-    body: error.toJSON(),
-    status: asStatus(
-      (error.extensions["http"] as { status?: number } | undefined)?.status,
-    ),
-  };
-}
 
 // POST /public/graphql (and its CORS preflight): the widget's endpoint and the
 // tracking page's, the product's only unauthenticated surface (plan §11).

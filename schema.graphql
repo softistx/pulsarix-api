@@ -232,6 +232,16 @@ type ClientReportEvent {
   title: String!
 }
 
+"""
+A file of a client report was stored: the report's pending slot is now quarantined.
+"""
+type ClientReportFileEvent {
+  at: DateTime!
+  fileId: ID!
+  reportId: ID!
+  role: String!
+}
+
 type ClientReportMetadata {
   key: String!
   value: String!
@@ -328,6 +338,8 @@ input CreateStatusInput {
 
 input CreateWidgetKeyInput {
   allowedOrigins: [String!]! @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  """Default true."""
+  attachmentsEnabled: Boolean
   label: String! @constraint(minLength: 1, maxLength: 100)
   projectId: ID!
 }
@@ -1454,6 +1466,10 @@ an hour; the client reconnects and refetches.
 """
 type Subscription {
   """
+  A file of a client report of a project was stored. Needs `issue:write`; 404 `projects.errors.not-found`.
+  """
+  clientReportFileReceived(projectId: ID!): ClientReportFileEvent!
+  """
   New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
   """
   clientReportReceived(projectId: ID!): ClientReportEvent!
@@ -1602,6 +1618,7 @@ input UpdateViewerInput {
 input UpdateWidgetKeyInput {
   active: Boolean
   allowedOrigins: [String!] @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  attachmentsEnabled: Boolean
   label: String @constraint(minLength: 1, maxLength: 100)
 }
 
@@ -1651,6 +1668,10 @@ type WidgetKey {
   The sites (`https://host[:port]`) allowed to use it; the public endpoint answers CORS for these only.
   """
   allowedOrigins: [String!]!
+  """
+  On by default. Off, the widget hides its screenshot and file controls and the key takes no file.
+  """
+  attachmentsEnabled: Boolean!
   createdAt: DateTime!
   id: ID!
   label: String!

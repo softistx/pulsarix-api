@@ -12,6 +12,8 @@ type WidgetKey {
   allowedOrigins: [String!]!
   "Off, the widget answers `enabled: false` and takes no report."
   active: Boolean!
+  "On by default. Off, the widget hides its screenshot and file controls and the key takes no file."
+  attachmentsEnabled: Boolean!
   "When it was last used, to the minute; null if never."
   lastUsedAt: DateTime
   createdAt: DateTime!
@@ -23,6 +25,8 @@ input CreateWidgetKeyInput {
   label: String! @constraint(minLength: 1, maxLength: 100)
   allowedOrigins: [String!]!
     @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  "Default true."
+  attachmentsEnabled: Boolean
 }
 
 "A field left out stays as it is; null is refused."
@@ -31,6 +35,7 @@ input UpdateWidgetKeyInput {
   allowedOrigins: [String!]
     @constraint(minItems: 1, maxItems: 20, maxLength: 200)
   active: Boolean
+  attachmentsEnabled: Boolean
 }
 
 enum ClientReportState {

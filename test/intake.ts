@@ -1,6 +1,7 @@
 import { createMemoryMailer } from "@softistx/mail";
 import { coreMongo, tenancy } from "../src/config/db";
 import { clientHeader } from "../src/http/csrf";
+import type { Media } from "../src/modules/attachments/public";
 import {
   intakeEmail,
   intakeIpKey,
@@ -8,6 +9,8 @@ import {
   intakeOrganisation,
   intakeReadIp,
   intakeTrackingIp,
+  intakeUploadIpKey,
+  intakeUploadKey,
 } from "../src/modules/intake/intake.limits";
 import { serverIntake } from "../src/modules/intake/intake.server";
 import {
@@ -27,9 +30,9 @@ function counting<P>(
   const counts = new Map<string, number>();
   return {
     counts,
-    async consume(params) {
+    async consume(params, cost = 1) {
       const k = key(params);
-      const n = (counts.get(k) ?? 0) + 1;
+      const n = (counts.get(k) ?? 0) + cost;
       counts.set(k, n);
       return n > limit
         ? { allowed: false, retryAfter: 90_000 }
@@ -38,7 +41,9 @@ function counting<P>(
   };
 }
 
-// The six limits at their production values (src/modules/intake/intake.limits.ts).
+export const TICKET_SECRET = "t".repeat(40);
+
+// The eight limits at their production values (src/modules/intake/intake.limits.ts).
 export function countingLimits() {
   return {
     intakeKey: counting(
@@ -61,6 +66,14 @@ export function countingLimits() {
     intakeTrackingIp: counting(
       intakeTrackingIp.limit,
       (p: { ip: string }) => p.ip,
+    ),
+    intakeUploadIpKey: counting(
+      intakeUploadIpKey.limit,
+      (p: { ip: string; keyId: string }) => `${p.ip}/${p.keyId}`,
+    ),
+    intakeUploadKey: counting(
+      intakeUploadKey.limit,
+      (p: { keyId: string }) => p.keyId,
     ),
   } satisfies IntakeLimits;
 }
@@ -92,6 +105,8 @@ export async function intakeKit(
     // Build the intake as the server does (`serverIntake`), so a report
     // reaches the real live channel instead of the `published` list.
     server?: boolean;
+    // The file store the PUT route of the report files writes to.
+    media?: Media;
   } = {},
 ) {
   const site = nextSite();
@@ -107,12 +122,16 @@ export async function intakeKit(
         mailer,
         from: { name: "pulsarix", address: "noreply@pulsarix.test" },
         uiOrigin,
+        ticketSecret: TICKET_SECRET,
         log: () => {},
         publish: async (event) => {
           published.push(event);
         },
       });
-  const kit = authApp({ intake });
+  const kit = authApp({
+    intake,
+    ...(options.media && { media: options.media }),
+  });
   const { owner, organisation } = await ownerWithOrganisation(kit);
   const asOwner = kit.client(owner.token, { organisation: organisation.id });
   const { createProject: project } = await asOwner.call<{

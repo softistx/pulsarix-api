@@ -7,6 +7,7 @@ import { type FieldIssue, invalid } from "../../core/shared/errors";
 import type { Locale } from "../../i18n/locale";
 import { withoutMarkers } from "../comments/public";
 import {
+  attachmentsDisabled,
   keyDisabled,
   originNotAllowed,
   reportNotFound,
@@ -15,6 +16,8 @@ import {
   unavailable,
   unknownKey,
 } from "./intake.errors";
+import { type CheckedFile, checkFiles, newSlot } from "./intake.files.input";
+import { PENDING_SLOT_MINUTES } from "./intake.files.retention";
 import { trackingMail } from "./intake.mail";
 import {
   type ClientReportDocument,
@@ -25,6 +28,7 @@ import {
 } from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import { stripControl } from "./intake.text";
+import { signTicket } from "./intake.tickets";
 import {
   emailDigest,
   newTrackingToken,
@@ -48,6 +52,9 @@ export interface IntakeLimits {
   intakeOrganisation: Limiter<{ organisationId: string }>;
   intakeReadIp: Limiter<{ ip: string }>;
   intakeTrackingIp: Limiter<{ ip: string }>;
+  // Bytes (the `cost` of a consume), per address and key, and per key.
+  intakeUploadIpKey: Limiter<{ ip: string; keyId: string }>;
+  intakeUploadKey: Limiter<{ keyId: string }>;
 }
 
 export interface ReportReceived {
@@ -55,6 +62,15 @@ export interface ReportReceived {
   projectId: string;
   reportId: string;
   title: string;
+  at: string;
+}
+
+export interface ReportFileReceived {
+  organisationId: string;
+  projectId: string;
+  reportId: string;
+  fileId: string;
+  role: "screenshot" | "file";
   at: string;
 }
 
@@ -67,8 +83,12 @@ export interface IntakeDeps {
   from: Address;
   // pulsarix-ui's origin: the tracking link starts with it.
   uiOrigin: string;
+  // The secret the upload tickets are signed with (see intake.tickets.ts).
+  ticketSecret: string;
   // The live event of the team's inbox (`clientReportReceived`).
   publish: (event: ReportReceived) => Promise<void>;
+  // The live event of a file that was stored (`clientReportFileReceived`).
+  publishFile?: (event: ReportFileReceived) => Promise<void>;
   now?: () => Date;
   log?: (message: string, error: unknown) => void;
 }
@@ -120,6 +140,16 @@ const input = z.object({
     .nullish(),
   website: z.string().max(1_000).nullish(),
   filledInMs: z.number().int().min(0),
+  files: z
+    .array(
+      z.object({
+        role: z.enum(["screenshot", "file"]),
+        name: z.string(),
+        type: z.string(),
+        size: z.number().int(),
+      }),
+    )
+    .nullish(),
 });
 
 export type SubmitInput = z.input<typeof input>;
@@ -159,12 +189,25 @@ export interface WidgetConfig {
   projectName: string | null;
   locale: Locale;
   enabled: boolean;
+  // Whether the widget shows its screenshot and file controls.
+  attachments: boolean;
+}
+
+// One ticket per declared file, in the order declared: the widget PUTs the
+// file to `/public/media/report-files/<slot>` with the ticket in
+// `x-pulsarix-ticket` (intake.uploads.routes.ts).
+export interface FileTicket {
+  slot: string;
+  role: CheckedFile["role"];
+  ticket: string;
+  expiresAt: Date;
 }
 
 export interface Submitted {
   reportId: string;
   // Whether a tracking link was mailed.
   tracking: boolean;
+  files: FileTicket[];
 }
 
 export interface Tracked {
@@ -184,9 +227,10 @@ const MAX_REPLIES = 50;
 export class PublicIntake {
   private readonly pending = new Set<Promise<void>>();
 
-  constructor(private readonly deps: IntakeDeps) {}
+  // `deps` is read by the uploads too (intake.uploads.ts).
+  constructor(readonly deps: IntakeDeps) {}
 
-  private now() {
+  now() {
     return this.deps.now?.() ?? new Date();
   }
 
@@ -195,7 +239,7 @@ export class PublicIntake {
     while (this.pending.size > 0) await Promise.allSettled([...this.pending]);
   }
 
-  private background(work: () => Promise<void>) {
+  background(work: () => Promise<void>) {
     const run = work().catch((error) =>
       (this.deps.log ?? ((m, e) => console.warn(m, e)))(
         "intake background work failed",
@@ -206,16 +250,21 @@ export class PublicIntake {
     void run.finally(() => this.pending.delete(run));
   }
 
-  // 429 past the limit; 503 when the limit cannot be checked at all.
-  private async limit<P>(
+  // 429 past the limit; 503 when the limit cannot be checked at all. `cost`
+  // is what the call spends (the bytes of an upload; 1 otherwise). Also the
+  // uploads' (intake.uploads.ts).
+  async limit<P>(
     pick: (limits: IntakeLimits) => Limiter<P>,
     params: P,
+    cost = 1,
   ) {
     const { limits } = this.deps;
     if (!limits) throw unavailable();
     let result: { allowed: boolean; retryAfter: number };
     try {
-      result = await pick(limits).consume(params, 1, { timeoutMs: 1_000 });
+      result = await pick(limits).consume(params, cost, {
+        timeoutMs: 1_000,
+      });
     } catch (error) {
       (this.deps.log ?? ((m, e) => console.warn(m, e)))(
         "intake rate limit unavailable",
@@ -240,7 +289,7 @@ export class PublicIntake {
     });
   }
 
-  private async keyOf(publicKey: string): Promise<WidgetKeyDocument> {
+  async keyOf(publicKey: string): Promise<WidgetKeyDocument> {
     if (!PUBLIC_KEY.test(publicKey)) throw unknownKey();
     const key = await this.deps.core.db.widgetKeys.findFirst({
       publicKey,
@@ -250,7 +299,7 @@ export class PublicIntake {
     return key;
   }
 
-  private touch(key: WidgetKeyDocument) {
+  touch(key: WidgetKeyDocument) {
     const now = this.now();
     if (
       key.lastUsedAt &&
@@ -267,7 +316,7 @@ export class PublicIntake {
 
   // The organisation's database, as the system; the key's organisation must
   // still be active.
-  private async databaseOf(key: WidgetKeyDocument): Promise<IntakeMongo> {
+  async databaseOf(key: WidgetKeyDocument): Promise<IntakeMongo> {
     const tenant = await this.deps.tenancy.resolve(
       key.organisationId.toHexString(),
     );
@@ -291,6 +340,7 @@ export class PublicIntake {
       projectName: enabled && project ? project.name : null,
       locale: caller.language,
       enabled,
+      attachments: enabled && key.attachmentsEnabled,
     };
   }
 
@@ -320,9 +370,25 @@ export class PublicIntake {
       organisationId: key.organisationId.toHexString(),
     });
 
-    // A bot that fills the hidden field is told it worked, and nothing is kept.
+    // Every declared file is checked before anything is made (plan §17, A12).
+    const declaredFiles = report.files ?? [];
+    if (declaredFiles.length > 0 && !key.attachmentsEnabled) {
+      throw attachmentsDisabled();
+    }
+    const files = checkFiles(declaredFiles);
+
+    // A bot that fills the hidden field is told it worked, and nothing is
+    // kept: its tickets are decoys, signed like the others, whose PUT stores
+    // nothing.
     if (report.website) {
-      return { reportId: new ObjectId().toHexString(), tracking: !!email };
+      const reportId = new ObjectId().toHexString();
+      return {
+        reportId,
+        tracking: !!email,
+        files: files.map((file) =>
+          this.ticketFor(key, reportId, newSlot(), file, true, this.expiry()),
+        ),
+      };
     }
     if (report.filledInMs < MIN_FILL_MS) throw tooFast();
     const metadata = report.metadata ?? [];
@@ -366,6 +432,27 @@ export class PublicIntake {
       erasedAt: null,
     });
     this.touch(key);
+    const tickets: FileTicket[] = [];
+    const expiresAt = this.expiry();
+    for (const file of files) {
+      const slot = await mongo.db.clientReportFiles.create({
+        reportId: created._id,
+        role: file.role,
+        fileName: file.name,
+        mime: file.type,
+        size: file.size,
+        storageKey: null,
+        previewKey: null,
+        width: null,
+        height: null,
+        state: "pending",
+        expiresAt,
+        claimedAt: null,
+      });
+      tickets.push(
+        this.ticketFor(key, created.id, slot.id, file, false, expiresAt),
+      );
+    }
 
     this.background(async () => {
       await this.deps.publish({
@@ -389,7 +476,36 @@ export class PublicIntake {
         });
       });
     }
-    return { reportId: created.id, tracking: !!email };
+    return { reportId: created.id, tracking: !!email, files: tickets };
+  }
+
+  private expiry() {
+    return new Date(this.now().getTime() + PENDING_SLOT_MINUTES * 60_000);
+  }
+
+  private ticketFor(
+    key: WidgetKeyDocument,
+    reportId: string,
+    slot: string,
+    file: CheckedFile,
+    decoy: boolean,
+    expiresAt: Date,
+  ): FileTicket {
+    return {
+      slot,
+      role: file.role,
+      expiresAt,
+      ticket: signTicket(this.deps.ticketSecret, {
+        organisationId: key.organisationId.toHexString(),
+        keyId: key._id.toHexString(),
+        reportId,
+        slot,
+        type: file.type,
+        size: file.size,
+        expiresAt: expiresAt.getTime(),
+        decoy,
+      }),
+    };
   }
 
   // The tracking page's read: the state, and the replies marked public. Nothing

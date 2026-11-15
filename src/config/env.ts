@@ -157,6 +157,15 @@ export const env = defineEnv({
         .transform((secret) => secret || undefined)
         .pipe(z.string().min(32, "at least 32 characters").optional())
         .optional(),
+  // INTAKE_TICKET_SECRET: the secret the widget's upload tickets are signed
+  // with (at least 32 characters). Unset, it is derived from API_PROXY_SECRET
+  // (required in production), so a deployment needs nothing more; set it to
+  // rotate the tickets apart from the proxy secret.
+  INTAKE_TICKET_SECRET: z
+    .string()
+    .transform((secret) => secret || undefined)
+    .pipe(z.string().min(32, "at least 32 characters").optional())
+    .optional(),
   // MONGO_AUTO_SYNC: create the validators and indexes of a collection on its
   // first use. Always on outside production; in production only when this is
   // 1, true, yes or on (deploy/docker-compose.yaml sets true: the app user has
