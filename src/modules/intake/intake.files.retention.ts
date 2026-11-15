@@ -1,3 +1,4 @@
+import type { ObjectId } from "mongodb";
 import type { AppTenancy, ModuleMongo } from "../../config/db";
 import type { Media } from "../attachments/public";
 import { fileObjectKeys, removeObjects } from "./intake.files.storage";
@@ -10,6 +11,7 @@ export const DECLINED_FILES_DAYS = 7;
 export const UNTRIAGED_FILES_DAYS = 90;
 export const PENDING_SLOT_MINUTES = 15;
 const DAY_MS = 86_400_000;
+const PAGE = 500;
 
 type FilesMongo = ModuleMongo<"intake">;
 
@@ -33,62 +35,96 @@ export async function purgeReportFiles(
   now = new Date(),
 ): Promise<FilesPurged> {
   const files = mongo.db.clientReportFiles;
-  const reports = mongo.db.clientReports;
-  const declined = await reports.findMany({
-    filter: {
-      state: "declined",
-      decidedAt: {
-        $lte: new Date(now.getTime() - DECLINED_FILES_DAYS * DAY_MS),
-      },
-    },
-    limit: 1_000,
-  });
-  const untriaged = await reports.findMany({
-    filter: {
-      state: "new",
-      createdAt: {
-        $lte: new Date(now.getTime() - UNTRIAGED_FILES_DAYS * DAY_MS),
-      },
-    },
-    limit: 1_000,
-  });
   const purged: FilesPurged = {
     pending: 0,
     declined: 0,
     untriaged: 0,
     failed: 0,
   };
+  // Removes the files matching the filter, page by page by _id so a file whose
+  // objects cannot be removed (it stays) never blocks the ones behind it.
   const sweep = async (
     filter: Record<string, unknown>,
     counter: "pending" | "declined" | "untriaged",
   ) => {
-    const found = await files.findMany({
-      filter: filter as never,
-      limit: 1_000,
-    });
-    for (const file of found) {
-      const failed = file.storageKey
-        ? await removeObjects(
-            media,
-            fileObjectKeys(organisationId, file.storageKey),
-          )
-        : 0;
-      purged.failed += failed;
-      if (failed > 0) continue;
-      await files.hardDelete(file._id);
-      purged[counter] += 1;
+    let after: ObjectId | undefined;
+    for (;;) {
+      const found = (await files.raw
+        .find(after ? { ...filter, _id: { $gt: after } } : filter)
+        .sort({ _id: 1 })
+        .limit(PAGE)
+        .toArray()) as Array<{ _id: ObjectId; storageKey?: string | null }>;
+      if (found.length === 0) return;
+      for (const file of found) {
+        const failed = file.storageKey
+          ? await removeObjects(
+              media,
+              fileObjectKeys(organisationId, file.storageKey),
+            )
+          : 0;
+        purged.failed += failed;
+        if (failed === 0) {
+          await files.hardDelete(file._id);
+          purged[counter] += 1;
+        }
+      }
+      after = found[found.length - 1]?._id;
     }
   };
-  await sweep({ state: "pending", expiresAt: { $lte: now } }, "pending");
-  if (declined.length > 0) {
-    await sweep({ reportId: { $in: declined.map((r) => r._id) } }, "declined");
-  }
-  if (untriaged.length > 0) {
-    await sweep(
-      { reportId: { $in: untriaged.map((r) => r._id) } },
-      "untriaged",
-    );
-  }
+  // The reports past their date, page by page, then their files.
+  const sweepReports = async (
+    reportFilter: Record<string, unknown>,
+    counter: "declined" | "untriaged",
+  ) => {
+    let after: ObjectId | undefined;
+    for (;;) {
+      const page = (await mongo.db.clientReports.raw
+        .find(after ? { ...reportFilter, _id: { $gt: after } } : reportFilter, {
+          projection: { _id: 1 },
+        })
+        .sort({ _id: 1 })
+        .limit(PAGE)
+        .toArray()) as Array<{ _id: ObjectId }>;
+      if (page.length === 0) return;
+      await sweep({ reportId: { $in: page.map((r) => r._id) } }, counter);
+      after = page[page.length - 1]?._id;
+    }
+  };
+  // A pending slot is purged once its ticket expired, or, with no expiry
+  // recorded, once it is older than the ticket's life.
+  await sweep(
+    {
+      state: "pending",
+      $or: [
+        { expiresAt: { $lte: now } },
+        {
+          expiresAt: null,
+          createdAt: {
+            $lte: new Date(now.getTime() - PENDING_SLOT_MINUTES * 60_000),
+          },
+        },
+      ],
+    },
+    "pending",
+  );
+  await sweepReports(
+    {
+      state: "declined",
+      decidedAt: {
+        $lte: new Date(now.getTime() - DECLINED_FILES_DAYS * DAY_MS),
+      },
+    },
+    "declined",
+  );
+  await sweepReports(
+    {
+      state: "new",
+      createdAt: {
+        $lte: new Date(now.getTime() - UNTRIAGED_FILES_DAYS * DAY_MS),
+      },
+    },
+    "untriaged",
+  );
   return purged;
 }
 

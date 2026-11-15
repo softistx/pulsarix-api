@@ -110,6 +110,30 @@ describe("the report files purge", () => {
     expect(await mongo.db.clientReports.findById(due)).toBeDefined();
   });
 
+  test("a pending slot with no expiry is purged once it is older than its ticket", async () => {
+    const { mongo, organisationId, report, file } = await setup();
+    const now = new Date();
+    const id = await report({ state: "new" });
+    const fresh = await file(id, { state: "pending", expiresAt: null });
+    const stale = await file(id, { state: "pending", expiresAt: null });
+    await mongo.db.clientReportFiles.raw.updateOne(
+      { _id: stale._id },
+      {
+        $set: {
+          createdAt: new Date(
+            now.getTime() - (PENDING_SLOT_MINUTES + 1) * MINUTE,
+          ),
+        },
+      },
+    );
+    const purged = await purgeReportFiles(mongo, media, organisationId, now);
+    expect(purged.pending).toBe(1);
+    expect(
+      await mongo.db.clientReportFiles.findById(stale._id),
+    ).toBeUndefined();
+    expect(await mongo.db.clientReportFiles.findById(fresh._id)).toBeDefined();
+  });
+
   test("a report nobody triaged loses its files after 90 days, an accepted one never", async () => {
     const { mongo, organisationId, report, file, objects } = await setup();
     const now = new Date();

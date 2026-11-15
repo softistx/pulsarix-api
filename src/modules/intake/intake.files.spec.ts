@@ -152,6 +152,17 @@ describe("what a report may attach", () => {
     expect(await stored()).toEqual(before);
   }, 60_000);
 
+  test("an empty body and a truncated picture are refused, and nothing is stored", async () => {
+    const before = await stored();
+    const empty = await put(new Uint8Array(), "image/png");
+    expect(empty.status).toBeGreaterThanOrEqual(400);
+    const full = png(64, 64);
+    const corrupt = await put(full.slice(0, 24), "image/png");
+    expect(corrupt.status).toBeGreaterThanOrEqual(400);
+    expect(corrupt.status).toBeLessThan(500);
+    expect(await stored()).toEqual(before);
+  });
+
   test("a file over 5 MB is a 413", async () => {
     const response = await put(
       new Uint8Array(maxFileBytes + 1),
