@@ -12,6 +12,7 @@ import {
   uploadMismatch,
 } from "./intake.errors";
 import { maxFileBytes } from "./intake.files.kinds";
+import { releaseFiles } from "./intake.files.team";
 import type { ReportFileRole } from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import type { Caller, IntakeMongo, PublicIntake } from "./intake.submit";
@@ -193,6 +194,13 @@ export class ReportUploads {
       },
     );
     if (done.matchedCount === 0) throw ticketExpired();
+    // The report may have been accepted between the read above and the write:
+    // look again, so a file never stays quarantined on an accepted report.
+    const now = await mongo.db.clientReports.findById(
+      new ObjectId(claims.reportId),
+    );
+    if (now?.state === "accepted" || now?.state === "closed")
+      await releaseFiles(mongo, new ObjectId(claims.reportId));
     const { intake } = this;
     intake.countUpload(new ObjectId(claims.keyId));
     const publish = intake.deps.publishFile;
