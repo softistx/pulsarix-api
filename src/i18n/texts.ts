@@ -129,6 +129,7 @@ export const texts: Record<Locale, Record<string, string>> = {
       "This is not the file that was announced with the report.",
     "intake.errors.quarantine-full":
       "Files cannot be taken right now. Send the report without them.",
+    "intake.errors.file-not-found": "This file does not exist.",
     "attachments.errors.not-found": "This attachment does not exist.",
     "attachments.errors.too-many":
       "No more than {max} files can be attached here.",
@@ -287,6 +288,7 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Ce n'est pas le fichier annoncé avec le signalement.",
     "intake.errors.quarantine-full":
       "Les fichiers ne peuvent pas être pris pour le moment. Envoyez le signalement sans eux.",
+    "intake.errors.file-not-found": "Ce fichier n'existe pas.",
     "attachments.errors.not-found": "Cette pièce jointe n'existe pas.",
     "attachments.errors.too-many":
       "On ne peut pas joindre plus de {max} fichiers ici.",

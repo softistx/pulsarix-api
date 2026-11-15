@@ -127,3 +127,9 @@ export const uploadMismatch = () =>
 // 403: the organisation's quarantine is full.
 export const quarantineFull = () =>
   fail("intake.errors.quarantine-full", { status: 403 });
+
+// 404: no such report file, or one the viewer may not read while it is
+// quarantined (the same answer, so a stranger learns nothing), or a tracking
+// token with no such thumbnail.
+export const fileNotFound = () =>
+  fail("intake.errors.file-not-found", { status: 404 });

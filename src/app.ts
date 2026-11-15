@@ -25,9 +25,11 @@ import {
   type Media,
   useMedia,
 } from "./modules/attachments/attachments.storage";
+import { reportFilesReadRoutes } from "./modules/intake/intake.files.read";
 import { publicRoutes } from "./modules/intake/intake.routes";
 import { serverIntake } from "./modules/intake/intake.server";
 import type { PublicIntake } from "./modules/intake/intake.submit";
+import { trackingFileRoutes } from "./modules/intake/intake.tracking.routes";
 import { uploadRoutes } from "./modules/intake/intake.uploads.routes";
 import { modules } from "./modules/registry";
 import {
@@ -116,11 +118,22 @@ export function createApp(
       // CSRF header, Bearer token and `x-organization-id`. Without S3_* they
       // answer 503.
       .group((group) => group.use(pipeline.guard).plugin(pipeline.routes))
+      // The report files, read by the team (the same CSRF header, Bearer token
+      // and organisation header; src/modules/intake/intake.files.read.ts).
+      .plugin(
+        reportFilesReadRoutes({
+          media,
+          access,
+          scopeOf: (request, viewer) => requestScope(tenancy, request, viewer),
+        }),
+      )
       // The widget's endpoint and the tracking page's: the one unauthenticated
       // surface, with a schema, a CORS policy and rate limits of its own.
       .plugin(publicRoutes(intake))
       // The files of a report, by signed ticket: PUT /public/media/report-files/<slot>.
       .plugin(uploadRoutes(intake, media))
+      // The reporter's own thumbnails, for the tracking page (UI server only).
+      .plugin(trackingFileRoutes(intake, media))
       .plugin((app) =>
         graphql(app, {
           schema: options.schema ?? schema,

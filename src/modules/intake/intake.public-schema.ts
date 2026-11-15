@@ -1,5 +1,6 @@
 import type { GraphQLSchema } from "graphql";
 import { createSchema } from "graphql-yoga";
+import { TRACKING_FILES_PATH } from "./intake.http";
 import type { Caller, PublicIntake, Submitted } from "./intake.submit";
 
 // The schema of /public/graphql: a schema of its own, apart from /graphql's, so
@@ -70,11 +71,20 @@ export const publicTypeDefs = /* GraphQL */ `
     body: String!
   }
 
+  type TrackedFile {
+    id: ID!
+    role: String!
+    name: String!
+    "The path of its 256 px thumbnail (see CONTEXT.md), a picture's only; null for a PDF."
+    thumbnailUrl: String
+  }
+
   type TrackedReport {
     state: String!
     title: String!
     createdAt: String!
     replies: [TrackedReply!]!
+    files: [TrackedFile!]!
   }
 
   type Query {
@@ -130,6 +140,12 @@ export const persistedOperations = {
           at
           body
         }
+        files {
+          id
+          role
+          name
+          thumbnailUrl
+        }
       }
     }
   `,
@@ -175,6 +191,14 @@ export function publicSchema(): GraphQLSchema {
             replies: tracked.replies.map((reply) => ({
               at: reply.at.toISOString(),
               body: reply.body,
+            })),
+            files: tracked.files.map((file) => ({
+              id: file.id,
+              role: file.role,
+              name: file.name,
+              thumbnailUrl: file.thumbnail
+                ? `${TRACKING_FILES_PATH}/${file.id}`
+                : null,
             })),
           };
         },

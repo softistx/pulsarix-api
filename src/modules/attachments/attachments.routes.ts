@@ -49,7 +49,7 @@ const isRefusalStatus = (status: unknown): status is RefusalStatus =>
 // A refusal as the JSON the GraphQL errors have, so a client reads a REST
 // refusal and a GraphQL one alike. Null for an error that is not a refusal of
 // the app (it reaches the route boundary).
-function refusalBody(
+export function refusalBody(
   error: unknown,
 ): { status: RefusalStatus; body: { errors: unknown[] } } | null {
   if (error instanceof GraphQLError) {

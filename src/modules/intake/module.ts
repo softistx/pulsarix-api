@@ -55,5 +55,6 @@ export const intakeModule = defineModule({
     "ticket-used",
     "upload-mismatch",
     "quarantine-full",
+    "file-not-found",
   ]),
 });

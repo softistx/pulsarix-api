@@ -50,6 +50,7 @@ the key is derived from `API_PROXY_SECRET`, so a deployment needs nothing more; 
 tickets apart from the proxy secret (tickets last 15 minutes, so a rotation costs at most the files
 in flight). The widget's `PUT /public/media/report-files/<slot>` goes through Traefik like the
 rest of `/public/`.
+The report-file reads (`GET /media/report-files/...`, `GET /public/tracking/files/...`) are for the UI server only: do not route them from the public proxy.
 
 ## The API image
 

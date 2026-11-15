@@ -12,6 +12,7 @@ import {
   uploadMismatch,
 } from "./intake.errors";
 import { maxFileBytes } from "./intake.files.kinds";
+import { releaseFiles } from "./intake.files.team";
 import type { ReportFileRole } from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import type { Caller, IntakeMongo, PublicIntake } from "./intake.submit";
@@ -169,6 +170,11 @@ export class ReportUploads {
   ) {
     const { mongo, claims } = admission;
     if (!mongo) throw new Error("a decoy stores nothing");
+    // A file that arrives after its report was accepted is released at once
+    // (the report's files are on its issue).
+    const report = await mongo.db.clientReports.findById(
+      new ObjectId(claims.reportId),
+    );
     const done = await mongo.db.clientReportFiles.raw.updateOne(
       { _id: new ObjectId(claims.slot), state: "pending" },
       {
@@ -177,7 +183,10 @@ export class ReportUploads {
           previewKey: stored.sizes.includes("256") ? "256" : null,
           width: dimensions?.width ?? null,
           height: dimensions?.height ?? null,
-          state: "quarantined",
+          state:
+            report?.state === "accepted" || report?.state === "closed"
+              ? "released"
+              : "quarantined",
           expiresAt: null,
           claimedAt: null,
           updatedAt: new Date(),
@@ -185,7 +194,15 @@ export class ReportUploads {
       },
     );
     if (done.matchedCount === 0) throw ticketExpired();
+    // The report may have been accepted between the read above and the write:
+    // look again, so a file never stays quarantined on an accepted report.
+    const now = await mongo.db.clientReports.findById(
+      new ObjectId(claims.reportId),
+    );
+    if (now?.state === "accepted" || now?.state === "closed")
+      await releaseFiles(mongo, new ObjectId(claims.reportId));
     const { intake } = this;
+    intake.countUpload(new ObjectId(claims.keyId));
     const publish = intake.deps.publishFile;
     if (publish && admission.role) {
       const role = admission.role;
