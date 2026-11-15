@@ -21,8 +21,8 @@
         "@softistx/chronix-react": "^0.3.2",
         "@softistx/image": "^0.6.0",
         "@softistx/janus": "^0.64.0",
-        "@softistx/janus-mail": "^0.26.6",
-        "@softistx/janus-mongo": "^0.28.1",
+        "@softistx/janus-mail": "^0.26.7",
+        "@softistx/janus-mongo": "^0.28.2",
         "@softistx/mail": "^1.5.0",
         "@softistx/mail-smtp": "^1.1.0",
         "@softistx/mongo": "^0.28.0",
@@ -321,9 +321,9 @@
 
     "@softistx/janus": ["@softistx/janus@0.64.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-8NCxXvDmwK7ali6oZ9aS5P9usUKIlm2VDbVytNokwxlow7X5O/cINSdSriAoriITu2PfmgynLFwH9iQewQcqAg=="],
 
-    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.6", "", { "peerDependencies": { "@softistx/janus": "^0.64.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-0RdxoitZ6GRDTuTrp42BwZNDCck3q5X3qKqCWw4IkD8lPj8H7rGwZ+uXh6KaeItW11sSwGnPEOf01gE5UEJj3w=="],
+    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.7", "", { "peerDependencies": { "@softistx/janus": "^0.64.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-VonlJ9pE/0aCQRld0Ds028Z8Z/LR25wcy6F30D2IfdBMSMTs2N8kDnHb/16eGa0d3SlhC2v/rm2/3XC2Dlxp8g=="],
 
-    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.28.1", "", { "peerDependencies": { "@softistx/janus": "^0.64.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-9duBdqAcERF9rcw6HmeLI84DNXvozAuceIQvbjKhJEt17+OTKUsyl/x3mYZtTeU4Kn53xNAqZdz8RDHWiXr5TQ=="],
+    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.28.2", "", { "peerDependencies": { "@softistx/janus": "^0.64.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-0FMp6009a6Xx5zI648b04QlqNEWMTycLqJrvjng4ikN7HrX+QE9LtbHhu6W7tCtC8zU/ks9uqTpOZciWAyua3g=="],
 
     "@softistx/mail": ["@softistx/mail@1.5.0", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-Uli7pJE07nz2IhKKs3s7Jyq4QuHkHoS2YWNlC4mBPnUTWQCa2IIzEBc2ko/ExYAU9lMjgUMM4UI4SkW1De39bg=="],
 
