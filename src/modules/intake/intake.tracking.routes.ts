@@ -1,3 +1,4 @@
+import { alxia } from "@alxia/core";
 import { GraphQLError } from "graphql";
 import { addressKey } from "../../core/shared/address";
 import { fail } from "../../core/shared/errors";
@@ -9,6 +10,7 @@ import { previewSize } from "./intake.files.kinds";
 import { reportFileReader } from "./intake.files.read";
 import {
   answerOf,
+  respond,
   secure,
   TRACKING_FILES_PATH,
   TRACKING_HEADER,
@@ -28,80 +30,65 @@ export function trackingFileRoutes(
   log = console.warn,
 ) {
   const read = media ? reportFileReader(media) : undefined;
-  return <App extends { all: (...args: never[]) => App }>(app: App): App =>
-    (app as unknown as AnyApp).all(
-      `${TRACKING_FILES_PATH}/:id`,
-      async ({ request, reply, ip, params }: HandlerContext) => {
-        try {
-          if (request.method !== "GET" && request.method !== "HEAD") {
-            return reply(
-              405,
-              { errors: [] },
-              { headers: { ...secure, allow: "GET, HEAD" } },
-            );
-          }
-          if (request.headers.get("origin") !== null) throw originNotAllowed();
-          if (!request.headers.get(clientHeader)?.trim()) {
-            throw fail("auth.errors.client-header-required", {
-              params: { header: clientHeader },
-              status: 403,
-            });
-          }
-          if (!read) throw unavailable();
-          const token = request.headers.get(TRACKING_HEADER);
-          if (!token) throw fileNotFound();
-          localeOfRequest();
-          const found = await intake.thumbnailOf(
-            token,
-            params["id"] ?? "",
-            addressKey(ip),
-          );
-          const answer = await read(request, {
-            organisationId: found.organisationId,
-            key: found.storageKey,
-            size: previewSize,
-          });
-          for (const [name, value] of Object.entries(secure)) {
-            answer.headers.set(name, value);
-          }
-          return answer;
-        } catch (caught) {
-          let error: GraphQLError;
-          if (caught instanceof GraphQLError) {
-            error = caught;
-          } else {
-            log("tracking file read failed", caught);
-            error = new GraphQLError("Internal error", {
-              originalError: caught as Error,
-            });
-          }
-          const { body, status } = answerOf(error, log);
-          const retry = error.extensions["retryAfter"] as number | undefined;
-          return reply(
-            status,
-            { errors: [body] },
-            {
-              headers: {
-                ...secure,
-                ...(retry !== undefined && { "retry-after": String(retry) }),
-              },
-            },
+  return alxia().all(
+    `${TRACKING_FILES_PATH}/:id`,
+    async ({ request, ip, params }) => {
+      try {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          return respond(
+            405,
+            { errors: [] },
+            { headers: { ...secure, allow: "GET, HEAD" } },
           );
         }
-      },
-    ) as App;
-}
-
-interface HandlerContext {
-  request: Request;
-  ip: string | undefined;
-  params: Record<string, string | undefined>;
-  reply: (
-    status: number,
-    body?: unknown,
-    init?: { headers?: Record<string, string> },
-  ) => never;
-}
-interface AnyApp {
-  all: (path: string, handler: (ctx: HandlerContext) => unknown) => unknown;
+        if (request.headers.get("origin") !== null) throw originNotAllowed();
+        if (!request.headers.get(clientHeader)?.trim()) {
+          throw fail("auth.errors.client-header-required", {
+            params: { header: clientHeader },
+            status: 403,
+          });
+        }
+        if (!read) throw unavailable();
+        const token = request.headers.get(TRACKING_HEADER);
+        if (!token) throw fileNotFound();
+        localeOfRequest();
+        const found = await intake.thumbnailOf(
+          token,
+          params["id"] ?? "",
+          addressKey(ip),
+        );
+        const answer = await read(request, {
+          organisationId: found.organisationId,
+          key: found.storageKey,
+          size: previewSize,
+        });
+        for (const [name, value] of Object.entries(secure)) {
+          answer.headers.set(name, value);
+        }
+        return answer;
+      } catch (caught) {
+        let error: GraphQLError;
+        if (caught instanceof GraphQLError) {
+          error = caught;
+        } else {
+          log("tracking file read failed", caught);
+          error = new GraphQLError("Internal error", {
+            originalError: caught as Error,
+          });
+        }
+        const { body, status } = answerOf(error, log);
+        const retry = error.extensions["retryAfter"] as number | undefined;
+        return respond(
+          status,
+          { errors: [body] },
+          {
+            headers: {
+              ...secure,
+              ...(retry !== undefined && { "retry-after": String(retry) }),
+            },
+          },
+        );
+      }
+    },
+  );
 }

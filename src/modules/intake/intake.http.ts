@@ -67,3 +67,18 @@ export function answerOf(
 // (intake.tracking.routes.ts); the token stays out of the URL, which logs keep.
 export const TRACKING_HEADER = "x-pulsarix-tracking";
 export const TRACKING_FILES_PATH = "/public/tracking/files";
+
+// A JSON answer, built as a plain `Response` (what an alxia `all` route ends
+// with): no body for `undefined`, the content type for anything else.
+export function respond(
+  status: number,
+  body?: unknown,
+  init: { headers?: Record<string, string> } = {},
+): Response {
+  const headers: Record<string, string> = { ...init.headers };
+  if (body !== undefined) headers["content-type"] = "application/json";
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers,
+  });
+}

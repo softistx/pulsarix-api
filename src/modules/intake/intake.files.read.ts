@@ -1,4 +1,4 @@
-import { alxia } from "@alxia/core";
+import { alxia, definePlugin } from "@alxia/core";
 import type { MediaContext } from "@alxia/media";
 import { can, requirePermission } from "../../core/access";
 import { fail } from "../../core/shared/errors";
@@ -13,6 +13,7 @@ import {
 import { fileNotFound } from "./intake.errors";
 import { fileKindName, pdfSize, previewSize } from "./intake.files.kinds";
 import { reportFilesRoutes } from "./intake.files.routes";
+import { respond } from "./intake.http";
 
 const SIZES = ["full", pdfSize, previewSize] as const;
 type Size = (typeof SIZES)[number];
@@ -66,18 +67,6 @@ export function reportFileReader(media: Media) {
   };
 }
 
-interface HandlerContext {
-  request: Request;
-  viewer: Viewer | null;
-  params: Record<string, string | undefined>;
-  reply: (status: number, body?: unknown) => never;
-}
-// Elysia's route typing does not accept this handler shape through the
-// generic plugin signature; the cast stays local to this one registration.
-interface AnyApp {
-  all: (path: string, handler: (ctx: HandlerContext) => unknown) => unknown;
-}
-
 const isSize = (size: string | undefined): size is Size =>
   (SIZES as readonly string[]).includes(size ?? "");
 
@@ -93,14 +82,14 @@ const isSize = (size: string | undefined): size is Size =>
 // not (a PDF's `full`, a picture's `file`, a thumbnail it lacks) is that 404 too.
 export function reportFilesReadRoutes(deps: MediaDeps) {
   const read = deps.media ? reportFileReader(deps.media) : undefined;
-  return <App extends { all: (...args: never[]) => App }>(app: App): App =>
-    (app as unknown as AnyApp).all(
+  return definePlugin<{ viewer: Viewer | null }>()((app) =>
+    app.all(
       `/media/${fileKindName}/:key/:size`,
-      async ({ request, viewer, params, reply }: HandlerContext) => {
+      async ({ request, viewer, params }) => {
         const answer = (error: unknown) => {
           const refusal = refusalBody(error);
           if (!refusal) throw error;
-          return reply(refusal.status, refusal.body);
+          return respond(refusal.status, refusal.body);
         };
         try {
           if (!request.headers.get(clientHeader)?.trim()) {
@@ -113,7 +102,7 @@ export function reportFilesReadRoutes(deps: MediaDeps) {
             throw fail("auth.errors.unauthenticated", { status: 401 });
           }
           if (request.method !== "GET" && request.method !== "HEAD") {
-            return reply(405, { errors: [] });
+            return respond(405, { errors: [] });
           }
           if (!read || !deps.media) {
             throw mediaUnavailable();
@@ -159,5 +148,6 @@ export function reportFilesReadRoutes(deps: MediaDeps) {
           return answer(error);
         }
       },
-    ) as App;
+    ),
+  );
 }

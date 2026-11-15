@@ -25,6 +25,14 @@ export async function followIssue(
   const report = await tx.db.clientReports.findById(reportId);
   if (!report || report.state === "new" || report.state === "declined") return;
   let settled = change.verb === "deleted";
+  // The issue is gone, and so are the files on it: their records carry a
+  // removal date, and the files retention job removes them with their objects.
+  if (settled) {
+    await tx.db.clientReportFiles.updateMany(
+      { reportId, state: { $in: ["released", "quarantined"] } },
+      { expiresAt: new Date() },
+    );
+  }
   if (!settled) {
     const status = await tx.db.statuses.findById(change.issue.statusId);
     settled = status?.category === "done" || status?.category === "cancelled";

@@ -139,7 +139,8 @@ export type ReportFileState = z.infer<typeof reportFileState>;
 // 2560 px, and the 256 px `256` thumbnail), a PDF as `file` plus its first-page
 // `256` preview. `storageKey`, `previewKey`, `width` and `height` are null until
 // the bytes are stored (and always for what has none: a PDF has no size in
-// pixels). `expiresAt` is the pending slot's deadline, null once it is stored.
+// pixels). `expiresAt` is the pending slot's deadline, null once it is stored (a stored file of a deleted
+// issue carries its removal date there, until the purge).
 export const clientReportFiles = defineCollection({
   name: "clientReportFiles",
   schema: z.object({
@@ -167,6 +168,8 @@ export const clientReportFiles = defineCollection({
       key: { state: 1, expiresAt: 1 },
       name: "clientReportFiles_stateExpiresAt",
     },
+    // The quarantine's byte sum is read from this index alone (covered).
+    { key: { state: 1, size: 1 }, name: "clientReportFiles_stateSize" },
     {
       key: { storageKey: 1 },
       unique: true,

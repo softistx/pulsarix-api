@@ -3,6 +3,7 @@ import { coreMongo, tenancy } from "../src/config/db";
 import { clientHeader } from "../src/http/csrf";
 import type { Media } from "../src/modules/attachments/public";
 import {
+  intakeDecoySlot,
   intakeEmail,
   intakeIpKey,
   intakeKey,
@@ -43,7 +44,7 @@ function counting<P>(
 
 export const TICKET_SECRET = "t".repeat(40);
 
-// The eight limits at their production values (src/modules/intake/intake.limits.ts).
+// The nine limits at their production values (src/modules/intake/intake.limits.ts).
 export function countingLimits() {
   return {
     intakeKey: counting(
@@ -74,6 +75,10 @@ export function countingLimits() {
     intakeUploadKey: counting(
       intakeUploadKey.limit,
       (p: { keyId: string }) => p.keyId,
+    ),
+    intakeDecoySlot: counting(
+      intakeDecoySlot.limit,
+      (p: { slot: string }) => p.slot,
     ),
   } satisfies IntakeLimits;
 }

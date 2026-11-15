@@ -33,6 +33,7 @@ describe("the limits over Redis", () => {
       expect(Object.keys(limits).sort()).toEqual([
         "acceptInvitationIp",
         "emailVerificationAccount",
+        "intakeDecoySlot",
         "intakeEmail",
         "intakeIpKey",
         "intakeKey",

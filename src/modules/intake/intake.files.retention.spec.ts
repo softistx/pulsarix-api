@@ -5,6 +5,7 @@ import { goodReport, intakeKit } from "~/intake";
 import { bucketKeys, startMediaS3 } from "~/media";
 import { tenancy } from "../../config/db";
 import type { Media } from "../attachments/public";
+import { IssuesService } from "../issues/public";
 import {
   DECLINED_FILES_DAYS,
   PENDING_SLOT_MINUTES,
@@ -14,6 +15,7 @@ import {
 } from "./intake.files.retention";
 import { fileObjectKeys, purgeOrganisationFiles } from "./intake.files.storage";
 import type { ClientReportDocument } from "./intake.model";
+import { ReportsService } from "./intake.reports";
 
 const DAY = 86_400_000;
 const MINUTE = 60_000;
@@ -235,5 +237,63 @@ describe("the report files purge", () => {
     expect(removed).toBeGreaterThan(0);
     expect(await objects()).toEqual([]);
     expect(await bucketKeys(s3, other)).toEqual([other]);
+  });
+});
+
+describe("a release that failed is retried by the retention job", () => {
+  test("an accepted report whose release threw stays accepted, and the purge releases its files", async () => {
+    const { kit, mongo, organisationId, report, file } = await setup();
+    const id = await report({ state: "new" });
+    const stored = await file(id);
+    const failures: string[] = [];
+    const viewerId = kit.owner.id as string;
+    const reports = new ReportsService(
+      mongo as never,
+      new IssuesService(
+        mongo as never,
+        async () => true,
+        viewerId,
+        organisationId,
+      ),
+      viewerId,
+      {
+        release: async () => {
+          throw new Error("storage down");
+        },
+        log: (message) => failures.push(message),
+      },
+    );
+    const accepted = await reports.accept(id.toHexString());
+    expect(accepted.state).toBe("accepted");
+    expect(failures).toHaveLength(1);
+    expect(await mongo.db.clientReportFiles.findById(stored._id)).toMatchObject(
+      { state: "quarantined" },
+    );
+    const purged = await purgeReportFiles(mongo, media, organisationId);
+    expect(purged.released).toBe(1);
+    expect(await mongo.db.clientReportFiles.findById(stored._id)).toMatchObject(
+      { state: "released", expiresAt: null },
+    );
+    // Idempotent: a second pass has nothing left to release.
+    expect(
+      (await purgeReportFiles(mongo, media, organisationId)).released,
+    ).toBe(0);
+  });
+
+  test("a quarantined file of an accepted or closed report is released, a declined one is not", async () => {
+    const { mongo, organisationId, report, file } = await setup();
+    const accepted = await file(await report({ state: "accepted" }));
+    const closed = await file(await report({ state: "closed" }));
+    const newer = await file(await report({ state: "new" }));
+    const purged = await purgeReportFiles(mongo, media, organisationId);
+    expect(purged.released).toBe(2);
+    for (const [stored, state] of [
+      [accepted, "released"],
+      [closed, "released"],
+      [newer, "quarantined"],
+    ] as const)
+      expect(
+        await mongo.db.clientReportFiles.findById(stored._id),
+      ).toMatchObject({ state });
   });
 });
