@@ -38,7 +38,7 @@
     "@napi-rs/canvas": "^1.1.0",
     "@nxgt/graphql-scalars": "^0.7.1",
     "@nxgt/graphql-validation": "^0.8.1",
-    "@softistx/chronix-react": "^0.3.1",
+    "@softistx/chronix-react": "^0.3.2",
     "@softistx/image": "^0.6.0",
     "@softistx/janus": "^0.64.0",
     "@softistx/janus-mail": "^0.26.6",
