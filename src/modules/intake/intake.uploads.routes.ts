@@ -184,6 +184,8 @@ interface HandlerContext {
     init?: { headers?: Record<string, string> },
   ) => never;
 }
+// Elysia's route typing does not accept this handler shape through the
+// generic plugin signature; the cast stays local to this one registration.
 interface AnyApp {
   all: (
     path: string,

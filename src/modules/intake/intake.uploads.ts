@@ -123,7 +123,10 @@ export class ReportUploads {
         { $group: { _id: null, bytes: { $sum: "$size" } } },
       ])
       .toArray()) as Array<{ bytes: number }>;
-    if ((held[0]?.bytes ?? 0) > QUARANTINE_BYTES) throw quarantineFull();
+    // The incoming file counts too, so a racing PUT cannot overshoot the cap.
+    if ((held[0]?.bytes ?? 0) + claims.size > QUARANTINE_BYTES) {
+      throw quarantineFull();
+    }
 
     // One upload at a time: the first takes the slot, a replay finds it taken.
     const taken = await files.raw.findOneAndUpdate(
