@@ -51,8 +51,8 @@ async function setup() {
   ) => {
     const storageKey = crypto.randomUUID();
     const pending = patch.state === "pending";
-    for (const key of fileObjectKeys(organisationId, storageKey).filter(
-      (k) => !k.endsWith("/file"),
+    for (const key of fileObjectKeys(organisationId, storageKey).filter((k) =>
+      /\/(full|256)$/.test(k),
     )) {
       await media.bucket.put({ key }, new Uint8Array([1, 2, 3]), {
         type: "image/webp",
@@ -103,7 +103,7 @@ describe("the report files purge", () => {
     // Only the early one's objects are left.
     expect(await objects()).toEqual(
       fileObjectKeys(organisationId, kept.storageKey as string)
-        .filter((k) => !k.endsWith("/file"))
+        .filter((k) => /\/(full|256)$/.test(k))
         .sort(),
     );
     // The report itself stays.
@@ -172,7 +172,7 @@ describe("the report files purge", () => {
     );
     expect(await objects()).toEqual(
       fileObjectKeys(organisationId, released.storageKey as string)
-        .filter((k) => !k.endsWith("/file"))
+        .filter((k) => /\/(full|256)$/.test(k))
         .sort(),
     );
   });
@@ -197,7 +197,7 @@ describe("the report files purge", () => {
     expect(await mongo.db.clientReportFiles.findById(live._id)).toBeDefined();
     expect(await objects()).toEqual(
       fileObjectKeys(organisationId, live.storageKey as string)
-        .filter((k) => !k.endsWith("/file"))
+        .filter((k) => /\/(full|256)$/.test(k))
         .sort(),
     );
   });

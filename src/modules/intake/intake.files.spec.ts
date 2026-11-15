@@ -176,13 +176,12 @@ describe("what a report may attach", () => {
     const response = await put(pdf, "application/pdf");
     expect(response.status).toBe(200);
     const answer = (await response.json()) as { key: string; sizes: string[] };
-    expect(answer.sizes.sort()).toEqual(["256", "file"]);
+    expect(answer.sizes.sort()).toEqual(["256"]);
     const file = await app.fetch(
-      new Request(
-        `https://api.pulsarix.test/media/report-files/${answer.key}/file`,
-      ),
+      new Request(`https://api.pulsarix.test/media/report-files/${answer.key}`),
     );
     expect(file.status).toBe(200);
+    expect(file.headers.get("content-disposition")).toMatch(/^attachment/);
     expect(file.headers.get("content-type")).toBe("application/pdf");
     expect(file.headers.get("content-security-policy")).toContain("sandbox");
     expect(new Uint8Array(await file.arrayBuffer())).toEqual(pdf);
