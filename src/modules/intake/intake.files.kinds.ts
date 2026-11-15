@@ -35,12 +35,14 @@ export const fullSide = 2560;
 export const thumbnailSide = 256;
 export const previewSize = String(thumbnailSide);
 // The size under which a PDF's own bytes are stored.
+// Temporary, until @alxia/media#792: the PDF bytes are a custom rendition because keepOriginal is per kind.
 export const pdfSize = "file";
 
 const images = withImageRendition({
   sizes: [thumbnailSide],
   full: { fit: "inside", maxSide: fullSide },
   format: "webp",
+  // Temporary, until @alxia/media#792: a small picture's thumbnail is scaled up (no non-enlarging option).
   minSide: 16,
   maxPixels: maxFilePixels,
 });
@@ -129,6 +131,7 @@ export const defineReportFilesKind = <Requires extends object>(
     accept: acceptedFileTypes,
     maxBytes: maxFileBytes,
     sniff: true,
+    // Temporary, until @alxia/media#792: no per-type keepOriginal and no forced attachment disposition for the PDF.
     keepOriginal: false,
     // A stored object is never an HTML or SVG document: nothing but the four
     // types above is accepted, and every file is served with `nosniff` and
