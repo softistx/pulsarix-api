@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { type AppTenancy, coreMongo } from "../../config/db";
 import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
@@ -10,6 +11,18 @@ import {
   type IntakeLimits,
   PublicIntake,
 } from "./intake.submit";
+
+// The key the upload tickets are signed with: INTAKE_TICKET_SECRET, else a
+// key derived from API_PROXY_SECRET (always set in production), else a fixed
+// development one.
+export const serverTicketSecret = () =>
+  env.INTAKE_TICKET_SECRET ??
+  createHmac(
+    "sha256",
+    env.API_PROXY_SECRET ?? "pulsarix development ticket secret",
+  )
+    .update("pulsarix intake upload ticket")
+    .digest("hex");
 
 // The public intake as the server runs it: the core database, the given
 // tenancy store, the Redis rate limits (none without Redis: the endpoint then
@@ -27,8 +40,12 @@ export function serverIntake(
     ...overrides,
     from: { name: "pulsarix", address: env.MAIL_FROM },
     uiOrigin: env.UI_ORIGIN,
+    ticketSecret: serverTicketSecret(),
     publish: async (event) => {
       await realtime.channels.clientReportReceived.publish(event);
+    },
+    publishFile: async (event) => {
+      await realtime.channels.clientReportFileReceived.publish(event);
     },
   });
 }

@@ -36,7 +36,12 @@ describe("a key reads nothing but its own config", () => {
     const { response, body } = await kit.config({ "accept-language": "fr" });
     expect(response.status).toBe(200);
     expect(body?.data).toEqual({
-      widgetConfig: { projectName: "Alpha", locale: "fr", enabled: true },
+      widgetConfig: {
+        projectName: "Alpha",
+        locale: "fr",
+        enabled: true,
+        attachments: true,
+      },
     });
     expect(response.headers.get("access-control-allow-origin")).toBe(kit.site);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -126,7 +131,12 @@ describe("a key reads nothing but its own config", () => {
     );
     const { body } = await kit.config();
     expect(body?.data).toEqual({
-      widgetConfig: { projectName: null, locale: "en", enabled: false },
+      widgetConfig: {
+        projectName: null,
+        locale: "en",
+        enabled: false,
+        attachments: false,
+      },
     });
     const refused = await kit.submit();
     expect(codeOfBody(refused.body)).toBe("intake.errors.key-disabled");

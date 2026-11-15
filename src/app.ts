@@ -28,6 +28,7 @@ import {
 import { publicRoutes } from "./modules/intake/intake.routes";
 import { serverIntake } from "./modules/intake/intake.server";
 import type { PublicIntake } from "./modules/intake/intake.submit";
+import { uploadRoutes } from "./modules/intake/intake.uploads.routes";
 import { modules } from "./modules/registry";
 import {
   type ChronixLinkFactory,
@@ -118,6 +119,8 @@ export function createApp(
       // The widget's endpoint and the tracking page's: the one unauthenticated
       // surface, with a schema, a CORS policy and rate limits of its own.
       .plugin(publicRoutes(intake))
+      // The files of a report, by signed ticket: PUT /public/media/report-files/<slot>.
+      .plugin(uploadRoutes(intake, media))
       .plugin((app) =>
         graphql(app, {
           schema: options.schema ?? schema,

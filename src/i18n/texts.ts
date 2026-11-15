@@ -115,6 +115,20 @@ export const texts: Record<Locale, Record<string, string>> = {
     "intake.errors.file-too-large": "This file is too large: at most {max} MB.",
     "intake.errors.file-too-many-pixels":
       "This picture is too large: at most {max} megapixels.",
+    "intake.errors.attachments-disabled":
+      "This widget does not take screenshots or files.",
+    "intake.errors.too-many-files":
+      "No more than {max} files can be attached to a report.",
+    "intake.errors.files-too-large":
+      "These files are too large together: at most {max} MB.",
+    "intake.errors.ticket-invalid": "This upload is not allowed.",
+    "intake.errors.ticket-expired":
+      "This upload took too long. Send the report again.",
+    "intake.errors.ticket-used": "This file was already sent.",
+    "intake.errors.upload-mismatch":
+      "This is not the file that was announced with the report.",
+    "intake.errors.quarantine-full":
+      "Files cannot be taken right now. Send the report without them.",
     "attachments.errors.not-found": "This attachment does not exist.",
     "attachments.errors.too-many":
       "No more than {max} files can be attached here.",
@@ -259,6 +273,20 @@ export const texts: Record<Locale, Record<string, string>> = {
       "Ce fichier est trop volumineux : {max} Mo au plus.",
     "intake.errors.file-too-many-pixels":
       "Cette image est trop grande : {max} mégapixels au plus.",
+    "intake.errors.attachments-disabled":
+      "Ce widget n'accepte ni capture d'écran ni fichier.",
+    "intake.errors.too-many-files":
+      "On ne peut pas joindre plus de {max} fichiers à un signalement.",
+    "intake.errors.files-too-large":
+      "Ces fichiers sont trop volumineux ensemble : {max} Mo au plus.",
+    "intake.errors.ticket-invalid": "Cet envoi n'est pas autorisé.",
+    "intake.errors.ticket-expired":
+      "Cet envoi a pris trop de temps. Envoyez de nouveau le signalement.",
+    "intake.errors.ticket-used": "Ce fichier a déjà été envoyé.",
+    "intake.errors.upload-mismatch":
+      "Ce n'est pas le fichier annoncé avec le signalement.",
+    "intake.errors.quarantine-full":
+      "Les fichiers ne peuvent pas être pris pour le moment. Envoyez le signalement sans eux.",
     "attachments.errors.not-found": "Cette pièce jointe n'existe pas.",
     "attachments.errors.too-many":
       "On ne peut pas joindre plus de {max} fichiers ici.",

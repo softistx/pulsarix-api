@@ -2,6 +2,7 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission } from "../../core/access";
 import { ActivityService } from "./activity.service";
 import {
+  openClientReportFiles,
   openClientReports,
   openIssueChanged,
   openNotifications,
@@ -44,6 +45,11 @@ export const activityResolvers: Resolvers = {
     },
     clientReportReceived: {
       subscribe: (_, { projectId }, ctx) => openClientReports(ctx, projectId),
+      resolve: issueEvent as never,
+    },
+    clientReportFileReceived: {
+      subscribe: (_, { projectId }, ctx) =>
+        openClientReportFiles(ctx, projectId),
       resolve: issueEvent as never,
     },
   },

@@ -45,6 +45,12 @@ request that carries it (constant-time compare); any other request gets the conn
 so it keeps `TRUSTED_PROXIES` alone, or every visitor would share Traefik's address and one rate
 limit. Unset in development, only `TRUSTED_PROXIES` decides.
 
+`INTAKE_TICKET_SECRET` (optional, at least 32 characters) signs the widget's upload tickets. Unset,
+the key is derived from `API_PROXY_SECRET`, so a deployment needs nothing more; set it to rotate
+tickets apart from the proxy secret (tickets last 15 minutes, so a rotation costs at most the files
+in flight). The widget's `PUT /public/media/report-files/<slot>` goes through Traefik like the
+rest of `/public/`.
+
 ## The API image
 
 Bun 1.4.4 (the version CI uses), **glibc** (`oven/bun:1.4.4-slim`, Debian), linux x64 and arm64.

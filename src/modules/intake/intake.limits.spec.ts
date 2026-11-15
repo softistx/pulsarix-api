@@ -39,6 +39,8 @@ describe("the limits over Redis", () => {
         "intakeOrganisation",
         "intakeReadIp",
         "intakeTrackingIp",
+        "intakeUploadIpKey",
+        "intakeUploadKey",
         "organisationCreate",
         "signUpIp",
       ]);
@@ -51,6 +53,7 @@ describe("the limits over Redis", () => {
         from: { name: "pulsarix", address: "noreply@pulsarix.test" },
         uiOrigin: "https://ui.pulsarix.test",
         publish: async () => {},
+        ticketSecret: "x".repeat(32),
         log: () => {},
       });
       const caller = {

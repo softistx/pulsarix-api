@@ -85,3 +85,45 @@ export const fileTooManyPixels = (maxPixels: number) =>
     params: { max: Math.round(maxPixels / 1_000_000) },
     status: 422,
   });
+
+// The upload by ticket (plan §17, A12).
+// 403: the key's "Screenshots and files" switch is off.
+export const attachmentsDisabled = () =>
+  fail("intake.errors.attachments-disabled", { status: 403 });
+
+// 400: more than 1 screenshot and 3 files (`max` is the total).
+export const tooManyFiles = (max: number) =>
+  fail("intake.errors.too-many-files", {
+    status: 400,
+    field: "files",
+    params: { max },
+  });
+
+// 413: the files of one report weigh more than `max` MB together.
+export const filesTooLarge = (maxBytes: number) =>
+  fail("intake.errors.files-too-large", {
+    status: 413,
+    field: "files",
+    params: { max: Math.round(maxBytes / (1024 * 1024)) },
+  });
+
+// 403: the ticket is missing, damaged, forged, or names another slot.
+export const ticketInvalid = () =>
+  fail("intake.errors.ticket-invalid", { status: 403 });
+
+// 410: the ticket's 15 minutes are over.
+export const ticketExpired = () =>
+  fail("intake.errors.ticket-expired", { status: 410 });
+
+// 409: the slot was filled already (or is being filled).
+export const ticketUsed = () =>
+  fail("intake.errors.ticket-used", { status: 409 });
+
+// 400: the upload is not the file the ticket was made for (its type or its
+// declared length).
+export const uploadMismatch = () =>
+  fail("intake.errors.upload-mismatch", { status: 400 });
+
+// 403: the organisation's quarantine is full.
+export const quarantineFull = () =>
+  fail("intake.errors.quarantine-full", { status: 403 });

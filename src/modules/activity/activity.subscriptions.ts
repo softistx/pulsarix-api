@@ -103,3 +103,21 @@ export const openClientReports = async (ctx: Context, projectId: string) => {
     holds,
   );
 };
+
+// The files of those reports, for the same people.
+export const openClientReportFiles = async (
+  ctx: Context,
+  projectId: string,
+) => {
+  const { mongo, organisationId, holds } = await open(ctx, "issue:write");
+  const project = idOrInvalid(projectId, "projectId");
+  if (!(await mongo.db.projects.exists({ _id: project }))) {
+    throw projectNotFound();
+  }
+  return bounded(
+    realtime.channels.clientReportFileReceived.stream(
+      `${organisationId}:${project.toHexString()}`,
+    ),
+    holds,
+  );
+};

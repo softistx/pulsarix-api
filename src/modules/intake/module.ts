@@ -47,5 +47,13 @@ export const intakeModule = defineModule({
     "file-undecodable",
     "file-too-large",
     "file-too-many-pixels",
+    "attachments-disabled",
+    "too-many-files",
+    "files-too-large",
+    "ticket-invalid",
+    "ticket-expired",
+    "ticket-used",
+    "upload-mismatch",
+    "quarantine-full",
   ]),
 });
