@@ -34,15 +34,18 @@ export const maxFilePixels = 25_000_000;
 export const fullSide = 2560;
 export const thumbnailSide = 256;
 export const previewSize = String(thumbnailSide);
-// The size under which a PDF's own bytes are stored.
-// Temporary, until @alxia/media#792: the PDF bytes are a custom rendition because keepOriginal is per kind.
+// The name a PDF's own bytes go by in this API's URLs (`/file`). @alxia/media
+// stores them as the kind's original (`<kind>/<key>`, no size): the readers map
+// this name to it.
 export const pdfSize = "file";
 
 const images = withImageRendition({
   sizes: [thumbnailSide],
   full: { fit: "inside", maxSide: fullSide },
   format: "webp",
-  // Temporary, until @alxia/media#792: a small picture's thumbnail is scaled up (no non-enlarging option).
+  // A small picture is never scaled up; one under 16 px is refused.
+  enlarge: false,
+  fit: "inside",
   minSide: 16,
   maxPixels: maxFilePixels,
 });
@@ -75,10 +78,9 @@ export function webpSize(bytes: Uint8Array) {
 }
 
 // A picture becomes its `full` and `256` renditions (keepOriginal is false: the
-// upload, EXIF and GPS data included, is never stored). A PDF is kept as it is,
-// under `file` (the kind has no original, so its bytes are a rendition), beside
-// the `256` preview of its first page; a PDF that cannot be drawn (damaged,
-// encrypted) is stored with no preview.
+// upload, EXIF and GPS data included, is never stored). A PDF is kept as it is
+// (`keepOriginal`), beside the `256` preview of its first page made here; a PDF
+// that cannot be drawn (damaged, encrypted) is stored with no preview.
 const make = async (file: MediaFile): Promise<readonly MediaRendition[]> => {
   if (file.contentType !== "application/pdf") {
     const made = await images.renditions.make(file);
@@ -86,11 +88,6 @@ const make = async (file: MediaFile): Promise<readonly MediaRendition[]> => {
     if (full) dimensions.set(file.request, webpSize(full.bytes));
     return made;
   }
-  const original: MediaRendition = {
-    size: pdfSize,
-    contentType: "application/pdf",
-    bytes: file.bytes,
-  };
   try {
     const page = await renderPdfFirstPage(file.bytes, {
       width: thumbnailSide,
@@ -100,12 +97,11 @@ const make = async (file: MediaFile): Promise<readonly MediaRendition[]> => {
       maxPixels: maxFilePixels,
     });
     return [
-      original,
       { size: previewSize, contentType: page.contentType, bytes: page.bytes },
     ];
   } catch (error) {
     if (error instanceof ImageError && error.code === "UNDECODABLE") {
-      return [original];
+      return [];
     }
     throw error;
   }
@@ -131,15 +127,18 @@ export const defineReportFilesKind = <Requires extends object>(
     accept: acceptedFileTypes,
     maxBytes: maxFileBytes,
     sniff: true,
-    // Temporary, until @alxia/media#792: no per-type keepOriginal and no forced attachment disposition for the PDF.
-    keepOriginal: false,
+    // Only the PDF's own bytes are stored; a picture is made into its sizes
+    // and dropped, so its EXIF and GPS data never reach the bucket. `make` runs
+    // on the pictures and on the PDF (for its preview).
+    keepOriginal: ["application/pdf"],
+    renditionTypes: acceptedFileTypes,
     // A stored object is never an HTML or SVG document: nothing but the four
     // types above is accepted, and every file is served with `nosniff` and
-    // `sandbox` (@alxia/media). A PDF is offered as a download by whoever
-    // serves it (see CONTEXT.md).
+    // `sandbox` (@alxia/media). A PDF is always a download.
+    attachment: ["application/pdf"],
     authorizeWrite: access.authorizeWrite,
     authorizeRead: access.authorizeRead,
-    sizes: [...images.sizes, pdfSize],
+    sizes: images.sizes,
     renditions: {
       types: [...images.renditions.types, "application/pdf"],
       make,

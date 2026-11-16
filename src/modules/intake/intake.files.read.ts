@@ -48,7 +48,10 @@ export function reportFileReader(media: Media) {
       if (value) headers.set(name, value);
     }
     const forwarded = new Request(
-      new URL(`/media/${fileKindName}/${where.key}/${where.size}`, source.url),
+      new URL(
+        `/media/${fileKindName}/${where.key}${where.size === pdfSize ? "" : `/${where.size}`}`,
+        source.url,
+      ),
       { method: source.method === "HEAD" ? "HEAD" : "GET", headers },
     );
     granted.set(forwarded, where.organisationId);
