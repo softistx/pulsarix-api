@@ -8,7 +8,7 @@ import {
   fileUrl,
   releasedFilesOfIssue,
 } from "./intake.files.team";
-import { type KeysCore, WidgetKeysService } from "./intake.keys";
+import { WidgetKeysService } from "./intake.keys";
 import { ReportsService } from "./intake.reports";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
@@ -18,8 +18,8 @@ async function keysOf(ctx: Context, fresh = false) {
   const viewer = requireViewer(ctx);
   if (fresh) ctx.services.requireFresh(viewer);
   return new WidgetKeysService(
-    (core as never as { as: (id: string) => KeysCore }).as(viewer.id),
-    mongo as never,
+    core.as(viewer.id),
+    mongo,
     tenant._id.toHexString(),
   );
 }
@@ -30,7 +30,7 @@ async function reportsOf(ctx: Context) {
   const viewerId = requireViewer(ctx).id;
   const organisationId = tenant._id.toHexString();
   return new ReportsService(
-    mongo as never,
+    mongo,
     new IssuesService(
       mongo,
       async (accountId) =>
@@ -50,7 +50,7 @@ export const intakeResolvers: Resolvers = {
       (await reportsOf(ctx)).list(projectId, state, first, after),
     issueClientReportFiles: async (_, { issueId }, ctx) => {
       const { mongo } = await requirePermission(ctx, "attachment:read");
-      return releasedFilesOfIssue(mongo as never, issueId);
+      return releasedFilesOfIssue(mongo, issueId);
     },
   },
   Mutation: {
@@ -80,7 +80,7 @@ export const intakeResolvers: Resolvers = {
     // the report's own queries ask for, whatever parent it comes from.
     files: async (report, _, ctx) => {
       const { mongo } = await requirePermission(ctx, "issue:write");
-      return filesOfReport(mongo as never, report._id);
+      return filesOfReport(mongo, report._id);
     },
   },
   ClientReportFile: {

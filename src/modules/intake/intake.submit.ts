@@ -1,42 +1,51 @@
 import type { Address, Mailer } from "@softistx/mail";
 import { ObjectId } from "mongodb";
-import { z } from "zod";
 import type { AppTenancy, CoreMongo, ModuleMongo } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
-import { type FieldIssue, invalid } from "../../core/shared/errors";
 import type { Locale } from "../../i18n/locale";
-import { withoutMarkers } from "../comments/public";
 import { countOnKey, reasonOf } from "./intake.counters";
 import {
   attachmentsDisabled,
-  fileNotFound,
   keyDisabled,
   originNotAllowed,
-  reportNotFound,
   tooFast,
   tooManyRequests,
   unavailable,
   unknownKey,
 } from "./intake.errors";
-import { type CheckedFile, checkFiles, newSlot } from "./intake.files.input";
-import { PENDING_SLOT_MINUTES } from "./intake.files.retention";
+import { type CheckedFile, checkFiles } from "./intake.files.input";
 import { trackingMail } from "./intake.mail";
 import {
   type ClientReportDocument,
   PUBLIC_KEY,
-  type ReportFileRole,
-  type ReportState,
-  reportLocale,
   type WidgetKeyDocument,
 } from "./intake.model";
 import { originAllowed } from "./intake.origins";
-import { stripControl } from "./intake.text";
-import { signTicket } from "./intake.tickets";
 import {
-  emailDigest,
-  newTrackingToken,
-  parseTrackingToken,
-} from "./intake.token";
+  decoyTickets,
+  type FileTicket,
+  reserveSlots,
+  ticketExpiry,
+} from "./intake.slots";
+import {
+  checkMetadata,
+  MIN_FILL_MS,
+  pageUrlOf,
+  refused,
+  type SubmitInput,
+  submitInput,
+} from "./intake.submit.input";
+import { stripControl } from "./intake.text";
+import { emailDigest, newTrackingToken } from "./intake.token";
+import {
+  type Tracked,
+  trackedStatus,
+  trackedThumbnail,
+} from "./intake.tracking";
+
+export type { FileTicket } from "./intake.slots";
+export { MIN_FILL_MS, type SubmitInput } from "./intake.submit.input";
+export type { Tracked, TrackedFile } from "./intake.tracking";
 
 // What the public endpoint asks of a rate limit: `consume` is the bound limit
 // of @softistx/redis (src/modules/intake/intake.limits.ts).
@@ -58,6 +67,8 @@ export interface IntakeLimits {
   // Bytes (the `cost` of a consume), per address and key, and per key.
   intakeUploadIpKey: Limiter<{ ip: string; keyId: string }>;
   intakeUploadKey: Limiter<{ keyId: string }>;
+  // One consume per decoy slot: a replayed decoy ticket is a 409 like a real one.
+  intakeDecoySlot: Limiter<{ slot: string }>;
 }
 
 export interface ReportReceived {
@@ -111,81 +122,13 @@ export interface Caller {
 
 export type IntakeMongo = ModuleMongo<"intake">;
 
-// The fill time under which a form was not filled by a person (Q10).
-export const MIN_FILL_MS = 3_000;
-const METADATA_BYTES = 2_048;
 const KEY_TOUCH_MS = 60_000;
 
-const text = (max: number) =>
-  z
-    .string()
-    .transform((value) => stripControl(value).trim())
-    .pipe(z.string().min(1).max(max));
-
-const input = z.object({
-  title: text(200),
-  description: text(10_000),
-  email: z
-    .string()
-    .transform((value) => value.trim())
-    .pipe(z.union([z.literal(""), z.email().max(254)]))
-    .nullish(),
-  pageUrl: z.string().max(2_048).nullish(),
-  locale: reportLocale.nullish(),
-  metadata: z
-    .array(
-      z.object({
-        key: text(64),
-        value: z.string().transform(stripControl).pipe(z.string().max(512)),
-      }),
-    )
-    .max(20)
-    .nullish(),
-  website: z.string().max(1_000).nullish(),
-  filledInMs: z.number().int().min(0),
-  files: z
-    .array(
-      z.object({
-        role: z.enum(["screenshot", "file"]),
-        name: z.string(),
-        type: z.string(),
-        size: z.number().int(),
-      }),
-    )
-    .nullish(),
-});
-
-export type SubmitInput = z.input<typeof input>;
-
-// The zod issues as the API's field refusals.
-function refused(error: z.ZodError): never {
-  const issues: FieldIssue[] = error.issues.map((issue) => ({
-    path: issue.path.join("."),
-    code:
-      issue.code === "too_big"
-        ? "validation.errors.too-long"
-        : issue.code === "too_small"
-          ? "validation.errors.required"
-          : "validation.errors.invalid",
-    ...(issue.code === "too_big" && { params: { max: Number(issue.maximum) } }),
-  }));
-  throw invalid(issues);
-}
-
-// A page URL as http(s) without credentials, query or fragment; null for anything else.
-function pageUrlOf(given: string | null | undefined): string | null {
-  if (!given) return null;
-  try {
-    const url = new URL(given);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    url.hash = "";
-    return url.href.slice(0, 2_048);
-  } catch {
-    return null;
-  }
+export interface Submitted {
+  reportId: string;
+  // Whether a tracking link was mailed.
+  tracking: boolean;
+  files: FileTicket[];
 }
 
 export interface WidgetConfig {
@@ -195,49 +138,6 @@ export interface WidgetConfig {
   // Whether the widget shows its screenshot and file controls.
   attachments: boolean;
 }
-
-// One ticket per declared file, in the order declared: the widget PUTs the
-// file to `/public/media/report-files/<slot>` with the ticket in
-// `x-pulsarix-ticket` (intake.uploads.routes.ts).
-export interface FileTicket {
-  slot: string;
-  role: CheckedFile["role"];
-  ticket: string;
-  expiresAt: Date;
-}
-
-export interface Submitted {
-  reportId: string;
-  // Whether a tracking link was mailed.
-  tracking: boolean;
-  files: FileTicket[];
-}
-
-// A file the reporter attached, as the tracking page shows it: its name and
-// role, and whether a thumbnail can be read (a picture's 256 px rendition;
-// never the original, never a PDF).
-export interface TrackedFile {
-  id: string;
-  role: ReportFileRole;
-  name: string;
-  thumbnail: boolean;
-}
-
-export interface Tracked {
-  state: ReportState;
-  title: string;
-  createdAt: Date;
-  replies: { at: Date; body: string }[];
-  files: TrackedFile[];
-}
-
-const MAX_REPLIES = 50;
-// The states in which a report file has its bytes (a pending slot has none).
-const STORED = ["quarantined", "released"] as const;
-// The reporter gets a thumbnail of a picture only: a PDF's preview is not
-// offered back.
-const hasThumbnail = (file: { previewKey: string | null; mime: string }) =>
-  file.previewKey !== null && file.mime !== "application/pdf";
 
 // The public side of the intake: the widget's three reads and writes and the
 // tracking page's. Nothing here trusts the caller. A key reads its own
@@ -379,7 +279,7 @@ export class PublicIntake {
     await this.limit((l) => l.intakeKey, { publicKey });
     if (!key.active) throw keyDisabled();
 
-    const parsed = input.safeParse(given);
+    const parsed = submitInput.safeParse(given);
     if (!parsed.success) refused(parsed.error);
     const report = parsed.data;
     const email = report.email ? report.email : null;
@@ -406,33 +306,24 @@ export class PublicIntake {
 
     // A bot that fills the hidden field is told it worked, and nothing is
     // kept: its tickets are decoys, signed like the others, whose PUT stores
-    // nothing.
+    // nothing (and which, like a real one, can be used once).
     if (report.website) {
       const reportId = new ObjectId().toHexString();
       return {
         reportId,
         tracking: !!email,
-        files: files.map((file) =>
-          this.ticketFor(key, reportId, newSlot(), file, true, this.expiry()),
+        files: decoyTickets(
+          this.deps.ticketSecret,
+          key,
+          reportId,
+          files,
+          ticketExpiry(this.now()),
         ),
       };
     }
     if (report.filledInMs < MIN_FILL_MS) throw tooFast();
     const metadata = report.metadata ?? [];
-    const bytes = metadata.reduce(
-      (sum, { key: k, value }) =>
-        sum + Buffer.byteLength(k) + Buffer.byteLength(value),
-      0,
-    );
-    if (bytes > METADATA_BYTES) {
-      throw invalid([
-        {
-          path: "metadata",
-          code: "validation.errors.too-long",
-          params: { max: METADATA_BYTES },
-        },
-      ]);
-    }
+    checkMetadata(metadata);
 
     const mongo = await this.databaseOf(key);
     const project = await mongo.db.projects.findById(key.projectId);
@@ -459,27 +350,14 @@ export class PublicIntake {
       erasedAt: null,
     });
     this.touch(key);
-    const tickets: FileTicket[] = [];
-    const expiresAt = this.expiry();
-    for (const file of files) {
-      const slot = await mongo.db.clientReportFiles.create({
-        reportId: created._id,
-        role: file.role,
-        fileName: file.name,
-        mime: file.type,
-        size: file.size,
-        storageKey: null,
-        previewKey: null,
-        width: null,
-        height: null,
-        state: "pending",
-        expiresAt,
-        claimedAt: null,
-      });
-      tickets.push(
-        this.ticketFor(key, created.id, slot.id, file, false, expiresAt),
-      );
-    }
+    const tickets = await reserveSlots(
+      this.deps.ticketSecret,
+      mongo,
+      key,
+      created,
+      files,
+      ticketExpiry(this.now()),
+    );
 
     this.background(async () => {
       await this.deps.publish({
@@ -506,104 +384,14 @@ export class PublicIntake {
     return { reportId: created.id, tracking: !!email, files: tickets };
   }
 
-  private expiry() {
-    return new Date(this.now().getTime() + PENDING_SLOT_MINUTES * 60_000);
+  // The tracking page's read (intake.tracking.ts).
+  status(token: string, ip: string): Promise<Tracked> {
+    return trackedStatus(this, token, ip);
   }
 
-  private ticketFor(
-    key: WidgetKeyDocument,
-    reportId: string,
-    slot: string,
-    file: CheckedFile,
-    decoy: boolean,
-    expiresAt: Date,
-  ): FileTicket {
-    return {
-      slot,
-      role: file.role,
-      expiresAt,
-      ticket: signTicket(this.deps.ticketSecret, {
-        organisationId: key.organisationId.toHexString(),
-        keyId: key._id.toHexString(),
-        reportId,
-        slot,
-        type: file.type,
-        size: file.size,
-        expiresAt: expiresAt.getTime(),
-        decoy,
-      }),
-    };
-  }
-
-  // The report a tracking token opens, with its organisation's database; 404
-  // for a token that is malformed, unknown or erased.
-  private async reportOf(token: string) {
-    const parsed = parseTrackingToken(token);
-    if (!parsed) throw reportNotFound();
-    const tenant = await this.deps.tenancy.resolve(parsed.organisationId);
-    if (!tenant) throw reportNotFound();
-    const mongo = (await this.deps.tenancy.databaseOf(
-      tenant.id,
-    )) as unknown as IntakeMongo;
-    const report = await mongo.db.clientReports.findFirst({
-      trackingTokenHash: parsed.hash,
-    });
-    if (!report || report.erasedAt) throw reportNotFound();
-    return { mongo, report, organisationId: parsed.organisationId };
-  }
-
-  // The tracking page's read: the state, the replies marked public, and the
-  // reporter's own files (name, role, whether a thumbnail exists). Nothing else
-  // of the report or its issue leaves (no author, no id, no private comment).
-  async status(token: string, ip: string): Promise<Tracked> {
-    await this.limit((l) => l.intakeTrackingIp, { ip });
-    const { mongo, report } = await this.reportOf(token);
-    const replies = report.issueId
-      ? await mongo.db.comments.findMany({
-          filter: { issueId: report.issueId, public: true },
-          sort: { _id: 1 },
-          limit: MAX_REPLIES,
-        })
-      : [];
-    const files = await mongo.db.clientReportFiles.findMany({
-      filter: { reportId: report._id, state: { $in: STORED } },
-      sort: { _id: 1 },
-    });
-    return {
-      state: report.state,
-      title: report.title,
-      createdAt: report.createdAt,
-      replies: replies.map((reply) => ({
-        at: reply.createdAt,
-        body: withoutMarkers(reply.body),
-      })),
-      files: files.map((file) => ({
-        id: file.id,
-        role: file.role,
-        name: file.fileName,
-        thumbnail: hasThumbnail(file),
-      })),
-    };
-  }
-
-  // The thumbnail of one of the reporter's pictures: where it sits, once the
-  // token, the file and the picture's kind are checked (the tracking page's
-  // read limit applies). Never the original, never a PDF.
-  async thumbnailOf(
-    token: string,
-    fileId: string,
-    ip: string,
-  ): Promise<{ organisationId: string; storageKey: string }> {
-    await this.limit((l) => l.intakeTrackingIp, { ip });
-    if (!/^[0-9a-f]{24}$/.test(fileId)) throw fileNotFound();
-    const { mongo, report, organisationId } = await this.reportOf(token);
-    const file = await mongo.db.clientReportFiles.findFirst({
-      _id: new ObjectId(fileId),
-      reportId: report._id,
-      state: { $in: STORED },
-    });
-    if (!file?.storageKey || !hasThumbnail(file)) throw fileNotFound();
-    return { organisationId, storageKey: file.storageKey };
+  // The thumbnail of one of the reporter's pictures (intake.tracking.ts).
+  thumbnailOf(token: string, fileId: string, ip: string) {
+    return trackedThumbnail(this, token, fileId, ip);
   }
 
   // Counts a refusal of the file traffic on the key (A13), whatever its

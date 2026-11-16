@@ -58,7 +58,30 @@ export async function releasedFilesOfIssue(
 // outside the 20 per owner).
 export async function releaseFiles(mongo: IntakeMongo, reportId: ObjectId) {
   await mongo.db.clientReportFiles.raw.updateMany(
-    { reportId, state: "quarantined" },
+    { reportId, state: "quarantined", expiresAt: null },
     { $set: { state: "released", updatedAt: new Date() } },
   );
+}
+
+// Releases the files a decided report still holds in quarantine: an accepted
+// report (or one closed since) whose `releaseFiles` failed or lost a race. Run
+// by the files retention job, so a failed release is retried within minutes.
+// Files marked for removal (their issue was deleted) are left to the purge.
+// Idempotent; answers how many reports it released files of.
+export async function releaseStranded(mongo: IntakeMongo): Promise<number> {
+  const held = (await mongo.db.clientReportFiles.raw.distinct("reportId", {
+    state: "quarantined",
+    expiresAt: null,
+  })) as ObjectId[];
+  if (held.length === 0) return 0;
+  const reports = (await mongo.db.clientReports.raw
+    .find(
+      { _id: { $in: held }, state: { $in: ["accepted", "closed"] } },
+      { projection: { _id: 1 } },
+    )
+    .toArray()) as Array<{ _id: ObjectId }>;
+  for (const report of reports) {
+    await releaseFiles(mongo, report._id);
+  }
+  return reports.length;
 }

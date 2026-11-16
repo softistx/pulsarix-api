@@ -74,3 +74,13 @@ export const intakeUploadKey = defineRateLimit({
   limit: 240 * 1024,
   per: HOUR,
 });
+
+// One use per decoy ticket (a bot's, whose PUT stores nothing): the limit
+// stands in for the slot a real ticket has, so a replayed decoy is a 409 like
+// a replayed real ticket. The window is the ticket's life.
+export const intakeDecoySlot = defineRateLimit({
+  name: "intake.decoy-slot",
+  key: (p: { slot: string }) => p.slot,
+  limit: 1,
+  per: 15 * MINUTE,
+});

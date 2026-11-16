@@ -14,6 +14,7 @@ import {
 } from "~/media";
 import { coreMongo, tenancy } from "../../config/db";
 import { clientHeader } from "../../http/csrf";
+import { purgeReportFiles } from "./intake.files.retention";
 import { TRACKING_HEADER } from "./intake.http";
 import { TICKET_HEADER } from "./intake.tickets";
 
@@ -295,6 +296,34 @@ describe("accept and decline", () => {
       issueId: new ObjectId().toHexString(),
     });
     expect(codeOf(foreign)).toBe("issues.errors.not-found");
+  }, 120_000);
+
+  test("deleting the issue of an accepted report purges its files, objects and records", async () => {
+    const w = await setup();
+    await reportWithFiles(w.kit);
+    const [report] = await inbox(w);
+    const accepted = await w.kit.asOwner.call<{
+      acceptClientReport: { issueId: string };
+    }>(Accept, { id: report?.id });
+    const prefix = `organisations/${w.kit.organisation.id}/`;
+    expect((await bucketKeys(s3, prefix)).length).toBeGreaterThan(0);
+    await w.kit.asOwner.call(`mutation($id: ID!) { deleteIssue(id: $id) }`, {
+      id: accepted.acceptClientReport.issueId,
+    });
+    const mongo = (await tenancy.databaseOf(
+      w.kit.organisation.id,
+    )) as unknown as Parameters<typeof purgeReportFiles>[0];
+    const purged = await purgeReportFiles(mongo, media, w.kit.organisation.id);
+    expect(purged.deleted).toBe(2);
+    expect(await bucketKeys(s3, prefix)).toEqual([]);
+    expect(
+      await mongo.db.clientReportFiles.count({
+        reportId: new ObjectId(report?.id),
+      }),
+    ).toBe(0);
+    const [after] = await inbox(w);
+    expect(after).toMatchObject({ id: report?.id, state: "closed" });
+    expect(after?.files).toEqual([]);
   }, 120_000);
 
   test("a file that arrives after the acceptance is released at once", async () => {

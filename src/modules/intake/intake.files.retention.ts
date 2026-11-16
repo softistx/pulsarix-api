@@ -2,11 +2,12 @@ import type { ObjectId } from "mongodb";
 import type { AppTenancy, ModuleMongo } from "../../config/db";
 import type { Media } from "../attachments/public";
 import { fileObjectKeys, removeObjects } from "./intake.files.storage";
+import { releaseStranded } from "./intake.files.team";
 
 // How long a report's files stay (plan Q15 and the widget v2 decisions): a
 // declined report's for 7 days from the decision, a report nobody triaged for
 // 90 days from its arrival, a pending slot for the 15 minutes its ticket lives.
-// An accepted report's files stay with its issue.
+// An accepted report's files stay with its issue, until the issue is deleted.
 export const DECLINED_FILES_DAYS = 7;
 export const UNTRIAGED_FILES_DAYS = 90;
 export const PENDING_SLOT_MINUTES = 15;
@@ -19,6 +20,10 @@ export interface FilesPurged {
   pending: number;
   declined: number;
   untriaged: number;
+  // The files of a deleted issue.
+  deleted: number;
+  // Reports whose quarantined files were released (a release that had failed).
+  released: number;
   // Objects that could not be removed (the records are gone: the next sweep
   // of the organisation's prefix finds them).
   failed: number;
@@ -40,13 +45,15 @@ export async function purgeReportFiles(
     pending: 0,
     declined: 0,
     untriaged: 0,
+    deleted: 0,
+    released: 0,
     failed: 0,
   };
   // Removes the files matching the filter, page by page by _id so a file whose
   // objects cannot be removed (it stays) never blocks the ones behind it.
   const sweep = async (
     filter: Record<string, unknown>,
-    counter: "pending" | "declined" | "untriaged",
+    counter: "pending" | "declined" | "untriaged" | "deleted",
   ) => {
     let after: ObjectId | undefined;
     for (;;) {
@@ -108,6 +115,16 @@ export async function purgeReportFiles(
     },
     "pending",
   );
+  // The files of a deleted issue: marked with a removal date by the issue's
+  // deletion (intake.closing.ts), removed with their objects once it passes.
+  await sweep(
+    {
+      state: { $in: ["released", "quarantined"] },
+      expiresAt: { $ne: null, $lte: now },
+    },
+    "deleted",
+  );
+  purged.released = await releaseStranded(mongo);
   await sweepReports(
     {
       state: "declined",
@@ -152,7 +169,10 @@ export async function purgeAllReportFiles(
   for (const result of results) {
     if (result.ok) {
       removed +=
-        result.value.pending + result.value.declined + result.value.untriaged;
+        result.value.pending +
+        result.value.declined +
+        result.value.untriaged +
+        result.value.deleted;
       if (result.value.failed > 0) failed += 1;
     } else {
       failed += 1;
