@@ -133,6 +133,36 @@ input UpdateIssueInput {
   estimateHours: Float
 }
 
+"""
+One patch for many issues; a field left out stays as it is. Null clears
+`assigneeId`, `dueDate` and `estimateHours`, and is refused for the others.
+`addLabelIds` are added to each issue's labels, then `removeLabelIds` taken
+off (an id in both is removed). `statusId` puts each issue at the end of that
+status.
+"""
+input BulkUpdateIssueInput {
+  statusId: ID
+  priority: IssuePriority
+  assigneeId: ID
+  addLabelIds: [ID!]
+  removeLabelIds: [ID!]
+  dueDate: DateTime
+  "Hours, 0 to 100 000; null clears it."
+  estimateHours: Float
+}
+
+"An issue the bulk update refused, with the code and message `updateIssue` would have answered."
+type BulkIssueFailure {
+  id: ID!
+  code: String!
+  message: String!
+}
+
+type BulkUpdateIssuesResult {
+  updated: [Issue!]!
+  failures: [BulkIssueFailure!]!
+}
+
 type Query {
   """
   The issues of a project, paged by cursor (`first` 1 to 100, default 50;
@@ -162,6 +192,20 @@ type Mutation {
   409 `issues.errors.parent-cycle`.
   """
   updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
+  """
+  Applies one patch to 1 to 100 issues, each as `updateIssue` (and
+  `moveIssue` for the status) would: same checks, its own activity entry and
+  live event. An issue that is refused is listed in `failures` (`id`, `code`,
+  `message`), the others are written: a partial success is not an error. An
+  issue is written field by field and then moved, so a move that fails after
+  the write (a lost conflict) is listed in `failures` with its fields kept.
+  Needs `issue:write`. 400 `validation.errors.invalid-input` (`ids`, an empty
+  patch, `statusId`, `estimateHours`).
+  """
+  updateIssues(
+    ids: [ID!]! @constraint(minItems: 1, maxItems: 100)
+    input: BulkUpdateIssueInput!
+  ): BulkUpdateIssuesResult!
   """
   Puts the issue in a status, right after `beforeId` and right before
   `afterId` (the issues that end up above and below it; both optional, both in

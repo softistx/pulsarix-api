@@ -1,4 +1,5 @@
 import { ConflictError } from "@softistx/mongo";
+import { GraphQLError } from "graphql";
 import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
 import {
@@ -61,6 +62,29 @@ export interface UpdateIssueInput {
   startDate?: Date | null;
   dueDate?: Date | null;
   estimateHours?: number | null;
+}
+
+// One patch for many issues. A field left out stays; null clears `assigneeId`,
+// `dueDate` and `estimateHours`.
+export interface BulkUpdateIssueInput {
+  statusId?: string | null;
+  priority?: Priority | null;
+  assigneeId?: string | null;
+  addLabelIds?: string[] | null;
+  removeLabelIds?: string[] | null;
+  dueDate?: Date | null;
+  estimateHours?: number | null;
+}
+
+export interface BulkIssueFailure {
+  id: string;
+  code: string;
+  message: string;
+}
+
+export interface BulkUpdateResult {
+  updated: IssueDocument[];
+  failures: BulkIssueFailure[];
 }
 
 // The fields whose change the activity journal records. A move is the status
@@ -352,6 +376,95 @@ export class IssuesService {
       if (changes.length > 0) await changed("updated", updated, changes);
       return updated;
     });
+  }
+
+  // Applies one patch to many issues, each through `update` (and `move` for
+  // the status), so each has its own checks, activity row and live event. An
+  // issue that is refused is reported in `failures`; the others are written.
+  async bulkUpdate(
+    ids: string[],
+    patch: BulkUpdateIssueInput,
+  ): Promise<BulkUpdateResult> {
+    const issues: FieldIssue[] = required(patch, ["statusId", "priority"]);
+    issues.push(...estimateIssue(patch.estimateHours));
+    const fields = [
+      patch.statusId,
+      patch.priority,
+      patch.assigneeId,
+      patch.addLabelIds,
+      patch.removeLabelIds,
+      patch.dueDate,
+      patch.estimateHours,
+    ];
+    if (fields.every((field) => field === undefined)) {
+      issues.push({ path: "input", code: "validation.errors.required" });
+    }
+    if (issues.length > 0) throw invalid(issues);
+    const add = distinct(patch.addLabelIds ?? [], "addLabelIds");
+    const remove = new Set(
+      distinct(patch.removeLabelIds ?? [], "removeLabelIds").map((id) =>
+        id.toHexString(),
+      ),
+    );
+    const statusId = patch.statusId
+      ? idOrInvalid(patch.statusId, "statusId")
+      : null;
+    const result: BulkUpdateResult = { updated: [], failures: [] };
+    for (const id of new Set(ids)) {
+      try {
+        result.updated.push(
+          await this.applyPatch(id, patch, add, remove, statusId),
+        );
+      } catch (error) {
+        if (!(error instanceof GraphQLError)) throw error;
+        result.failures.push({
+          id,
+          code: String(error.extensions["code"] ?? "unknown"),
+          message: error.message,
+        });
+      }
+    }
+    return result;
+  }
+
+  private async applyPatch(
+    id: string,
+    patch: BulkUpdateIssueInput,
+    add: ObjectId[],
+    remove: Set<string>,
+    statusId: ObjectId | null,
+  ): Promise<IssueDocument> {
+    let issue = await this.byId(id);
+    if (statusId) {
+      // Refused before any write, so a refused status leaves the issue as is.
+      const status = await this.mongo.db.statuses.findById(statusId);
+      if (!status?.projectId.equals(issue.projectId)) {
+        throw invalid([invalidField("statusId")]);
+      }
+    }
+    const labels = patch.addLabelIds != null || patch.removeLabelIds != null;
+    const input: UpdateIssueInput = {
+      ...(patch.priority != null && { priority: patch.priority }),
+      ...(patch.assigneeId !== undefined && { assigneeId: patch.assigneeId }),
+      ...(patch.dueDate !== undefined && { dueDate: patch.dueDate }),
+      ...(patch.estimateHours !== undefined && {
+        estimateHours: patch.estimateHours,
+      }),
+      ...(labels && {
+        labelIds: [
+          ...new Set(
+            [...issue.labelIds, ...add]
+              .map((label) => label.toHexString())
+              .filter((label) => !remove.has(label)),
+          ),
+        ],
+      }),
+    };
+    if (Object.keys(input).length > 0) issue = await this.update(id, input);
+    if (statusId && !issue.statusId.equals(statusId)) {
+      issue = await this.move(id, statusId.toHexString());
+    }
+    return issue;
   }
 
   // Puts the issue in a status's column, right after `beforeId` and right
