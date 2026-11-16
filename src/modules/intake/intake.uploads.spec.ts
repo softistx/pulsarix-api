@@ -631,7 +631,7 @@ describe("a decoy ticket answers like a real one", () => {
 });
 
 describe("the organisation's quarantine, counted from an index", () => {
-  test("the byte sum is a covered index scan on state and size", async () => {
+  test("the byte sum reads the state and size index, never the collection", async () => {
     const kit = await kitWithMedia();
     await report(kit);
     const files = await slots(kit);
@@ -710,5 +710,25 @@ describe("a file stored while its report is being accepted", () => {
     expect(reads).toBeGreaterThanOrEqual(2);
     const [file] = await (await slots(kit)).findMany({});
     expect(file).toMatchObject({ state: "released", expiresAt: null });
+  });
+});
+
+describe("a file stored after its issue was deleted", () => {
+  test("carries a removal date, so the retention job purges it", async () => {
+    const kit = await kitWithMedia();
+    const { ticket } = await report(kit);
+    const claims = claimsOf(ticket);
+    const accepted = await kit.asOwner.call<{
+      acceptClientReport: { issueId: string };
+    }>(`mutation($id: ID!) { acceptClientReport(id: $id) { issueId } }`, {
+      id: claims["reportId"],
+    });
+    await kit.asOwner.call(`mutation($id: ID!) { deleteIssue(id: $id) }`, {
+      id: accepted.acceptClientReport.issueId,
+    });
+    expect((await send(kit, ticket)).status).toBe(200);
+    const [file] = await (await slots(kit)).findMany({});
+    expect(file?.["state"]).toBe("released");
+    expect(file?.["expiresAt"]).toBeInstanceOf(Date);
   });
 });

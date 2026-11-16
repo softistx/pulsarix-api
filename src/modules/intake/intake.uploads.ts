@@ -196,6 +196,12 @@ export class ReportUploads {
     const report = await mongo.db.clientReports.findById(
       new ObjectId(claims.reportId),
     );
+    // The report's issue was deleted while this file was on its way: the file
+    // carries a removal date at once, so the retention job purges it.
+    const orphaned =
+      report?.state === "closed" &&
+      report.issueId != null &&
+      !(await mongo.db.issues.findById(report.issueId));
     const done = await mongo.db.clientReportFiles.raw.updateOne(
       { _id: new ObjectId(claims.slot), state: "pending" },
       {
@@ -208,7 +214,7 @@ export class ReportUploads {
             report?.state === "accepted" || report?.state === "closed"
               ? "released"
               : "quarantined",
-          expiresAt: null,
+          expiresAt: orphaned ? new Date() : null,
           claimedAt: null,
           updatedAt: new Date(),
         },

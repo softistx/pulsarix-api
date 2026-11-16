@@ -7,7 +7,7 @@ import { releaseStranded } from "./intake.files.team";
 // How long a report's files stay (plan Q15 and the widget v2 decisions): a
 // declined report's for 7 days from the decision, a report nobody triaged for
 // 90 days from its arrival, a pending slot for the 15 minutes its ticket lives.
-// An accepted report's files stay with its issue.
+// An accepted report's files stay with its issue, until the issue is deleted.
 export const DECLINED_FILES_DAYS = 7;
 export const UNTRIAGED_FILES_DAYS = 90;
 export const PENDING_SLOT_MINUTES = 15;
