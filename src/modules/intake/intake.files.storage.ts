@@ -4,20 +4,20 @@ import { fileKindName, previewSize } from "./intake.files.kinds";
 
 // The layout of a report file's objects (@alxia/media's, given the tenant
 // prefix): `organisations/<id>/report-files/<key>/<size>`. A picture has `full`
-// and `256`, a PDF `file` and `256`; no object sits at `<key>` itself (the
-// kind keeps no original).
+// and `256`; a PDF is the kind's original, at `<key>` itself (served as
+// `/file`), beside its `256` preview.
 export const organisationFolder = (organisationId: string) =>
   `organisations/${organisationId}`;
 export const placeOf = (organisationId: string) =>
   mediaPlace(fileKindName, organisationFolder(organisationId));
 
-const sizes = ["full", "file", previewSize] as const;
+const sizes = ["full", previewSize] as const;
 
 // Every object a file's key can name, the ones it does not have included
 // (deleting a missing object is not an error).
 export function fileObjectKeys(organisationId: string, storageKey: string) {
   const place = placeOf(organisationId);
-  return sizes.map((size) => place(storageKey, size));
+  return [place(storageKey), ...sizes.map((size) => place(storageKey, size))];
 }
 
 // Removes `keys`, each failure counted instead of thrown: the records are gone

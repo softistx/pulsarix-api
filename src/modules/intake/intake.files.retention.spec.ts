@@ -53,9 +53,8 @@ async function setup() {
   ) => {
     const storageKey = crypto.randomUUID();
     const pending = patch.state === "pending";
-    for (const key of fileObjectKeys(organisationId, storageKey).filter(
-      (k) => !k.endsWith("/file"),
-    )) {
+    // Every object a key can name: `full`, `256` and the original at `<key>` (a PDF's).
+    for (const key of fileObjectKeys(organisationId, storageKey)) {
       await media.bucket.put({ key }, new Uint8Array([1, 2, 3]), {
         type: "image/webp",
       });
@@ -93,7 +92,7 @@ describe("the report files purge", () => {
     await file(due);
     await file(due);
     const kept = await file(early);
-    expect((await objects()).length).toBe(6);
+    expect((await objects()).length).toBe(9);
     const purged = await purgeReportFiles(mongo, media, organisationId, now);
     expect(purged).toMatchObject({
       declined: 2,
@@ -104,9 +103,7 @@ describe("the report files purge", () => {
     expect(await mongo.db.clientReportFiles.count({ reportId: due })).toBe(0);
     // Only the early one's objects are left.
     expect(await objects()).toEqual(
-      fileObjectKeys(organisationId, kept.storageKey as string)
-        .filter((k) => !k.endsWith("/file"))
-        .sort(),
+      fileObjectKeys(organisationId, kept.storageKey as string).sort(),
     );
     // The report itself stays.
     expect(await mongo.db.clientReports.findById(due)).toBeDefined();
@@ -173,9 +170,7 @@ describe("the report files purge", () => {
       1,
     );
     expect(await objects()).toEqual(
-      fileObjectKeys(organisationId, released.storageKey as string)
-        .filter((k) => !k.endsWith("/file"))
-        .sort(),
+      fileObjectKeys(organisationId, released.storageKey as string).sort(),
     );
   });
 
@@ -198,9 +193,7 @@ describe("the report files purge", () => {
     ).toBeUndefined();
     expect(await mongo.db.clientReportFiles.findById(live._id)).toBeDefined();
     expect(await objects()).toEqual(
-      fileObjectKeys(organisationId, live.storageKey as string)
-        .filter((k) => !k.endsWith("/file"))
-        .sort(),
+      fileObjectKeys(organisationId, live.storageKey as string).sort(),
     );
   });
 
