@@ -38,6 +38,8 @@ export const issuesResolvers: Resolvers = {
       (await scoped(ctx, "issue:write")).issues.create(input),
     updateIssue: async (_, { id, input }, ctx) =>
       (await scoped(ctx, "issue:write")).issues.update(id, input),
+    updateIssues: async (_, { ids, input }, ctx) =>
+      (await scoped(ctx, "issue:write")).issues.bulkUpdate(ids, input),
     moveIssue: async (_, { id, statusId, beforeId, afterId }, ctx) =>
       (await scoped(ctx, "issue:write")).issues.move(
         id,
