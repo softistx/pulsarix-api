@@ -389,6 +389,9 @@ services:
       secrets:
         - NPM_REGISTRY_TOKEN
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api
+    # bun spawns children (and runc leaves its own): tini (init) reaps them, else
+    # they pile up as zombies.
+    init: true
     depends_on:
       mongo-init:
         condition: service_completed_successfully

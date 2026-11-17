@@ -65,6 +65,11 @@ describe("docker-compose.yaml", () => {
     expect(compose.services["ui"]?.profiles).toEqual(["ui"]);
   });
 
+  test("the long-running bun and mongo services run under an init that reaps zombies", () => {
+    for (const name of ["api", "mongo", "backup"])
+      expect(compose.services[name]?.init).toBe(true);
+  });
+
   test("the backup service is opt-in: profile backup, the only service that reads BACKUP_S3_*, never required by compose itself", () => {
     expect(compose.services["backup"]?.profiles).toEqual(["backup"]);
     for (const [name, service] of Object.entries(compose.services))
