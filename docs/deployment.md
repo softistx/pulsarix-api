@@ -66,7 +66,12 @@ The UI serves the widget at `/widget/v1/*` from `WIDGET_DIST_DIR`; in production
 route is 404. The compose file sets `WIDGET_DIST_DIR=/widget` on `ui` and bind-mounts pulsarix-widget's
 built `dist` there, read only, from `WIDGET_DIST` (default `../../pulsarix-widget/dist`, relative to
 `deploy/`). So the widget is not in the UI image: build it on the host before `up --ui`
-(`bun run build` in `pulsarix-widget`), and a new widget build needs no UI rebuild. A missing
+(`bun run build` in `pulsarix-widget`), and a new widget build needs no UI rebuild. Deploy a new widget
+with `bun deploy/deploy.ts --widget` (`--dry-run` first): it pulls and installs the widget checkout, builds in a
+scratch copy, copies the files into the served `dist` in place (loader and manifest last, the previous
+bundle kept one deploy) and checks `/widget/v1/loader.js` through the container. Never run `bun run build`
+in the checkout by hand on a running stack: it recreates `dist`, the mount goes stale and the app answers
+404 (cached by Cloudflare) until `docker restart pulsarix-ui`. A missing
 folder fails `up` (the mount never creates it empty). Traefik already sends every path but `/public/`
 to the UI, so no router changes.
 

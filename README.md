@@ -48,7 +48,8 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 ## Deployment
 
 `docs/deployment.md` is the runbook: the staging stack in `deploy/` (compose, `deploy.ts` with a
-`--dry-run`, nightly backups, restore and drill) and the API `Dockerfile`.
+`--dry-run`, nightly backups, restore and drill) and the API `Dockerfile`. The widget is deployed with
+`bun deploy/deploy.ts --widget` (in place, no restart, no 404 window).
 
 ## Checks
 
