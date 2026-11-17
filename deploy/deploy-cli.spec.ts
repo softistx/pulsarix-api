@@ -115,6 +115,24 @@ describe("deploy.ts --dry-run", () => {
     expect(existsSync(calls)).toBe(false);
   });
 
+  test("--widget --dry-run plans the in-place widget deploy and touches no tool", async () => {
+    const { code, out } = await run(["--dry-run", "--widget"]);
+    expect(code).toBe(0);
+    expect(out).toContain("pulsarix-widget");
+    expect(out).toContain("scratch copy");
+    expect(out).toContain("in place");
+    expect(out).toContain("docker exec pulsarix-ui wget -qO-");
+    expect(out).not.toContain("docker restart");
+    expect(existsSync(calls)).toBe(false);
+  });
+
+  test("--widget refuses the stack flags", async () => {
+    const { code, err } = await run(["--dry-run", "--widget", "--ui"]);
+    expect(code).toBe(1);
+    expect(err).toContain("--widget takes only");
+    expect(existsSync(calls)).toBe(false);
+  });
+
   test("an unknown flag stops before anything", async () => {
     const { code, err } = await run(["--dry-run", "--seed"]);
     expect(code).toBe(1);
