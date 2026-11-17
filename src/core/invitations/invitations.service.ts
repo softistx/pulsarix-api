@@ -15,6 +15,7 @@ import {
 } from "./invitations.errors";
 import {
   type InvitationDocument,
+  isMemberAddress,
   issueInvitation,
   sendInvitation,
 } from "./invitations.issue";
@@ -47,15 +48,8 @@ export class InvitationsService {
   // The address holds an account that is a member already: inviting it would
   // fail at its acceptance, so it is refused now.
   private async refuseMember(email: string) {
-    const account = await this.auth.accounts.user.findByEmail(email);
     if (
-      account &&
-      (
-        await this.auth.membership.rolesOf(
-          this.organisationId.toHexString(),
-          account.id,
-        )
-      ).length > 0
+      await isMemberAddress({ auth: this.auth }, this.organisationId, email)
     ) {
       throw addressAlreadyMember();
     }

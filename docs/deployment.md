@@ -103,6 +103,25 @@ Sign-in by an e-mailed link is off unless `PULSARIX_MAGIC_LINK=true` in `deploy/
 Check: `docker compose -f deploy/docker-compose.yaml --env-file deploy/.env ps` shows every
 service healthy; `GET /ready` answers 200 inside the API container.
 
+## First organisation (bootstrap)
+
+A fresh deployment has no organisation and no account. The operator makes the first one with
+`dist/scripts/bootstrap.js`, built by `bun run build:scripts` and shipped in the image. It provisions
+the organisation with no account (stamped `SYSTEM_ACTOR`) and mails an invitation, with the role
+(`owner` by default) to its first member; accepting the link creates the account.
+
+```sh
+docker compose -f deploy/docker-compose.yaml --env-file deploy/.env exec api \
+  bun --no-install dist/scripts/bootstrap.js \
+  --organisation "Acme" --invite ada@acme.test --name "Ada Lovelace" [--slug acme] [--role owner|admin|member|viewer] [--locale en|fr]
+```
+
+It reads the api container's own environment (Mongo, mail, `UI_ORIGIN`). Safe to run again: an
+organisation whose slug exists is reused (it must be `active`) and the address's pending
+invitation is replaced, so the same line re-sends a lost mail or finishes a run that failed after the organisation was made. An address that is already a member is refused. The logic is
+`bootstrapOrganisation` (`src/scripts/bootstrap-organisation.ts`), sharing
+`provisionOrganisation` with the `createOrganisation` service.
+
 ## Backups
 
 The offsite backup is **opt-in**: the `backup` service is in the compose profile `backup`, so a

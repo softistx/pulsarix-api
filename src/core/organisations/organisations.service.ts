@@ -19,6 +19,7 @@ import {
   organisationSlug,
   timeZone,
 } from "./organisations.model";
+import { provisionOrganisation } from "./organisations.provision";
 
 // Organisations by name, then id, as the switcher lists them.
 const byName = (a: OrganisationDocument, b: OrganisationDocument) =>
@@ -125,12 +126,11 @@ export class OrganisationsService {
       throw tenancyFailure(slugTaken(slug));
     }
     await this.guardCreation(accountId);
-    let tenant: Awaited<ReturnType<AppTenancy["provision"]>>;
-    try {
-      tenant = await this.tenancy.provision({ slug, name }, accountId);
-    } catch (error) {
-      throw tenancyFailure(error);
-    }
+    const tenant = await provisionOrganisation(
+      this.tenancy,
+      { slug, name },
+      accountId,
+    );
     // The organisation is active as soon as it is provisioned, so a failure
     // after this point (the owner's grant, the time zone) archives it: an active
     // organisation nobody owns is unreachable.
