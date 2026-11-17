@@ -45,12 +45,14 @@ export const retryParams = (retryAfter: number) => ({
 
 // Too many tries, or too many mails: 429 `auth.errors.too-many-attempts`, with
 // `retryAfter` (seconds) and `minutes` (rounded up) in `extensions` and
-// `extensions.params`.
+// `extensions.params`, and `reason: "throttled"` (what `@alxia/react-router`'s
+// `codeRefusal` recognises as a timed wait).
 export function tooManyAttempts(retryAfter: number) {
   const params = retryParams(retryAfter);
   return new GraphQLError(i18n.t("auth.errors.too-many-attempts", params), {
     extensions: {
       code: "auth.errors.too-many-attempts",
+      reason: "throttled",
       params,
       http: { status: 429 },
       ...params,
