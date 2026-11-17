@@ -1,7 +1,11 @@
 import type { AppTenancy, CoreMongo } from "../config/db";
 import type { Role } from "../core/access";
 import type { Auth } from "../core/auth";
-import { issueInvitation, sendInvitation } from "../core/invitations";
+import {
+  isMemberAddress,
+  issueInvitation,
+  sendInvitation,
+} from "../core/invitations";
 import {
   type OrganisationDocument,
   organisationSlug,
@@ -31,7 +35,10 @@ export async function bootstrapOrganisation(
   deps: {
     core: CoreMongo;
     tenancy: Pick<AppTenancy, "provision">;
-    auth: Pick<Auth, "clock" | "mailer" | "from" | "links">;
+    auth: Pick<
+      Auth,
+      "clock" | "mailer" | "from" | "links" | "accounts" | "membership"
+    >;
   },
   input: BootstrapInput,
 ) {
@@ -51,13 +58,19 @@ export async function bootstrapOrganisation(
   const organisation =
     existing ??
     (await provisionOrganisation(deps.tenancy, { slug, name }, SYSTEM_ACTOR));
+  const email = input.email.trim().toLowerCase();
+  if (await isMemberAddress({ auth: deps.auth }, organisation._id, email)) {
+    throw new Error(
+      `${email} is already a member of "${organisation.slug}": nothing to invite`,
+    );
+  }
   const { invitation, token } = await retryWriteConflicts(
     () =>
       issueInvitation(
-        { core: deps.core, auth: deps.auth },
+        { core: deps.core.as(SYSTEM_ACTOR), auth: deps.auth },
         {
           organisationId: organisation._id,
-          email: input.email,
+          email,
           name: input.name.trim(),
           role: input.role,
           locale: input.locale,

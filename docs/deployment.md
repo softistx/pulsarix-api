@@ -118,7 +118,7 @@ docker compose -f deploy/docker-compose.yaml --env-file deploy/.env exec api \
 
 It reads the api container's own environment (Mongo, mail, `UI_ORIGIN`). Safe to run again: an
 organisation whose slug exists is reused (it must be `active`) and the address's pending
-invitation is replaced, so the same line re-sends a lost mail. The logic is
+invitation is replaced, so the same line re-sends a lost mail or finishes a run that failed after the organisation was made. An address that is already a member is refused. The logic is
 `bootstrapOrganisation` (`src/scripts/bootstrap-organisation.ts`), sharing
 `provisionOrganisation` with the `createOrganisation` service.
 

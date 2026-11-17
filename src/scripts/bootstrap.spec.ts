@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { authApp, tokenSent, uniqueEmail } from "~/auth";
+import { authApp, ownerWithOrganisation, tokenSent, uniqueEmail } from "~/auth";
 import { coreMongo, tenancy } from "../config/db";
 import { SYSTEM_ACTOR } from "../core/shared/actors";
 import { parseBootstrapArgs } from "./bootstrap";
@@ -65,6 +65,7 @@ describe("bootstrapOrganisation", () => {
       role: "owner",
       status: "PENDING",
     });
+    expect(first.invitation.createdBy).toBe(SYSTEM_ACTOR);
     const firstToken = tokenSent(kit, email, "invitation");
 
     const second = await bootstrapOrganisation(deps, input);
@@ -96,5 +97,19 @@ describe("bootstrapOrganisation", () => {
     await expect(bootstrapOrganisation(deps, input)).rejects.toThrow(
       /archived/,
     );
+  }, 30_000);
+
+  test("refuses an address that is a member already", async () => {
+    const { owner, organisation } = await ownerWithOrganisation(kit);
+    await expect(
+      bootstrapOrganisation(deps, {
+        organisation: "North Star",
+        slug: organisation.slug,
+        email: owner.email,
+        name: "Owner",
+        role: "owner",
+        locale: "en",
+      }),
+    ).rejects.toThrow(/already a member/);
   }, 30_000);
 });

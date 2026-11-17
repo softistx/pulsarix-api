@@ -71,3 +71,19 @@ export async function sendInvitation(
     }),
   });
 }
+
+// Whether the address holds an account that is a member of the organisation
+// already: inviting it would fail at its acceptance.
+export async function isMemberAddress(
+  deps: { auth: Pick<Auth, "accounts" | "membership"> },
+  organisationId: ObjectId,
+  email: string,
+) {
+  const account = await deps.auth.accounts.user.findByEmail(email);
+  if (!account) return false;
+  const roles = await deps.auth.membership.rolesOf(
+    organisationId.toHexString(),
+    account.id,
+  );
+  return roles.length > 0;
+}
