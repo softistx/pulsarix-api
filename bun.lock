@@ -18,7 +18,7 @@
         "@napi-rs/canvas": "^1.1.0",
         "@nxgt/graphql-scalars": "^0.7.1",
         "@nxgt/graphql-validation": "^0.8.1",
-        "@softistx/chronix-react": "^0.3.3",
+        "@softistx/chronix-react": "^0.3.4",
         "@softistx/image": "^0.6.0",
         "@softistx/janus": "^0.66.0",
         "@softistx/janus-mail": "^0.26.9",
@@ -313,7 +313,7 @@
 
     "@repeaterjs/repeater": ["@repeaterjs/repeater@3.1.0", "", {}, "sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ=="],
 
-    "@softistx/chronix-react": ["@softistx/chronix-react@0.3.3", "", {}, "sha512-2IMO+z+hwJRbzXKtC6ZIVXS2b5pLjUuc2qm9KlO0xWaUyME9w1GOqFaTnIjYiQzGITbYLk5SicnQdkOlHnD5ug=="],
+    "@softistx/chronix-react": ["@softistx/chronix-react@0.3.4", "", {}, "sha512-olJ3RhB/KBXAZgltHo3cqVpw8juShkJSOvj3q1CCYRelG8vI/abrbXER1h7wKzlvLT6gYHMVpYfCgN9ixuLFZA=="],
 
     "@softistx/i18n": ["@softistx/i18n@3.2.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "^3.5.20", "intl-messageformat": "^12.1.2", "lodash": "^4.18.1" }, "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-A3EIW8MEd2gOJH3tisUGVBBAEOn/IxPrLCXRPOFCjG+h8cR7nePB61xVqJ9K0aJTP1W9WqDijiV4lhvSnoaSNg=="],
 
