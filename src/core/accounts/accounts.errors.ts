@@ -39,7 +39,12 @@ export function fromJanus(error: JanusError): GraphQLError | undefined {
     // link sent still works.
     case "MAIL_THROTTLED":
       return tooManyAttempts(error.retryAfter ?? 1);
+    // The account's window of second-factor tries is spent: wait, a new
+    // challenge does not help.
     case "CODE_INVALID":
+      if (error.reason === "throttled") {
+        return tooManyAttempts(error.retryAfter ?? 1);
+      }
       return invalidCode(error.attemptsLeft);
     case "TOKEN_UNKNOWN":
     case "TOKEN_SPENT":

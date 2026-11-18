@@ -142,8 +142,62 @@ export function deploySteps(input: {
       detail: "every service listed with its health",
       command: `${compose}${profile} ps`,
     },
+    {
+      name: "prune",
+      detail:
+        "once healthy: dangling images (untagged leftovers; host-wide by docker's design, tagged images untouched)",
+      command: "docker image prune -f",
+    },
+    {
+      name: "untag",
+      detail: `this app's previous image tags (${PULSARIX_IMAGES.map((n) => `${namePrefix}${n}`).join(", ")}), keeping the tags in use and the current TAG; no other product's image`,
+      command: "docker rmi <stale tags>",
+    },
+    {
+      name: "cache",
+      detail:
+        "build cache older than 24 h (host-wide by docker's design; no sweep of tagged images or data)",
+      command: "docker builder prune -f --filter until=24h",
+    },
   );
   return steps;
+}
+
+/** The image repositories this stack builds (before the stack prefix). */
+export const PULSARIX_IMAGES = [
+  "pulsarix-api",
+  "pulsarix-ui",
+  "pulsarix-minio-init",
+  "pulsarix-backup",
+] as const;
+
+/**
+ * The `repository:tag` images to remove after a deploy: tags of this stack's own
+ * repositories (exact match on `<prefix>pulsarix-api`, ..., so another product's
+ * image on the shared host is never listed, nor is a stack with another prefix)
+ * that are neither in use by a container nor the current `keepTag`. Dangling
+ * `<none>` entries are left to `docker image prune`.
+ */
+export function staleImages(input: {
+  /** `docker image ls --format '{{.Repository}}:{{.Tag}}'`, one entry per item. */
+  images: string[];
+  /** `docker ps -a --format '{{.Image}}'`, one entry per item. */
+  inUse: string[];
+  /** The TAG of this deploy (compose default `local`). */
+  keepTag: string;
+  namePrefix: string;
+}): string[] {
+  const repos = new Set(PULSARIX_IMAGES.map((n) => `${input.namePrefix}${n}`));
+  const used = new Set(input.inUse);
+  return input.images.filter((ref) => {
+    const at = ref.lastIndexOf(":");
+    if (at < 0) return false;
+    const repo = ref.slice(0, at);
+    const tag = ref.slice(at + 1);
+    if (!repos.has(repo) || tag === "<none>" || tag === input.keepTag)
+      return false;
+    return !used.has(ref);
+  });
 }
 
 /** The one line printed when `--backup` is not given. */

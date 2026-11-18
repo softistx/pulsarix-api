@@ -73,7 +73,12 @@ The UI serves the widget at `/widget/v1/*` from `WIDGET_DIST_DIR`; in production
 route is 404. The compose file sets `WIDGET_DIST_DIR=/widget` on `ui` and bind-mounts pulsarix-widget's
 built `dist` there, read only, from `WIDGET_DIST` (default `../../pulsarix-widget/dist`, relative to
 `deploy/`). So the widget is not in the UI image: build it on the host before `up --ui`
-(`bun run build` in `pulsarix-widget`), and a new widget build needs no UI rebuild. A missing
+(`bun run build` in `pulsarix-widget`), and a new widget build needs no UI rebuild. Deploy a new widget
+with `bun deploy/deploy.ts --widget` (`--dry-run` first): it pulls and installs the widget checkout, builds in a
+scratch copy, copies the files into the served `dist` in place (loader and manifest last, the previous
+bundle kept one deploy) and checks `/widget/v1/loader.js` through the container. Never run `bun run build`
+in the checkout by hand on a running stack: it recreates `dist`, the mount goes stale and the app answers
+404 (cached by Cloudflare) until `docker restart pulsarix-ui`. A missing
 folder fails `up` (the mount never creates it empty). Traefik already sends every path but `/public/`
 to the UI, so no router changes.
 
@@ -100,10 +105,37 @@ handed to BuildKit as a secret. Flags: `--env`, `--prefix` (a second stack), `--
 `--backup` (see "Backups"), `--timeout`. Without `--backup` the deploy prints one line saying the
 backup is off. A rerun with nothing changed recreates nothing.
 
+Every container is capped (`deploy.resources.limits`: mongo and api 1 cpu / 1G, ui, minio and
+backup 0.5 / 512M, redis 0.25 / 256M, one-shots 0.25 / 256M) because the host caps the VPS CPU.
+Healthchecks run every 30 s (a bash TCP probe for mongo, `redis-cli ping`, a bash HTTP probe for
+the api, `wget` for the ui), never `mongosh` or `bun -e`; `mongo-init` initiates the replica set
+and waits for its primary. Once the stack is healthy, `deploy.ts` runs `docker image prune -f`,
+removes this app's previous image tags (never another product's, never one in use) and runs
+`docker builder prune -f --filter until=24h`; `--widget` builds no image and prunes nothing.
+
 Sign-in by an e-mailed link is off unless `PULSARIX_MAGIC_LINK=true` in `deploy/.env`.
 
 Check: `docker compose -f deploy/docker-compose.yaml --env-file deploy/.env ps` shows every
 service healthy; `GET /ready` answers 200 inside the API container.
+
+## First organisation (bootstrap)
+
+A fresh deployment has no organisation and no account. The operator makes the first one with
+`dist/scripts/bootstrap.js`, built by `bun run build:scripts` and shipped in the image. It provisions
+the organisation with no account (stamped `SYSTEM_ACTOR`) and mails an invitation, with the role
+(`owner` by default) to its first member; accepting the link creates the account.
+
+```sh
+docker compose -f deploy/docker-compose.yaml --env-file deploy/.env exec api \
+  bun --no-install dist/scripts/bootstrap.js \
+  --organisation "Acme" --invite ada@acme.test --name "Ada Lovelace" [--slug acme] [--role owner|admin|member|viewer] [--locale en|fr]
+```
+
+It reads the api container's own environment (Mongo, mail, `UI_ORIGIN`). Safe to run again: an
+organisation whose slug exists is reused (it must be `active`) and the address's pending
+invitation is replaced, so the same line re-sends a lost mail or finishes a run that failed after the organisation was made. An address that is already a member is refused. The logic is
+`bootstrapOrganisation` (`src/scripts/bootstrap-organisation.ts`), sharing
+`provisionOrganisation` with the `createOrganisation` service.
 
 ## Backups
 

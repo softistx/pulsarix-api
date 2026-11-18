@@ -26,6 +26,12 @@ const compose = Bun.YAML.parse(composeText) as {
       }[];
       labels?: string[];
       networks?: string[];
+      deploy?: { resources?: { limits?: { cpus?: string; memory?: string } } };
+      healthcheck?: {
+        test?: string[];
+        interval?: string;
+        start_interval?: string;
+      };
     }
   >;
   networks: Record<string, { external?: boolean }>;
@@ -63,6 +69,11 @@ describe("docker-compose.yaml", () => {
       "ui",
     ]);
     expect(compose.services["ui"]?.profiles).toEqual(["ui"]);
+  });
+
+  test("the long-running bun and mongo services run under an init that reaps zombies", () => {
+    for (const name of ["api", "mongo", "backup"])
+      expect(compose.services[name]?.init).toBe(true);
   });
 
   test("the backup service is opt-in: profile backup, the only service that reads BACKUP_S3_*, never required by compose itself", () => {
@@ -143,6 +154,81 @@ describe("docker-compose.yaml", () => {
 
   test("no DNS record is part of the stack", () => {
     expect(composeText).not.toMatch(/cloudflare.*(record|zone)|dns_record/i);
+  });
+});
+
+// The owner's rule of 2026-11-18 (the host capped the VPS CPU): every container is capped,
+// and a healthcheck is cheap and rare. Both compose files are held to it.
+const localText = readFileSync(join(dir, "..", "docker-compose.yml"), "utf8");
+const local = Bun.YAML.parse(localText) as Pick<typeof compose, "services">;
+const seconds = (d: string) => {
+  const m = /^(\d+)(ms|s|m|h)$/.exec(d);
+  if (!m) throw new Error(`unreadable duration ${d}`);
+  const n = Number(m[1]);
+  return m[2] === "ms" ? n / 1000 : n * { s: 1, m: 60, h: 3600 }[m[2] as "s"];
+};
+
+describe.each([
+  ["deploy/docker-compose.yaml", compose.services],
+  ["docker-compose.yml", local.services],
+])("%s resources and healthchecks", (_file, services) => {
+  test("every service has cpu and memory limits", () => {
+    for (const [name, service] of Object.entries(services)) {
+      const limits = service.deploy?.resources?.limits;
+      expect(Number(limits?.cpus), `${name} cpus`).toBeGreaterThan(0);
+      expect(Number(limits?.cpus), `${name} cpus`).toBeLessThanOrEqual(1);
+      expect(limits?.memory, `${name} memory`).toMatch(/^\d+[MG]$/);
+    }
+  });
+
+  test("a healthcheck runs every 30 s or more, and never spawns mongosh or bun", () => {
+    for (const [name, service] of Object.entries(services)) {
+      const hc = service.healthcheck;
+      if (!hc) continue;
+      expect(
+        seconds(hc.interval ?? "30s"),
+        `${name} interval`,
+      ).toBeGreaterThanOrEqual(30);
+      if (hc.start_interval)
+        expect(
+          seconds(hc.start_interval),
+          `${name} start_interval`,
+        ).toBeGreaterThanOrEqual(1);
+      const test = JSON.stringify(hc.test);
+      expect(test, name).not.toMatch(/mongosh|\bbun\b|\bnode\b/);
+    }
+  });
+});
+
+describe("limits sized to real use", () => {
+  const limit = (name: string) =>
+    compose.services[name]?.deploy?.resources?.limits;
+  test("the data services, the API and the UI get the sized caps", () => {
+    expect(limit("mongo")).toEqual({ cpus: "1.0", memory: "1G" });
+    expect(limit("redis")).toEqual({ cpus: "0.25", memory: "256M" });
+    expect(limit("minio")).toEqual({ cpus: "0.5", memory: "512M" });
+    expect(limit("api")).toEqual({ cpus: "1.0", memory: "1G" });
+    expect(limit("ui")).toEqual({ cpus: "0.5", memory: "512M" });
+    expect(limit("backup")).toEqual({ cpus: "0.5", memory: "512M" });
+  });
+
+  test("mongo is probed by a bash TCP check; mongo-init initiates the replica set and waits for the primary", () => {
+    expect(
+      JSON.stringify(compose.services["mongo"]?.healthcheck?.test),
+    ).toContain("/dev/tcp/127.0.0.1/27017");
+    const init = JSON.stringify(compose.services["mongo-init"]?.command);
+    expect(init).toContain("replSetInitiate");
+    expect(init).toContain("isWritablePrimary");
+  });
+
+  test("redis and the UI use redis-cli and wget, the API a bash socket", () => {
+    expect(
+      JSON.stringify(compose.services["redis"]?.healthcheck?.test),
+    ).toContain("redis-cli ping");
+    expect(compose.services["ui"]?.healthcheck?.test).toContain("wget");
+    expect(
+      JSON.stringify(compose.services["api"]?.healthcheck?.test),
+    ).toContain("/dev/tcp/127.0.0.1/3000");
   });
 });
 

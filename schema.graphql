@@ -179,6 +179,38 @@ An integer of any size, as a decimal string (a safe-integer number is accepted a
 """
 scalar BigInt
 
+"""
+An issue the bulk update refused, with the code and message `updateIssue` would have answered.
+"""
+type BulkIssueFailure {
+  code: String!
+  id: ID!
+  message: String!
+}
+
+"""
+One patch for many issues; a field left out stays as it is. Null clears
+`assigneeId`, `dueDate` and `estimateHours`, and is refused for the others.
+`addLabelIds` are added to each issue's labels, then `removeLabelIds` taken
+off (an id in both is removed). `statusId` puts each issue at the end of that
+status.
+"""
+input BulkUpdateIssueInput {
+  addLabelIds: [ID!]
+  assigneeId: ID
+  dueDate: DateTime
+  """Hours, 0 to 100 000; null clears it."""
+  estimateHours: Float
+  priority: IssuePriority
+  removeLabelIds: [ID!]
+  statusId: ID
+}
+
+type BulkUpdateIssuesResult {
+  failures: [BulkIssueFailure!]!
+  updated: [Issue!]!
+}
+
 """An IPv4 block in CIDR notation, such as 10.0.0.0/8."""
 scalar CIDRv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4632")
 
@@ -1043,6 +1075,17 @@ type Mutation {
   409 `issues.errors.parent-cycle`.
   """
   updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
+  """
+  Applies one patch to 1 to 100 issues, each as `updateIssue` (and
+  `moveIssue` for the status) would: same checks, its own activity entry and
+  live event. An issue that is refused is listed in `failures` (`id`, `code`,
+  `message`), the others are written: a partial success is not an error. An
+  issue is written field by field and then moved, so a move that fails after
+  the write (a lost conflict) is listed in `failures` with its fields kept.
+  Needs `issue:write`. 400 `validation.errors.invalid-input` (`ids`, an empty
+  patch, `statusId`, `estimateHours`).
+  """
+  updateIssues(ids: [ID!]! @constraint(minItems: 1, maxItems: 100), input: BulkUpdateIssueInput!): BulkUpdateIssuesResult!
   """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
   updateLabel(id: ID!, input: UpdateLabelInput!): Label!
   """
