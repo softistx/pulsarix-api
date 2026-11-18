@@ -225,6 +225,15 @@ export async function intakeKit(
   };
 }
 
+// The key as it was stored before v2: no attachmentsEnabled, uploads or
+// refusals (the mongo layer applies no schema default on read).
+export const asPreV2Key = (kit: IntakeKit) =>
+  coreMongo.db.widgetKeys.raw.updateOne(
+    { publicKey: kit.key.publicKey },
+    { $unset: { attachmentsEnabled: "", uploads: "", refusals: "" } },
+    { bypassDocumentValidation: true },
+  );
+
 export type IntakeKit = Awaited<ReturnType<typeof intakeKit>>;
 
 export const codeOfBody = (

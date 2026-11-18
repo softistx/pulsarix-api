@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { ObjectId } from "mongodb";
 import { memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
-import { codeOfBody, goodReport, type IntakeKit, intakeKit } from "~/intake";
+import {
+  asPreV2Key,
+  codeOfBody,
+  goodReport,
+  type IntakeKit,
+  intakeKit,
+} from "~/intake";
 import { coreMongo, tenancy } from "../../config/db";
 import { registerIssueChange } from "../issues/public";
 
@@ -127,6 +133,24 @@ describe("widget keys", () => {
     expect(
       codeOf(await asAdmin.attempt(Revoke, { id: made.createWidgetKey.id })),
     ).toBe("intake.errors.key-not-found");
+  });
+
+  test("a key stored before v2 lists with no uploads and no refusals", async () => {
+    const kit = await intakeKit();
+    await asPreV2Key(kit);
+    const listed = await kit.asOwner.call<{
+      widgetKeys: {
+        attachmentsEnabled: boolean;
+        uploads: number;
+        refusals: unknown[];
+      }[];
+    }>(
+      `query($projectId: ID!) { widgetKeys(projectId: $projectId) { attachmentsEnabled uploads refusals { reason count } } }`,
+      { projectId: kit.project.id },
+    );
+    expect(listed.widgetKeys).toEqual([
+      { attachmentsEnabled: true, uploads: 0, refusals: [] },
+    ]);
   });
 
   test("a member, a viewer and an anonymous caller manage no key", async () => {

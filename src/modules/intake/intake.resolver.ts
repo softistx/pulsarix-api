@@ -11,6 +11,7 @@ import {
   releasedFilesOfIssue,
 } from "./intake.files.team";
 import { WidgetKeysService } from "./intake.keys";
+import { attachmentsOn } from "./intake.model";
 import { ReportsService } from "./intake.reports";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
@@ -103,8 +104,11 @@ export const intakeResolvers: Resolvers = {
   },
   WidgetKey: {
     projectId: (key) => key.projectId.toHexString(),
+    // Keys stored before v2 lack the counters (see attachmentsOn).
+    attachmentsEnabled: (key) => attachmentsOn(key),
+    uploads: (key) => key.uploads ?? 0,
     refusals: (key) =>
-      Object.entries(key.refusals)
+      Object.entries(key.refusals ?? {})
         .map(([reason, count]) => ({ reason, count }))
         .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
   },
