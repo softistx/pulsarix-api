@@ -21,7 +21,7 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
   error codes in [CONTEXT.md](CONTEXT.md)). Texts are English by default, French with
   `Accept-Language: fr`.
 - `signUp` and `acceptInvitation` are limited per client address in Redis (10 and 20 an hour;
-  429 `auth.errors.too-many-attempts`; 503 if Redis cannot be asked; no limit without Redis).
+  429 `auth.errors.too-many-attempts`, whose extensions carry `reason: "throttled"`, `retryAfter` and `minutes`; 503 if Redis cannot be asked; no limit without Redis).
   `requestEmailVerification` is limited per account in Redis (10 an hour, same answers; janus adds 5 per 10
   minutes per address).
   Behind a proxy set `TRUSTED_PROXIES`, or every client shares one address.
@@ -50,7 +50,8 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 ## Deployment
 
 `docs/deployment.md` is the runbook: the staging stack in `deploy/` (compose, `deploy.ts` with a
-`--dry-run`, nightly backups, restore and drill) and the API `Dockerfile`.
+`--dry-run`, nightly backups, restore and drill) and the API `Dockerfile`. The widget is deployed with
+`bun deploy/deploy.ts --widget` (in place, no restart, no 404 window).
 
 ## Checks
 

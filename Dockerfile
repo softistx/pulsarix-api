@@ -13,7 +13,8 @@ COPY package.json bun.lock* bunfig.toml* ./
 # docker build --secret id=NPM_REGISTRY_TOKEN,env=NPM_REGISTRY_TOKEN
 RUN --mount=type=secret,id=NPM_REGISTRY_TOKEN,env=NPM_REGISTRY_TOKEN bun install --frozen-lockfile
 COPY . .
-# dist/server.js, and dist/scripts/pdf-preview-check.js (run below).
+# dist/server.js, dist/scripts/pdf-preview-check.js (run below) and
+# dist/scripts/bootstrap.js (the operator command, docs/deployment.md).
 RUN bun run build && bun run build:scripts
 # The PDF preview packages, installed alone for the final image at the exact
 # versions the lockfile resolved. @softistx/image/pdf resolves pdfjs-dist at run
