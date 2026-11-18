@@ -15,7 +15,7 @@ import {
   svg,
 } from "~/media";
 import type { Media } from "../attachments/public";
-import { dimensionsOf, maxFileBytes } from "./intake.files.kinds";
+import { maxFileBytes } from "./intake.files.kinds";
 import { reportFilesRoutes } from "./intake.files.routes";
 
 // The `report-files` media kind over a real S3 API (@softistx/s3/testing). The
@@ -34,11 +34,10 @@ beforeAll(async () => {
       authorizeWrite: () => true,
       authorizeRead: () => true,
       organisationOf: () => organisationId,
-      uploaded: ({ key, sizes }, { request }) => ({
-        key,
-        sizes,
-        ...dimensionsOf(request),
-      }),
+      uploaded: ({ key, sizes, renditions }) => {
+        const full = renditions.find((rendition) => rendition.size === "full");
+        return { key, sizes, width: full?.width, height: full?.height };
+      },
     }),
   ) as unknown as typeof app;
 }, 300_000);
