@@ -480,6 +480,15 @@ describe("the pending files of a report", () => {
       { $set: { expiresAt: new Date(Date.now() - 1000) } },
     );
     expect(byId(await pendingOf(w), sent.reportId)?.pendingFiles).toBe(0);
+
+    // A viewer does not triage: the inbox, and so the field, is refused.
+    expect(
+      codeOf(
+        await w
+          .as(w.viewer.token)
+          .attempt(Pending, { projectId: w.kit.project.id }),
+      ),
+    ).toBe("auth.errors.forbidden");
   }, 120_000);
 });
 

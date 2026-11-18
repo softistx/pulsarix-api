@@ -38,8 +38,7 @@ export function filesOfReport(
 }
 
 // How many files of each report are still to come: a slot reserved (`pending`)
-// whose deadline has not passed, so the reporter's upload, or the scan that
-// stores it as `quarantined`, is still ahead. One grouped read of the
+// whose deadline has not passed, so the reporter's upload is still ahead. One grouped read of the
 // `reportId` index for a whole set of reports; a report with none is absent.
 export async function pendingCountsOf(
   mongo: IntakeMongo,
