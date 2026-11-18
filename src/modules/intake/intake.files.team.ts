@@ -37,6 +37,33 @@ export function filesOfReport(
   });
 }
 
+// How many files of each report are still to come: a slot reserved (`pending`)
+// whose deadline has not passed, so the reporter's upload, or the scan that
+// stores it as `quarantined`, is still ahead. One grouped read of the
+// `reportId` index for a whole set of reports; a report with none is absent.
+export async function pendingCountsOf(
+  mongo: IntakeMongo,
+  reportIds: readonly ObjectId[],
+  now: Date = new Date(),
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (reportIds.length === 0) return counts;
+  const rows = (await mongo.db.clientReportFiles.raw
+    .aggregate([
+      {
+        $match: {
+          reportId: { $in: [...reportIds] },
+          state: "pending",
+          $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+        },
+      },
+      { $group: { _id: "$reportId", count: { $sum: 1 } } },
+    ])
+    .toArray()) as Array<{ _id: ObjectId; count: number }>;
+  for (const row of rows) counts.set(row._id.toHexString(), row.count);
+  return counts;
+}
+
 // The files released to an issue from its report, oldest first; none for an
 // issue that came from no report.
 export async function releasedFilesOfIssue(

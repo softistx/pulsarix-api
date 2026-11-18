@@ -95,6 +95,12 @@ type ClientReport {
   those who triage read it.
   """
   files: [ClientReportFile!]!
+  """
+  How many of the attached files are not stored yet: the upload is still
+  expected (the slot has not expired) or awaits the quarantine. Needs
+  `issue:write`, like `files`.
+  """
+  pendingFiles: Int!
   createdAt: DateTime!
 }
 
