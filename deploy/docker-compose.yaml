@@ -118,10 +118,15 @@ services:
   # ── data ────────────────────────────────────────────────────────────────────
   mongo:
     <<: *common
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     image: mongo:8.0
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo
-    # mongod runs as PID 1 and never reaps the healthcheck's mongosh processes:
-    # tini (init) reaps them, else they pile up as zombies.
+    # mongod runs as PID 1 and never reaped the healthcheck's mongosh processes
+    # (the check is a bash TCP probe now): tini (init) still reaps stray children.
     init: true
     # Auth on a replica set needs a keyfile. It is written from MONGO_KEYFILE at
     # each start (mongod insists on mode 400 and its own owner), so nothing
@@ -149,40 +154,44 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?}
       MONGO_KEYFILE: ${MONGO_KEYFILE:?}
-      # The member's name in the replica set: the container name, which every
-      # other container resolves. `localhost` would make drivers outside this
-      # container connect to themselves.
-      MONGO_RS_HOST: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      # Initiates the set on the first call, then reports healthy once it has a
-      # primary.
+      # A TCP probe from bash (the image has no nc, wget or curl): no mongosh per
+      # check, which cost ~1 s of CPU each run and left zombies. The replica set
+      # is initiated and awaited by mongo-init, not by this check.
       test:
-        - CMD-SHELL
-        - >-
-          mongosh --quiet --eval
-          "db.getSiblingDB('admin').auth('root', process.env.MONGO_INITDB_ROOT_PASSWORD);
-          try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: process.env.MONGO_RS_HOST + ':27017' }] }) };
-          quit(db.hello().isWritablePrimary ? 0 : 1)"
-      # Every 30 s once up (each run costs about 1 s of CPU); every 2 s while
-      # starting, so the stack still comes up fast.
+        - CMD
+        - bash
+        - -c
+        - "echo > /dev/tcp/127.0.0.1/27017"
+      # Every 2 s while starting, so the stack still comes up fast, then 30 s.
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
       start_interval: 2s
     labels:
       - traefik.enable=false
 
   mongo-init:
     <<: *oneshot
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
     image: mongo:8.0
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo-init
     depends_on:
       mongo:
         condition: service_healthy
     environment:
+      # The member's name in the replica set: the container name, which every
+      # other container resolves. `localhost` would make drivers outside this
+      # container connect to themselves.
+      MONGO_RS_HOST: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo
+      DIRECT_URI: mongodb://root:${MONGO_ROOT_PASSWORD:?}@${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo:27017/admin?directConnection=true
       ROOT_URI: mongodb://root:${MONGO_ROOT_PASSWORD:?}@${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-mongo:27017/admin?replicaSet=rs0
       APP_USER: ${MONGO_APP_USER:-px_app}
       APP_PASSWORD: ${MONGO_APP_PASSWORD:?}
@@ -197,6 +206,26 @@ services:
       - -c
       - |
         mongosh --nodb --quiet --eval '
+          // Initiates the replica set (once) and waits for its primary; the
+          // mongo healthcheck only probes the port. Retried: the first start
+          // runs a temporary mongod before the real one and the root user.
+          let ready = false;
+          let last = "";
+          for (let i = 0; i < 120 && !ready; i++) {
+            try {
+              const direct = new Mongo(process.env.DIRECT_URI).getDB("admin");
+              try {
+                direct.adminCommand({ replSetGetStatus: 1 });
+              } catch (e) {
+                direct.adminCommand({
+                  replSetInitiate: { _id: "rs0", members: [{ _id: 0, host: process.env.MONGO_RS_HOST + ":27017" }] },
+                });
+              }
+              ready = direct.adminCommand({ hello: 1 }).isWritablePrimary === true;
+            } catch (e) { last = String(e); }
+            if (!ready) sleep(1000);
+          }
+          if (!ready) throw new Error("no replica set primary after 120 s: " + last);
           const admin = new Mongo(process.env.ROOT_URI).getDB("admin");
           const upsert = (user, pwd, roles) =>
             admin.getUser(user) ? admin.updateUser(user, { pwd, roles }) : admin.createUser({ user, pwd, roles });
@@ -210,6 +239,11 @@ services:
 
   redis:
     <<: *common
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
     image: redis:7.4
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-redis
     # The password goes into a config file written at each start, so it is in
@@ -232,14 +266,21 @@ services:
       - redis-data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
-      interval: 5s
+      interval: 30s
       timeout: 3s
-      retries: 10
+      retries: 3
+      start_period: 15s
+      start_interval: 2s
     labels:
       - traefik.enable=false
 
   minio:
     <<: *common
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
     image: cgr.dev/chainguard/minio@sha256:268d68a2a3b6fc65f905a61f84d7eab6345ce6bff14f551e2b028ec31e6a1341
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-minio
     command: ["server", "/data"]
@@ -257,10 +298,11 @@ services:
         - -c
         - |-
           exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && read -r line <&3 && [[ $$line == *' 200 '* ]]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 20
-      start_period: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     labels:
       # Never public: the API streams the images (S3_ENDPOINT stays private).
       - traefik.enable=false
@@ -271,6 +313,11 @@ services:
   # that has one.
   minio-init:
     <<: *oneshot
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
     image: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-minio-init:${TAG:-local}
     build:
       dockerfile_inline: |
@@ -317,6 +364,11 @@ services:
   # stored here.
   backup:
     <<: *common
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
     # Opt-in: `docker compose --profile backup up` (deploy.ts --backup). Without
     # the profile the service is neither built nor started.
     profiles: [backup]
@@ -382,6 +434,11 @@ services:
   # ── the API ─────────────────────────────────────────────────────────────────
   api:
     <<: [*routed, *common]
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     image: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api:${TAG:-local}
     build:
       context: ..
@@ -405,16 +462,16 @@ services:
       PORT: "3000"
     healthcheck:
       test:
-        [
-          "CMD",
-          "bun",
-          "-e",
-          "const r = await fetch('http://127.0.0.1:3000/ready'); process.exit(r.ok ? 0 : 1)",
-        ]
-      interval: 10s
+        - CMD
+        - bash
+        - -c
+        - |-
+          exec 3<>/dev/tcp/127.0.0.1/3000 && printf 'GET /ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && read -r line <&3 && [[ $$line == *' 200 '* ]]
+      interval: 30s
       timeout: 5s
-      retries: 6
-      start_period: 20s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     labels:
       - traefik.enable=true
       # Only the public intake endpoint is routed (priority above the UI's
@@ -429,6 +486,11 @@ services:
   # ── the UI (profile `ui`, started with `--ui`) ───────────────────────────────
   ui:
     <<: [*routed, *common]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
     profiles: [ui]
     image: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-ui:${TAG:-local}
     build:
@@ -465,16 +527,12 @@ services:
           create_host_path: false
     healthcheck:
       test:
-        [
-          "CMD",
-          "bun",
-          "-e",
-          "const r = await fetch('http://127.0.0.1:3000/health'); process.exit(r.ok ? 0 : 1)",
-        ]
-      interval: 10s
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
+      interval: 30s
       timeout: 5s
-      retries: 6
-      start_period: 15s
+      retries: 3
+      start_period: 20s
+      start_interval: 2s
     labels:
       - traefik.enable=true
       - traefik.http.routers.${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-ui.rule=Host(`${UI_HOSTNAME:?}`)

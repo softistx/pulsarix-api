@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "./lib";
-import { deploySteps, envProblems, REQUIRED, renderPlan } from "./plan";
+import {
+  deploySteps,
+  envProblems,
+  REQUIRED,
+  renderPlan,
+  staleImages,
+} from "./plan";
 
 const example = parseEnv(
   readFileSync(join(import.meta.dir, ".env.example"), "utf8"),
@@ -100,7 +106,33 @@ describe("deploySteps", () => {
       "build",
       "up",
       "status",
+      "prune",
+      "untag",
+      "cache",
     ]);
+  });
+
+  test("prunes only after the stack is up and healthy, never system-wide nor volumes", () => {
+    const steps = deploySteps(input);
+    const order = names(steps);
+    expect(order.indexOf("prune")).toBeGreaterThan(order.indexOf("up"));
+    expect(order.indexOf("prune")).toBeGreaterThan(order.indexOf("status"));
+    const commands = steps.map((s) => s.command ?? "");
+    expect(commands).toContain("docker image prune -f");
+    expect(commands).toContain("docker builder prune -f --filter until=24h");
+    const text = commands.join("\n");
+    expect(text).not.toMatch(/system prune/);
+    expect(text).not.toMatch(/--volumes/);
+    expect(text).not.toMatch(/prune -a/);
+    expect(text).not.toMatch(/-a\b.*prune/);
+  });
+
+  test("the untag step names this stack's prefixed repositories only", () => {
+    const untag = deploySteps({ ...input, namePrefix: "staging-" }).find(
+      (s) => s.name === "untag",
+    );
+    expect(untag?.detail).toContain("staging-pulsarix-api");
+    expect(untag?.detail).toContain("staging-pulsarix-ui");
   });
 
   test("--no-pull skips the pull, --ui adds the UI checkout and profile", () => {
@@ -148,7 +180,67 @@ describe("deploySteps", () => {
 
   test("renders one numbered line per step, a command under its step", () => {
     const text = renderPlan(deploySteps(input));
-    expect(text.split("\n").filter((l) => /^\s+\d+\./.test(l))).toHaveLength(7);
+    expect(text.split("\n").filter((l) => /^\s+\d+\./.test(l))).toHaveLength(
+      10,
+    );
     expect(text).toContain("$ git -C /srv/pulsarix-api pull --ff-only");
+  });
+});
+
+describe("staleImages", () => {
+  const base = { keepTag: "local", namePrefix: "" };
+
+  test("lists the previous tags of this app's images, not the current or running ones", () => {
+    expect(
+      staleImages({
+        ...base,
+        images: [
+          "pulsarix-api:local",
+          "pulsarix-api:abc123",
+          "pulsarix-api:def456",
+          "pulsarix-ui:old",
+          "pulsarix-minio-init:v1",
+          "pulsarix-backup:v0",
+        ],
+        inUse: ["pulsarix-api:def456", "pulsarix-ui:local"],
+      }),
+    ).toEqual([
+      "pulsarix-api:abc123",
+      "pulsarix-ui:old",
+      "pulsarix-minio-init:v1",
+      "pulsarix-backup:v0",
+    ]);
+  });
+
+  test("never lists another product's image, another stack's prefix, a dangling image or a third-party one", () => {
+    expect(
+      staleImages({
+        ...base,
+        images: [
+          "operix-api:old",
+          "schoolz-ui:old",
+          "staging-pulsarix-api:old",
+          "pulsarix-api-extra:old",
+          "pulsarix-api:<none>",
+          "<none>:<none>",
+          "mongo:8.0",
+          "cgr.dev/chainguard/minio:latest",
+          "localhost:5000/pulsarix-api:old",
+          "pulsarix-api",
+        ],
+        inUse: [],
+      }),
+    ).toEqual([]);
+  });
+
+  test("a prefixed stack lists only its own prefixed repositories", () => {
+    expect(
+      staleImages({
+        images: ["staging-pulsarix-api:old", "pulsarix-api:old"],
+        inUse: [],
+        keepTag: "local",
+        namePrefix: "staging-",
+      }),
+    ).toEqual(["staging-pulsarix-api:old"]);
   });
 });

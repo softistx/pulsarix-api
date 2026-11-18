@@ -64,7 +64,13 @@ import {
   resolvePrefix,
   uiContext,
 } from "./lib";
-import { BACKUP_OFF_LINE, deploySteps, envProblems, renderPlan } from "./plan";
+import {
+  BACKUP_OFF_LINE,
+  deploySteps,
+  envProblems,
+  renderPlan,
+  staleImages,
+} from "./plan";
 import { manifestWidget, planWidgetSync, widgetPaths } from "./widget";
 
 const args = Bun.argv.slice(2);
@@ -201,6 +207,34 @@ await stack.compose(
   "table {{.Name}}\t{{.Status}}",
 );
 step("healthy", `${stack.namePrefix}pulsarix is up`);
+
+// Free the disk once the new containers are healthy (never before: a failed deploy
+// keeps the old images to roll back to). Only this app's images; never
+// `system prune -a` nor `--volumes`. The widget path (--widget) builds no image and
+// never gets here.
+const lines = async (cmd: Promise<{ stdout: Buffer }>) =>
+  (await cmd).stdout
+    .toString()
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "");
+await $`docker image prune -f`.quiet().nothrow();
+const stale = staleImages({
+  images: await lines(
+    $`docker image ls --format ${"{{.Repository}}:{{.Tag}}"}`.quiet().nothrow(),
+  ),
+  inUse: await lines(
+    $`docker ps -a --format ${"{{.Image}}"}`.quiet().nothrow(),
+  ),
+  keepTag: process.env["TAG"] ?? stack.values["TAG"] ?? "local",
+  namePrefix: stack.namePrefix,
+});
+for (const ref of stale) await $`docker rmi ${ref}`.quiet().nothrow();
+await $`docker builder prune -f --filter until=24h`.quiet().nothrow();
+step(
+  "prune",
+  `${stale.length} old pulsarix image tag(s) removed, build cache > 24 h`,
+);
 
 /** Every file under `dir`, relative, with `/` separators; none when it is absent. */
 async function listFiles(dir: string, base = ""): Promise<string[]> {

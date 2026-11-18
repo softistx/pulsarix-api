@@ -7,7 +7,7 @@
     "generate": "nxgt-graphql-scalars typedefs --out && nxgt-graphql-validation typedefs --out && graphql-codegen --config codegen.ts",
     "dev": "bun scripts/dev.ts",
     "dev:api": "NODE_ENV=development bun --watch src/server.ts",
-    "services:up": "docker compose up -d --wait mongo redis mailpit minio && docker compose up -d media-bucket",
+    "services:up": "docker compose up -d --wait mongo redis mailpit minio && docker compose up -d media-bucket && docker compose --profile init run --rm mongo-init",
     "services:down": "docker compose down",
     "build": "bun run generate && bun build src/server.ts --target=bun --outdir=dist --minify --sourcemap=linked --external @napi-rs/canvas --external pdfjs-dist",
     "build:scripts": "bun build src/scripts/pdf-preview-check.ts src/scripts/bootstrap.ts --target=bun --root src/scripts --outdir=dist/scripts --minify --external @napi-rs/canvas --external pdfjs-dist",
