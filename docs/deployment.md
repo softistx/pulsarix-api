@@ -98,6 +98,14 @@ handed to BuildKit as a secret. Flags: `--env`, `--prefix` (a second stack), `--
 `--backup` (see "Backups"), `--timeout`. Without `--backup` the deploy prints one line saying the
 backup is off. A rerun with nothing changed recreates nothing.
 
+Every container is capped (`deploy.resources.limits`: mongo and api 1 cpu / 1G, ui, minio and
+backup 0.5 / 512M, redis 0.25 / 256M, one-shots 0.25 / 256M) because the host caps the VPS CPU.
+Healthchecks run every 30 s (a bash TCP probe for mongo, `redis-cli ping`, a bash HTTP probe for
+the api, `wget` for the ui), never `mongosh` or `bun -e`; `mongo-init` initiates the replica set
+and waits for its primary. Once the stack is healthy, `deploy.ts` runs `docker image prune -f`,
+removes this app's previous image tags (never another product's, never one in use) and runs
+`docker builder prune -f --filter until=24h`; `--widget` builds no image and prunes nothing.
+
 Sign-in by an e-mailed link is off unless `PULSARIX_MAGIC_LINK=true` in `deploy/.env`.
 
 Check: `docker compose -f deploy/docker-compose.yaml --env-file deploy/.env ps` shows every

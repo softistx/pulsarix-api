@@ -64,6 +64,22 @@ describe("deploy.ts --dry-run", () => {
     expect(out).toContain("the real run would go ahead");
     expect(out).toContain("backup off");
     expect(out).not.toContain("--profile backup");
+    expect(out).toContain("docker image prune -f");
+    expect(out).toContain("docker builder prune -f --filter until=24h");
+    expect(out).not.toMatch(/system prune|--volumes/);
+    expect(existsSync(calls)).toBe(false);
+  });
+
+  test("the widget dry run plans no image prune: it builds no image and keeps the bind mount", async () => {
+    const { code, out } = await run([
+      "--widget",
+      "--dry-run",
+      "--env",
+      filledFile,
+    ]);
+    expect(code).toBe(0);
+    expect(out).not.toMatch(/prune|docker rmi/);
+    expect(out).toContain("in place");
     expect(existsSync(calls)).toBe(false);
   });
 
