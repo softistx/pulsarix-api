@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { TestS3 } from "@softistx/s3/testing";
 import { ObjectId } from "mongodb";
 import {
+  asPreV2Key,
   codeOfBody,
   goodReport,
   type IntakeKit,
@@ -18,7 +19,7 @@ import {
 } from "~/media";
 import { tenancy } from "../../config/db";
 import { signTicket, TICKET_HEADER } from "./intake.tickets";
-import { ReportUploads } from "./intake.uploads";
+import { QUARANTINE_BYTES, ReportUploads } from "./intake.uploads";
 
 // The PUT route of the report files (A12), over a real S3 API: a ticket from
 // `submitClientReport`, the raw file as the body, and the quarantine behind it.
@@ -415,6 +416,48 @@ describe("the PUT route", () => {
     expect((await errorOf(response)).extensions["code"]).toBe(
       "intake.errors.quarantine-full",
     );
+  });
+
+  const filler = async (kit: IntakeKit, size: number) =>
+    (await slots(kit)).raw.insertOne({
+      _id: new ObjectId(),
+      reportId: new ObjectId(),
+      role: "file",
+      fileName: "held.pdf",
+      mime: "application/pdf",
+      size,
+      state: "quarantined",
+      storageKey: crypto.randomUUID(),
+      previewKey: null,
+      width: null,
+      height: null,
+      expiresAt: null,
+      claimedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+  test("a file that exactly fits the quarantine is accepted, one byte more is not", async () => {
+    const kit = await kitWithMedia();
+    const { ticket } = await report(kit);
+    await filler(kit, QUARANTINE_BYTES - shot.length);
+    expect((await send(kit, ticket)).status).toBe(200);
+
+    const over = await kitWithMedia();
+    const second = await report(over);
+    await filler(over, QUARANTINE_BYTES - shot.length + 1);
+    const response = await send(over, second.ticket);
+    expect(response.status).toBe(403);
+    expect((await errorOf(response)).extensions["code"]).toBe(
+      "intake.errors.quarantine-full",
+    );
+  });
+
+  test("a key stored before v2 (no file fields) takes files: submit and PUT", async () => {
+    const kit = await kitWithMedia();
+    await asPreV2Key(kit);
+    const { ticket } = await report(kit);
+    expect((await send(kit, ticket)).status).toBe(200);
   });
 
   test("a toggle turned off after submit refuses the PUT", async () => {

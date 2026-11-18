@@ -16,6 +16,7 @@ import {
 import { type CheckedFile, checkFiles } from "./intake.files.input";
 import { trackingMail } from "./intake.mail";
 import {
+  attachmentsOn,
   type ClientReportDocument,
   PUBLIC_KEY,
   type WidgetKeyDocument,
@@ -260,7 +261,7 @@ export class PublicIntake {
       projectName: enabled && project ? project.name : null,
       locale: caller.language,
       enabled,
-      attachments: enabled && key.attachmentsEnabled,
+      attachments: enabled && attachmentsOn(key),
     };
   }
 
@@ -295,7 +296,7 @@ export class PublicIntake {
     const declaredFiles = report.files ?? [];
     let files: CheckedFile[];
     try {
-      if (declaredFiles.length > 0 && !key.attachmentsEnabled) {
+      if (declaredFiles.length > 0 && !attachmentsOn(key)) {
         throw attachmentsDisabled();
       }
       files = checkFiles(declaredFiles);

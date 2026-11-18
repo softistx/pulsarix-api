@@ -523,6 +523,10 @@ describe("the reporter's own thumbnails", () => {
     );
     expect(thumb.status).toBe(200);
     expect(thumb.headers.get("content-type")).toBe("image/webp");
+    expect(thumb.headers.get("cache-control")).toBe("no-store");
+    expect(thumb.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(thumb.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(thumb.headers.get("x-robots-tag")).toBe("noindex");
     const bytes = new Uint8Array(await thumb.arrayBuffer());
     expect(bytes.length).toBeGreaterThan(0);
     // The thumbnail is the 256 rendition the team reads, byte for byte.

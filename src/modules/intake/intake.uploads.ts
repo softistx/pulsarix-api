@@ -13,7 +13,7 @@ import {
 } from "./intake.errors";
 import { maxFileBytes } from "./intake.files.kinds";
 import { releaseFiles } from "./intake.files.team";
-import type { ReportFileRole } from "./intake.model";
+import { attachmentsOn, type ReportFileRole } from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import type { Caller, IntakeMongo, PublicIntake } from "./intake.submit";
 import { readTicket, type TicketClaims } from "./intake.tickets";
@@ -119,7 +119,7 @@ export class ReportUploads {
     }
     caller.originGranted = true;
     if (!key.active) throw keyDisabled();
-    if (!key.attachmentsEnabled) throw attachmentsDisabled();
+    if (!attachmentsOn(key)) throw attachmentsDisabled();
     if (claims.expiresAt <= intake.now().getTime()) throw ticketExpired();
     return { claims, key };
   }
@@ -153,8 +153,11 @@ export class ReportUploads {
       throw ticketInvalid();
     }
     if (file.expiresAt && file.expiresAt <= now) throw ticketExpired();
-    // The incoming file counts too, so a racing PUT cannot overshoot the cap.
-    if ((await quarantineHeld(files)) + claims.size > QUARANTINE_BYTES) {
+    // The sum already holds this slot (it is pending), so the incoming file is
+    // counted once. The sum and the claim below are two steps: concurrent PUTs
+    // of different slots can each pass the check and overshoot the cap by the
+    // files in flight; the cap is a bound on what is admitted, not a lock.
+    if ((await quarantineHeld(files)) > QUARANTINE_BYTES) {
       throw quarantineFull();
     }
     const taken = await files.raw.findOneAndUpdate(

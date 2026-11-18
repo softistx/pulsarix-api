@@ -50,11 +50,13 @@ const images = withImageRendition({
   maxPixels: maxFilePixels,
 });
 
+// Temporary, until @alxia/media#833
 // The pixel size of each picture just made, by the upload's request, for the
 // route's `uploaded` hook (`dimensionsOf`). A WeakMap: it dies with the request.
 const dimensions = new WeakMap<Request, { width: number; height: number }>();
 export const dimensionsOf = (request: Request) => dimensions.get(request);
 
+// Temporary, until @alxia/media#833
 // The size of a WebP (the format of every rendition) from its header: lossy
 // (VP8), lossless (VP8L) or extended (VP8X).
 export function webpSize(bytes: Uint8Array) {
