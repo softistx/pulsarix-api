@@ -250,6 +250,12 @@ type ClientReport {
   locale: String!
   metadata: [ClientReportMetadata!]!
   pageUrl: String
+  """
+  How many of the attached files are not stored yet: the upload is still
+  expected (the slot is reserved and has not expired). Needs
+  `issue:write`, like `files`.
+  """
+  pendingFiles: Int!
   projectId: ID!
   state: ClientReportState!
   title: String!

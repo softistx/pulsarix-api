@@ -1,3 +1,4 @@
+import type { ObjectId } from "mongodb";
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
@@ -6,6 +7,7 @@ import {
   filePreviewUrl,
   filesOfReport,
   fileUrl,
+  pendingCountsOf,
   releasedFilesOfIssue,
 } from "./intake.files.team";
 import { WidgetKeysService } from "./intake.keys";
@@ -40,6 +42,39 @@ async function reportsOf(ctx: Context) {
     ),
     viewerId,
   );
+}
+
+// `pendingFiles` is batched per request: the reports resolved in the same
+// macrotask (a page of the inbox) share one grouped read instead of one count
+// each.
+type PendingBatch = {
+  ids: Map<string, ObjectId>;
+  counts: Promise<Map<string, number>>;
+};
+const pendingBatches = new WeakMap<Context, PendingBatch>();
+
+function pendingOf(
+  ctx: Context,
+  mongo: Parameters<typeof pendingCountsOf>[0],
+  reportId: ObjectId,
+): Promise<number> {
+  let batch = pendingBatches.get(ctx);
+  if (!batch) {
+    const ids = new Map<string, ObjectId>();
+    batch = {
+      ids,
+      counts: new Promise<void>((resolve) => setTimeout(resolve, 0)).then(
+        () => {
+          pendingBatches.delete(ctx);
+          return pendingCountsOf(mongo, [...ids.values()]);
+        },
+      ),
+    };
+    pendingBatches.set(ctx, batch);
+  }
+  const key = reportId.toHexString();
+  batch.ids.set(key, reportId);
+  return batch.counts.then((counts) => counts.get(key) ?? 0);
 }
 
 export const intakeResolvers: Resolvers = {
@@ -81,6 +116,10 @@ export const intakeResolvers: Resolvers = {
     files: async (report, _, ctx) => {
       const { mongo } = await requirePermission(ctx, "issue:write");
       return filesOfReport(mongo, report._id);
+    },
+    pendingFiles: async (report, _, ctx) => {
+      const { mongo } = await requirePermission(ctx, "issue:write");
+      return pendingOf(ctx, mongo, report._id);
     },
   },
   ClientReportFile: {

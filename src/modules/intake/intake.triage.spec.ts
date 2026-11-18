@@ -386,6 +386,112 @@ describe("accept and decline", () => {
   }, 120_000);
 });
 
+describe("the pending files of a report", () => {
+  const Pending = `query($projectId: ID!) {
+    clientReports(projectId: $projectId) { nodes { id pendingFiles files { id } } }
+  }`;
+  const pendingOf = async (w: Awaited<ReturnType<typeof setup>>) =>
+    (
+      await w.kit.asOwner.call<{
+        clientReports: {
+          nodes: { id: string; pendingFiles: number; files: unknown[] }[];
+        };
+      }>(Pending, { projectId: w.kit.project.id })
+    ).clientReports.nodes;
+
+  test("counts the slots whose bytes have not arrived, per report, and drops them once stored or expired", async () => {
+    const w = await setup();
+    const one = await w.kit.submit(
+      goodReport({
+        files: [
+          {
+            role: "screenshot",
+            name: "a.png",
+            type: "image/png",
+            size: shot.length,
+          },
+          {
+            role: "file",
+            name: "b.pdf",
+            type: "application/pdf",
+            size: pdf.length,
+          },
+        ],
+      }),
+    );
+    (
+      w.kit.limits as unknown as {
+        intakeIpKey: { counts: Map<string, number> };
+      }
+    ).intakeIpKey.counts.clear();
+    const two = await w.kit.submit(goodReport());
+    const sent = (
+      (one.body as { data: unknown }).data as unknown as {
+        submitClientReport: {
+          reportId: string;
+          files: { slot: string; ticket: string }[];
+        };
+      }
+    ).submitClientReport;
+    const plain = (
+      (two.body as { data: unknown }).data as unknown as {
+        submitClientReport: { reportId: string };
+      }
+    ).submitClientReport.reportId;
+
+    const before = await pendingOf(w);
+    const byId = (rows: typeof before, id: string) =>
+      rows.find((row) => row.id === id);
+    expect(byId(before, sent.reportId)).toMatchObject({
+      pendingFiles: 2,
+      files: [],
+    });
+    expect(byId(before, plain)?.pendingFiles).toBe(0);
+
+    // One upload arrives: stored, no longer pending.
+    const [first] = sent.files;
+    const answer = await w.kit.kit.app.fetch(
+      new Request(
+        `https://api.pulsarix.test/public/media/report-files/${first?.slot}`,
+        {
+          method: "PUT",
+          headers: {
+            "content-type": "image/png",
+            "content-length": String(shot.length),
+            [TICKET_HEADER]: first?.ticket as string,
+            origin: w.kit.site,
+          },
+          body: shot as unknown as BodyInit,
+          duplex: "half",
+        } as RequestInit,
+      ),
+    );
+    expect(answer.status).toBe(200);
+    const during = await pendingOf(w);
+    expect(byId(during, sent.reportId)).toMatchObject({ pendingFiles: 1 });
+    expect(byId(during, sent.reportId)?.files).toHaveLength(1);
+
+    // The other slot expires: nothing is awaited any more.
+    const mongo = (await tenancy.databaseOf(
+      w.kit.organisation.id,
+    )) as unknown as Parameters<typeof purgeReportFiles>[0];
+    await mongo.db.clientReportFiles.raw.updateMany(
+      { state: "pending" },
+      { $set: { expiresAt: new Date(Date.now() - 1000) } },
+    );
+    expect(byId(await pendingOf(w), sent.reportId)?.pendingFiles).toBe(0);
+
+    // A viewer does not triage: the inbox, and so the field, is refused.
+    expect(
+      codeOf(
+        await w
+          .as(w.viewer.token)
+          .attempt(Pending, { projectId: w.kit.project.id }),
+      ),
+    ).toBe("auth.errors.forbidden");
+  }, 120_000);
+});
+
 describe("the reporter's own thumbnails", () => {
   test("the status lists the files; the tracking token reads a picture's thumbnail only", async () => {
     const w = await setup();
