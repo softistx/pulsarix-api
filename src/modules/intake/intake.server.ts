@@ -1,13 +1,28 @@
+import { createHmac } from "node:crypto";
 import { type AppTenancy, coreMongo } from "../../config/db";
 import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
+import type { Media } from "../attachments/public";
+import { purgeAllReportFiles } from "./intake.files.retention";
 import { eraseAll } from "./intake.retention";
 import {
   type IntakeDeps,
   type IntakeLimits,
   PublicIntake,
 } from "./intake.submit";
+
+// The key the upload tickets are signed with: INTAKE_TICKET_SECRET, else a
+// key derived from API_PROXY_SECRET (always set in production), else a fixed
+// development one.
+export const serverTicketSecret = () =>
+  env.INTAKE_TICKET_SECRET ??
+  createHmac(
+    "sha256",
+    env.API_PROXY_SECRET ?? "pulsarix development ticket secret",
+  )
+    .update("pulsarix intake upload ticket")
+    .digest("hex");
 
 // The public intake as the server runs it: the core database, the given
 // tenancy store, the Redis rate limits (none without Redis: the endpoint then
@@ -25,8 +40,12 @@ export function serverIntake(
     ...overrides,
     from: { name: "pulsarix", address: env.MAIL_FROM },
     uiOrigin: env.UI_ORIGIN,
+    ticketSecret: serverTicketSecret(),
     publish: async (event) => {
       await realtime.channels.clientReportReceived.publish(event);
+    },
+    publishFile: async (event) => {
+      await realtime.channels.clientReportFileReceived.publish(event);
     },
   });
 }
@@ -47,5 +66,21 @@ export function startRetentionWorker(
     await eraseAll(tenancy);
   });
   worker.on("error", (error) => log("intake retention worker", error));
+  return worker;
+}
+
+// Starts the worker of the report files purge (the server calls it once). With
+// no file store (S3 not configured) there is nothing to purge and no job.
+export function startFilesRetentionWorker(
+  tenancy: Pick<AppTenancy, "eachTenant">,
+  media: Media | undefined,
+  log = console.warn,
+) {
+  const queue = realtime.queues?.intakeFilesRetention;
+  if (!queue || !media) return null;
+  const worker = queue.work(async () => {
+    await purgeAllReportFiles(tenancy, media);
+  });
+  worker.on("error", (error) => log("report files retention worker", error));
   return worker;
 }

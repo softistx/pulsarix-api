@@ -18,12 +18,14 @@ export interface CreateWidgetKeyInput {
   projectId: string;
   label: string;
   allowedOrigins: string[];
+  attachmentsEnabled?: boolean | null;
 }
 
 export interface UpdateWidgetKeyInput {
   label?: string | null;
   allowedOrigins?: string[] | null;
   active?: boolean | null;
+  attachmentsEnabled?: boolean | null;
 }
 
 // The widget keys of one organisation. Every lookup names the organisation, so
@@ -80,6 +82,7 @@ export class WidgetKeysService {
       label,
       allowedOrigins: allowListOf(input.allowedOrigins),
       active: true,
+      attachmentsEnabled: input.attachmentsEnabled ?? true,
       revokedAt: null,
       lastUsedAt: null,
     });
@@ -89,7 +92,12 @@ export class WidgetKeysService {
     id: string,
     input: UpdateWidgetKeyInput,
   ): Promise<WidgetKeyDocument> {
-    for (const field of ["label", "allowedOrigins", "active"] as const) {
+    for (const field of [
+      "label",
+      "allowedOrigins",
+      "active",
+      "attachmentsEnabled",
+    ] as const) {
       if (input[field] === null) {
         throw invalid([{ path: field, code: "validation.errors.required" }]);
       }
@@ -106,6 +114,9 @@ export class WidgetKeysService {
           allowedOrigins: allowListOf(input.allowedOrigins),
         }),
         ...(input.active != null && { active: input.active }),
+        ...(input.attachmentsEnabled != null && {
+          attachmentsEnabled: input.attachmentsEnabled,
+        }),
         version: current.version,
       });
     } catch (error) {

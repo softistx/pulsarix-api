@@ -1,6 +1,7 @@
 import type { GraphQLSchema } from "graphql";
 import { createSchema } from "graphql-yoga";
-import type { Caller, PublicIntake } from "./intake.submit";
+import { TRACKING_FILES_PATH } from "./intake.http";
+import type { Caller, PublicIntake, Submitted } from "./intake.submit";
 
 // The schema of /public/graphql: a schema of its own, apart from /graphql's, so
 // that nothing of the application can be asked through it. Three fields, run as
@@ -11,6 +12,32 @@ export const publicTypeDefs = /* GraphQL */ `
     projectName: String
     locale: String!
     enabled: Boolean!
+    "Whether to show the screenshot and file controls."
+    attachments: Boolean!
+  }
+
+  enum ReportFileRole {
+    screenshot
+    file
+  }
+
+  "A file the report will carry: its bytes follow by PUT, one ticket each."
+  input ReportFileInput {
+    role: ReportFileRole!
+    name: String!
+    "png, jpeg or webp; a PDF for a file, never for a screenshot."
+    type: String!
+    "Bytes, at most 5 MB each and 12 MB together."
+    size: Int!
+  }
+
+  type FileTicket {
+    "The file's slot: the last segment of the PUT path."
+    slot: ID!
+    role: ReportFileRole!
+    "The value of the x-pulsarix-ticket header of the PUT."
+    ticket: String!
+    expiresAt: String!
   }
 
   input MetadataEntryInput {
@@ -29,11 +56,14 @@ export const publicTypeDefs = /* GraphQL */ `
     website: String
     "How long the form was open before it was sent, in milliseconds."
     filledInMs: Int!
+    "At most 1 screenshot and 3 files."
+    files: [ReportFileInput!]
   }
 
   type SubmittedReport {
     reportId: ID!
     tracking: Boolean!
+    files: [FileTicket!]!
   }
 
   type TrackedReply {
@@ -41,11 +71,20 @@ export const publicTypeDefs = /* GraphQL */ `
     body: String!
   }
 
+  type TrackedFile {
+    id: ID!
+    role: String!
+    name: String!
+    "The path of its 256 px thumbnail (see CONTEXT.md), a picture's only; null for a PDF."
+    thumbnailUrl: String
+  }
+
   type TrackedReport {
     state: String!
     title: String!
     createdAt: String!
     replies: [TrackedReply!]!
+    files: [TrackedFile!]!
   }
 
   type Query {
@@ -70,6 +109,7 @@ export const persistedOperations = {
         projectName
         locale
         enabled
+        attachments
       }
     }
   `,
@@ -81,6 +121,12 @@ export const persistedOperations = {
       submitClientReport(publicKey: $publicKey, input: $input) {
         reportId
         tracking
+        files {
+          slot
+          role
+          ticket
+          expiresAt
+        }
       }
     }
   `,
@@ -94,6 +140,12 @@ export const persistedOperations = {
           at
           body
         }
+        files {
+          id
+          role
+          name
+          thumbnailUrl
+        }
       }
     }
   `,
@@ -104,6 +156,17 @@ export interface PublicContext {
   intake: PublicIntake;
   caller: Caller;
 }
+
+const submitted = async (pending: Promise<Submitted>) => {
+  const done = await pending;
+  return {
+    ...done,
+    files: done.files.map((file) => ({
+      ...file,
+      expiresAt: file.expiresAt.toISOString(),
+    })),
+  };
+};
 
 export function publicSchema(): GraphQLSchema {
   return createSchema<PublicContext>({
@@ -129,6 +192,14 @@ export function publicSchema(): GraphQLSchema {
               at: reply.at.toISOString(),
               body: reply.body,
             })),
+            files: tracked.files.map((file) => ({
+              id: file.id,
+              role: file.role,
+              name: file.name,
+              thumbnailUrl: file.thumbnail
+                ? `${TRACKING_FILES_PATH}/${file.id}`
+                : null,
+            })),
           };
         },
       },
@@ -140,7 +211,8 @@ export function publicSchema(): GraphQLSchema {
             input: Parameters<PublicIntake["submit"]>[1];
           },
           ctx: PublicContext,
-        ) => ctx.intake.submit(args.publicKey, args.input, ctx.caller),
+        ) =>
+          submitted(ctx.intake.submit(args.publicKey, args.input, ctx.caller)),
       },
     },
   });

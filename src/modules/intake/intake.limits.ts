@@ -56,3 +56,31 @@ export const intakeTrackingIp = defineRateLimit({
   limit: 30,
   per: 10 * MINUTE,
 });
+
+// The KiB of the files one address sends through one key (a PUT costs its
+// ticket's size in KiB, since a limit counts at most 9e12 burst x ms): a
+// report is at most 12 MB, so three reports in ten minutes.
+export const intakeUploadIpKey = defineRateLimit({
+  name: "intake.upload-ip-key",
+  key: (p: { ip: string; keyId: string }) => `${p.ip}/${p.keyId}`,
+  limit: 36 * 1024,
+  per: 10 * MINUTE,
+});
+
+// The KiB of the files one key takes, whoever sends them.
+export const intakeUploadKey = defineRateLimit({
+  name: "intake.upload-key",
+  key: (p: { keyId: string }) => p.keyId,
+  limit: 240 * 1024,
+  per: HOUR,
+});
+
+// One use per decoy ticket (a bot's, whose PUT stores nothing): the limit
+// stands in for the slot a real ticket has, so a replayed decoy is a 409 like
+// a replayed real ticket. The window is the ticket's life.
+export const intakeDecoySlot = defineRateLimit({
+  name: "intake.decoy-slot",
+  key: (p: { slot: string }) => p.slot,
+  limit: 1,
+  per: 15 * MINUTE,
+});

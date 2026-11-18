@@ -49,6 +49,8 @@ const config: CodegenConfig = {
             "@/modules/notifications/notifications.service#NotificationPage",
           WidgetKey: "@/modules/intake/intake.model#WidgetKeyDocument",
           ClientReport: "@/modules/intake/intake.model#ClientReportDocument",
+          ClientReportFile:
+            "@/modules/intake/intake.model#ClientReportFileDocument",
           ClientReportConnection: "@/modules/intake/intake.reports#ReportPage",
           TimeSpent: "@/modules/time/time.model#TimeSpentParent",
           AcceptInvitationPayload:

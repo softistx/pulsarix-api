@@ -1,8 +1,17 @@
+import type { ObjectId } from "mongodb";
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
 import { IssuesService } from "../issues/public";
-import { type KeysCore, WidgetKeysService } from "./intake.keys";
+import {
+  filePreviewUrl,
+  filesOfReport,
+  fileUrl,
+  pendingCountsOf,
+  releasedFilesOfIssue,
+} from "./intake.files.team";
+import { WidgetKeysService } from "./intake.keys";
+import { attachmentsOn } from "./intake.model";
 import { ReportsService } from "./intake.reports";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
@@ -12,8 +21,8 @@ async function keysOf(ctx: Context, fresh = false) {
   const viewer = requireViewer(ctx);
   if (fresh) ctx.services.requireFresh(viewer);
   return new WidgetKeysService(
-    (core as never as { as: (id: string) => KeysCore }).as(viewer.id),
-    mongo as never,
+    core.as(viewer.id),
+    mongo,
     tenant._id.toHexString(),
   );
 }
@@ -24,7 +33,7 @@ async function reportsOf(ctx: Context) {
   const viewerId = requireViewer(ctx).id;
   const organisationId = tenant._id.toHexString();
   return new ReportsService(
-    mongo as never,
+    mongo,
     new IssuesService(
       mongo,
       async (accountId) =>
@@ -36,12 +45,49 @@ async function reportsOf(ctx: Context) {
   );
 }
 
+// `pendingFiles` is batched per request: the reports resolved in the same
+// macrotask (a page of the inbox) share one grouped read instead of one count
+// each.
+type PendingBatch = {
+  ids: Map<string, ObjectId>;
+  counts: Promise<Map<string, number>>;
+};
+const pendingBatches = new WeakMap<Context, PendingBatch>();
+
+function pendingOf(
+  ctx: Context,
+  mongo: Parameters<typeof pendingCountsOf>[0],
+  reportId: ObjectId,
+): Promise<number> {
+  let batch = pendingBatches.get(ctx);
+  if (!batch) {
+    const ids = new Map<string, ObjectId>();
+    batch = {
+      ids,
+      counts: new Promise<void>((resolve) => setTimeout(resolve, 0)).then(
+        () => {
+          pendingBatches.delete(ctx);
+          return pendingCountsOf(mongo, [...ids.values()]);
+        },
+      ),
+    };
+    pendingBatches.set(ctx, batch);
+  }
+  const key = reportId.toHexString();
+  batch.ids.set(key, reportId);
+  return batch.counts.then((counts) => counts.get(key) ?? 0);
+}
+
 export const intakeResolvers: Resolvers = {
   Query: {
     widgetKeys: async (_, { projectId }, ctx) =>
       (await keysOf(ctx)).list(projectId),
     clientReports: async (_, { projectId, state, first, after }, ctx) =>
       (await reportsOf(ctx)).list(projectId, state, first, after),
+    issueClientReportFiles: async (_, { issueId }, ctx) => {
+      const { mongo } = await requirePermission(ctx, "attachment:read");
+      return releasedFilesOfIssue(mongo, issueId);
+    },
   },
   Mutation: {
     createWidgetKey: async (_, { input }, ctx) =>
@@ -58,9 +104,31 @@ export const intakeResolvers: Resolvers = {
   },
   WidgetKey: {
     projectId: (key) => key.projectId.toHexString(),
+    // Keys stored before v2 lack the counters (see attachmentsOn).
+    attachmentsEnabled: (key) => attachmentsOn(key),
+    uploads: (key) => key.uploads ?? 0,
+    refusals: (key) =>
+      Object.entries(key.refusals ?? {})
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
   },
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,
+    // Quarantined files are the inbox's: the field asks for the permission
+    // the report's own queries ask for, whatever parent it comes from.
+    files: async (report, _, ctx) => {
+      const { mongo } = await requirePermission(ctx, "issue:write");
+      return filesOfReport(mongo, report._id);
+    },
+    pendingFiles: async (report, _, ctx) => {
+      const { mongo } = await requirePermission(ctx, "issue:write");
+      return pendingOf(ctx, mongo, report._id);
+    },
+  },
+  ClientReportFile: {
+    reportId: (file) => file.reportId.toHexString(),
+    url: (file) => fileUrl(file),
+    previewUrl: (file) => filePreviewUrl(file),
   },
 };

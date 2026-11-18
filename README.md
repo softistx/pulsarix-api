@@ -42,6 +42,8 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 - `POST /public/graphql` is the widget's endpoint (and the tracking page's): three persisted
   operations, CORS per widget key, rate limits in Redis (503 without it), see "Public endpoint" in
   [CONTEXT.md](CONTEXT.md). Behind a proxy set `TRUSTED_PROXIES`, or every client shares one address.
+- `GET /media/report-files/<key>/<full|file|256>` is the team's read of a report file (UI server: `x-pulsarix-client`, a session, `attachment:read`; a quarantined file also needs `issue:write`, else 404).
+- `GET /public/tracking/files/<id>` is the reporter's thumbnail (UI server only: `x-pulsarix-client` and the token in `x-pulsarix-tracking`; refused when the request has an `Origin`). Keep both off the public proxy.
 - `bun run schema:print` writes `schema.graphql`, the committed contract the UI generates
   its client from.
 

@@ -6,15 +6,15 @@ registry).
 
 ## What runs
 
-| Service               | Image                        | Role                                                                                                                               |
-| --------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `mongo`               | `mongo:8.0`                  | one-node replica set, auth on (keyfile from `MONGO_KEYFILE`)                                                                       |
-| `mongo-init`          | `mongo:8.0`                  | one-shot: the app user, and the backup user when `MONGO_BACKUP_PASSWORD` is set (re-applied on every `up`)                         |
-| `redis`               | `redis:7.4`                  | password, append-only. **Required**: rate limits, the digest queue, live events; the public intake endpoint answers 503 without it |
-| `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                  |
-| `backup`              | `deploy/backup/Dockerfile`   | profile `backup`, started with `--backup`: nightly `mongodump --oplog`, offsite copy, media mirror                                 |
-| `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                    |
-| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui`;                                serves the widget's `dist` (see "The widget bundle")             |
+| Service               | Image                        | Role                                                                                                                                                           |
+| --------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mongo`               | `mongo:8.0`                  | one-node replica set, auth on (keyfile from `MONGO_KEYFILE`)                                                                                                   |
+| `mongo-init`          | `mongo:8.0`                  | one-shot: the app user, and the backup user when `MONGO_BACKUP_PASSWORD` is set (re-applied on every `up`)                                                     |
+| `redis`               | `redis:7.4`                  | password, append-only. **Required**: rate limits, the digest and report-files retention queues, live events; the public intake endpoint answers 503 without it |
+| `minio`, `minio-init` | Chainguard, pinned by digest | attachments bucket and the API's own limited user                                                                                                              |
+| `backup`              | `deploy/backup/Dockerfile`   | profile `backup`, started with `--backup`: nightly `mongodump --oplog`, offsite copy, media mirror                                                             |
+| `api`                 | root `Dockerfile`            | the GraphQL API, port 3000, on the stack network and on `proxy`                                                                                                |
+| `ui`                  | `../../pulsarix-ui`          | profile `ui`, started with `--ui`;                                serves the widget's `dist` (see "The widget bundle")                                         |
 
 No service publishes a port. Two networks: `internal`, private to the stack, holds every service;
 the external `proxy` network (nxgt-docker creates it) holds only `api` and `ui` as well, so Traefik
@@ -44,6 +44,13 @@ request that carries it (constant-time compare); any other request gets the conn
 `/public/` is exempt: the widget's browsers call it through Traefik, which cannot add the secret,
 so it keeps `TRUSTED_PROXIES` alone, or every visitor would share Traefik's address and one rate
 limit. Unset in development, only `TRUSTED_PROXIES` decides.
+
+`INTAKE_TICKET_SECRET` (optional, at least 32 characters) signs the widget's upload tickets. Unset,
+the key is derived from `API_PROXY_SECRET`, so a deployment needs nothing more; set it to rotate
+tickets apart from the proxy secret (tickets last 15 minutes, so a rotation costs at most the files
+in flight). The widget's `PUT /public/media/report-files/<slot>` goes through Traefik like the
+rest of `/public/`.
+The report-file reads (`GET /media/report-files/...`, `GET /public/tracking/files/...`) are for the UI server only: do not route them from the public proxy.
 
 ## The API image
 

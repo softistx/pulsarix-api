@@ -5,6 +5,7 @@ import { idOrInvalid } from "../../core/shared/ids";
 import type { IssuesService } from "../issues/public";
 import { projectNotFound } from "../projects/public";
 import { reportDecided, reportNotFound } from "./intake.errors";
+import { releaseFiles } from "./intake.files.team";
 import type { ClientReportDocument, ReportState } from "./intake.model";
 
 export type IntakeMongo = ModuleMongo<"intake">;
@@ -24,6 +25,11 @@ export class ReportsService {
     private readonly mongo: IntakeMongo,
     private readonly issues: IssuesService,
     private readonly viewerId: string,
+    private readonly options: {
+      // Injected by a spec; the files retention job retries a failed release.
+      release?: typeof releaseFiles;
+      log?: (message: string, error: unknown) => void;
+    } = {},
   ) {}
 
   async list(
@@ -113,6 +119,18 @@ export class ReportsService {
         clientReportId: report._id,
       });
       created = true;
+      // The files go to the issue in place (intake.files.team.ts). The report
+      // is accepted whatever happens here: a release that fails is retried by
+      // the files retention job (`releaseStranded`), not by the triager.
+      await (this.options.release ?? releaseFiles)(
+        this.mongo,
+        report._id,
+      ).catch((error) =>
+        (this.options.log ?? ((m, e) => console.warn(m, e)))(
+          "intake: releasing the files of an accepted report failed",
+          error,
+        ),
+      );
       // `issueId` was set in the issue's own transaction (intake.closing.ts).
       return await this.byId(claimed._id.toHexString());
     } catch (error) {

@@ -1,35 +1,52 @@
 import type { Address, Mailer } from "@softistx/mail";
 import { ObjectId } from "mongodb";
-import { z } from "zod";
 import type { AppTenancy, CoreMongo, ModuleMongo } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
-import { type FieldIssue, invalid } from "../../core/shared/errors";
 import type { Locale } from "../../i18n/locale";
-import { withoutMarkers } from "../comments/public";
+import { countOnKey, reasonOf } from "./intake.counters";
 import {
+  attachmentsDisabled,
   keyDisabled,
   originNotAllowed,
-  reportNotFound,
   tooFast,
   tooManyRequests,
   unavailable,
   unknownKey,
 } from "./intake.errors";
+import { type CheckedFile, checkFiles } from "./intake.files.input";
 import { trackingMail } from "./intake.mail";
 import {
+  attachmentsOn,
   type ClientReportDocument,
   PUBLIC_KEY,
-  type ReportState,
-  reportLocale,
   type WidgetKeyDocument,
 } from "./intake.model";
 import { originAllowed } from "./intake.origins";
-import { stripControl } from "./intake.text";
 import {
-  emailDigest,
-  newTrackingToken,
-  parseTrackingToken,
-} from "./intake.token";
+  decoyTickets,
+  type FileTicket,
+  reserveSlots,
+  ticketExpiry,
+} from "./intake.slots";
+import {
+  checkMetadata,
+  MIN_FILL_MS,
+  pageUrlOf,
+  refused,
+  type SubmitInput,
+  submitInput,
+} from "./intake.submit.input";
+import { stripControl } from "./intake.text";
+import { emailDigest, newTrackingToken } from "./intake.token";
+import {
+  type Tracked,
+  trackedStatus,
+  trackedThumbnail,
+} from "./intake.tracking";
+
+export type { FileTicket } from "./intake.slots";
+export { MIN_FILL_MS, type SubmitInput } from "./intake.submit.input";
+export type { Tracked, TrackedFile } from "./intake.tracking";
 
 // What the public endpoint asks of a rate limit: `consume` is the bound limit
 // of @softistx/redis (src/modules/intake/intake.limits.ts).
@@ -48,6 +65,11 @@ export interface IntakeLimits {
   intakeOrganisation: Limiter<{ organisationId: string }>;
   intakeReadIp: Limiter<{ ip: string }>;
   intakeTrackingIp: Limiter<{ ip: string }>;
+  // Bytes (the `cost` of a consume), per address and key, and per key.
+  intakeUploadIpKey: Limiter<{ ip: string; keyId: string }>;
+  intakeUploadKey: Limiter<{ keyId: string }>;
+  // One consume per decoy slot: a replayed decoy ticket is a 409 like a real one.
+  intakeDecoySlot: Limiter<{ slot: string }>;
 }
 
 export interface ReportReceived {
@@ -55,6 +77,15 @@ export interface ReportReceived {
   projectId: string;
   reportId: string;
   title: string;
+  at: string;
+}
+
+export interface ReportFileReceived {
+  organisationId: string;
+  projectId: string;
+  reportId: string;
+  fileId: string;
+  role: "screenshot" | "file";
   at: string;
 }
 
@@ -67,8 +98,12 @@ export interface IntakeDeps {
   from: Address;
   // pulsarix-ui's origin: the tracking link starts with it.
   uiOrigin: string;
+  // The secret the upload tickets are signed with (see intake.tickets.ts).
+  ticketSecret: string;
   // The live event of the team's inbox (`clientReportReceived`).
   publish: (event: ReportReceived) => Promise<void>;
+  // The live event of a file that was stored (`clientReportFileReceived`).
+  publishFile?: (event: ReportFileReceived) => Promise<void>;
   now?: () => Date;
   log?: (message: string, error: unknown) => void;
 }
@@ -88,93 +123,22 @@ export interface Caller {
 
 export type IntakeMongo = ModuleMongo<"intake">;
 
-// The fill time under which a form was not filled by a person (Q10).
-export const MIN_FILL_MS = 3_000;
-const METADATA_BYTES = 2_048;
 const KEY_TOUCH_MS = 60_000;
 
-const text = (max: number) =>
-  z
-    .string()
-    .transform((value) => stripControl(value).trim())
-    .pipe(z.string().min(1).max(max));
-
-const input = z.object({
-  title: text(200),
-  description: text(10_000),
-  email: z
-    .string()
-    .transform((value) => value.trim())
-    .pipe(z.union([z.literal(""), z.email().max(254)]))
-    .nullish(),
-  pageUrl: z.string().max(2_048).nullish(),
-  locale: reportLocale.nullish(),
-  metadata: z
-    .array(
-      z.object({
-        key: text(64),
-        value: z.string().transform(stripControl).pipe(z.string().max(512)),
-      }),
-    )
-    .max(20)
-    .nullish(),
-  website: z.string().max(1_000).nullish(),
-  filledInMs: z.number().int().min(0),
-});
-
-export type SubmitInput = z.input<typeof input>;
-
-// The zod issues as the API's field refusals.
-function refused(error: z.ZodError): never {
-  const issues: FieldIssue[] = error.issues.map((issue) => ({
-    path: issue.path.join("."),
-    code:
-      issue.code === "too_big"
-        ? "validation.errors.too-long"
-        : issue.code === "too_small"
-          ? "validation.errors.required"
-          : "validation.errors.invalid",
-    ...(issue.code === "too_big" && { params: { max: Number(issue.maximum) } }),
-  }));
-  throw invalid(issues);
-}
-
-// A page URL as http(s) without credentials, query or fragment; null for anything else.
-function pageUrlOf(given: string | null | undefined): string | null {
-  if (!given) return null;
-  try {
-    const url = new URL(given);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    url.hash = "";
-    return url.href.slice(0, 2_048);
-  } catch {
-    return null;
-  }
+export interface Submitted {
+  reportId: string;
+  // Whether a tracking link was mailed.
+  tracking: boolean;
+  files: FileTicket[];
 }
 
 export interface WidgetConfig {
   projectName: string | null;
   locale: Locale;
   enabled: boolean;
+  // Whether the widget shows its screenshot and file controls.
+  attachments: boolean;
 }
-
-export interface Submitted {
-  reportId: string;
-  // Whether a tracking link was mailed.
-  tracking: boolean;
-}
-
-export interface Tracked {
-  state: ReportState;
-  title: string;
-  createdAt: Date;
-  replies: { at: Date; body: string }[];
-}
-
-const MAX_REPLIES = 50;
 
 // The public side of the intake: the widget's three reads and writes and the
 // tracking page's. Nothing here trusts the caller. A key reads its own
@@ -184,9 +148,10 @@ const MAX_REPLIES = 50;
 export class PublicIntake {
   private readonly pending = new Set<Promise<void>>();
 
-  constructor(private readonly deps: IntakeDeps) {}
+  // `deps` is read by the uploads too (intake.uploads.ts).
+  constructor(readonly deps: IntakeDeps) {}
 
-  private now() {
+  now() {
     return this.deps.now?.() ?? new Date();
   }
 
@@ -195,7 +160,7 @@ export class PublicIntake {
     while (this.pending.size > 0) await Promise.allSettled([...this.pending]);
   }
 
-  private background(work: () => Promise<void>) {
+  background(work: () => Promise<void>) {
     const run = work().catch((error) =>
       (this.deps.log ?? ((m, e) => console.warn(m, e)))(
         "intake background work failed",
@@ -206,16 +171,21 @@ export class PublicIntake {
     void run.finally(() => this.pending.delete(run));
   }
 
-  // 429 past the limit; 503 when the limit cannot be checked at all.
-  private async limit<P>(
+  // 429 past the limit; 503 when the limit cannot be checked at all. `cost`
+  // is what the call spends (the bytes of an upload; 1 otherwise). Also the
+  // uploads' (intake.uploads.ts).
+  async limit<P>(
     pick: (limits: IntakeLimits) => Limiter<P>,
     params: P,
+    cost = 1,
   ) {
     const { limits } = this.deps;
     if (!limits) throw unavailable();
     let result: { allowed: boolean; retryAfter: number };
     try {
-      result = await pick(limits).consume(params, 1, { timeoutMs: 1_000 });
+      result = await pick(limits).consume(params, cost, {
+        timeoutMs: 1_000,
+      });
     } catch (error) {
       (this.deps.log ?? ((m, e) => console.warn(m, e)))(
         "intake rate limit unavailable",
@@ -240,7 +210,7 @@ export class PublicIntake {
     });
   }
 
-  private async keyOf(publicKey: string): Promise<WidgetKeyDocument> {
+  async keyOf(publicKey: string): Promise<WidgetKeyDocument> {
     if (!PUBLIC_KEY.test(publicKey)) throw unknownKey();
     const key = await this.deps.core.db.widgetKeys.findFirst({
       publicKey,
@@ -250,7 +220,7 @@ export class PublicIntake {
     return key;
   }
 
-  private touch(key: WidgetKeyDocument) {
+  touch(key: WidgetKeyDocument) {
     const now = this.now();
     if (
       key.lastUsedAt &&
@@ -267,7 +237,7 @@ export class PublicIntake {
 
   // The organisation's database, as the system; the key's organisation must
   // still be active.
-  private async databaseOf(key: WidgetKeyDocument): Promise<IntakeMongo> {
+  async databaseOf(key: WidgetKeyDocument): Promise<IntakeMongo> {
     const tenant = await this.deps.tenancy.resolve(
       key.organisationId.toHexString(),
     );
@@ -291,6 +261,7 @@ export class PublicIntake {
       projectName: enabled && project ? project.name : null,
       locale: caller.language,
       enabled,
+      attachments: enabled && attachmentsOn(key),
     };
   }
 
@@ -309,7 +280,7 @@ export class PublicIntake {
     await this.limit((l) => l.intakeKey, { publicKey });
     if (!key.active) throw keyDisabled();
 
-    const parsed = input.safeParse(given);
+    const parsed = submitInput.safeParse(given);
     if (!parsed.success) refused(parsed.error);
     const report = parsed.data;
     const email = report.email ? report.email : null;
@@ -320,26 +291,40 @@ export class PublicIntake {
       organisationId: key.organisationId.toHexString(),
     });
 
-    // A bot that fills the hidden field is told it worked, and nothing is kept.
+    // Every declared file is checked before anything is made (plan §17, A12);
+    // a refusal is counted on the key (A13).
+    const declaredFiles = report.files ?? [];
+    let files: CheckedFile[];
+    try {
+      if (declaredFiles.length > 0 && !attachmentsOn(key)) {
+        throw attachmentsDisabled();
+      }
+      files = checkFiles(declaredFiles);
+    } catch (error) {
+      this.countRefusal(key._id, error);
+      throw error;
+    }
+
+    // A bot that fills the hidden field is told it worked, and nothing is
+    // kept: its tickets are decoys, signed like the others, whose PUT stores
+    // nothing (and which, like a real one, can be used once).
     if (report.website) {
-      return { reportId: new ObjectId().toHexString(), tracking: !!email };
+      const reportId = new ObjectId().toHexString();
+      return {
+        reportId,
+        tracking: !!email,
+        files: decoyTickets(
+          this.deps.ticketSecret,
+          key,
+          reportId,
+          files,
+          ticketExpiry(this.now()),
+        ),
+      };
     }
     if (report.filledInMs < MIN_FILL_MS) throw tooFast();
     const metadata = report.metadata ?? [];
-    const bytes = metadata.reduce(
-      (sum, { key: k, value }) =>
-        sum + Buffer.byteLength(k) + Buffer.byteLength(value),
-      0,
-    );
-    if (bytes > METADATA_BYTES) {
-      throw invalid([
-        {
-          path: "metadata",
-          code: "validation.errors.too-long",
-          params: { max: METADATA_BYTES },
-        },
-      ]);
-    }
+    checkMetadata(metadata);
 
     const mongo = await this.databaseOf(key);
     const project = await mongo.db.projects.findById(key.projectId);
@@ -366,6 +351,14 @@ export class PublicIntake {
       erasedAt: null,
     });
     this.touch(key);
+    const tickets = await reserveSlots(
+      this.deps.ticketSecret,
+      mongo,
+      key,
+      created,
+      files,
+      ticketExpiry(this.now()),
+    );
 
     this.background(async () => {
       await this.deps.publish({
@@ -389,40 +382,36 @@ export class PublicIntake {
         });
       });
     }
-    return { reportId: created.id, tracking: !!email };
+    return { reportId: created.id, tracking: !!email, files: tickets };
   }
 
-  // The tracking page's read: the state, and the replies marked public. Nothing
-  // else of the report or its issue leaves (no author, no id, no private
-  // comment).
-  async status(token: string, ip: string): Promise<Tracked> {
-    await this.limit((l) => l.intakeTrackingIp, { ip });
-    const parsed = parseTrackingToken(token);
-    if (!parsed) throw reportNotFound();
-    const tenant = await this.deps.tenancy.resolve(parsed.organisationId);
-    if (!tenant) throw reportNotFound();
-    const mongo = (await this.deps.tenancy.databaseOf(
-      tenant.id,
-    )) as unknown as IntakeMongo;
-    const report = await mongo.db.clientReports.findFirst({
-      trackingTokenHash: parsed.hash,
-    });
-    if (!report) throw reportNotFound();
-    const replies = report.issueId
-      ? await mongo.db.comments.findMany({
-          filter: { issueId: report.issueId, public: true },
-          sort: { _id: 1 },
-          limit: MAX_REPLIES,
-        })
-      : [];
-    return {
-      state: report.state,
-      title: report.title,
-      createdAt: report.createdAt,
-      replies: replies.map((reply) => ({
-        at: reply.createdAt,
-        body: withoutMarkers(reply.body),
-      })),
-    };
+  // The tracking page's read (intake.tracking.ts).
+  status(token: string, ip: string): Promise<Tracked> {
+    return trackedStatus(this, token, ip);
+  }
+
+  // The thumbnail of one of the reporter's pictures (intake.tracking.ts).
+  thumbnailOf(token: string, fileId: string, ip: string) {
+    return trackedThumbnail(this, token, fileId, ip);
+  }
+
+  // Counts a refusal of the file traffic on the key (A13), whatever its
+  // reason is called; any error that is not one of the closed list is left
+  // alone. In the background: a counter never fails the request.
+  countRefusal(keyId: ObjectId, error: unknown) {
+    const reason = reasonOf(
+      (error as { extensions?: { code?: unknown } } | null)?.extensions?.code,
+    );
+    if (!reason) return;
+    this.background(() =>
+      countOnKey(this.deps.core.db.widgetKeys, keyId, { refusal: reason }),
+    );
+  }
+
+  // Counts a file stored on the key (A13).
+  countUpload(keyId: ObjectId) {
+    this.background(() =>
+      countOnKey(this.deps.core.db.widgetKeys, keyId, { upload: true }),
+    );
   }
 }

@@ -60,6 +60,22 @@ export const notificationReceived = defineChannel({
   onNoLocalReader: "drop",
 });
 
+// `project.intake.file`: a file of a client report was stored (A12).
+export const clientReportFileReceived = defineChannel({
+  name: "project.intake.file",
+  schema: z.object({
+    organisationId: z.string(),
+    projectId: z.string(),
+    reportId: z.string(),
+    fileId: z.string(),
+    role: z.enum(["screenshot", "file"]),
+    at: z.string(),
+  }),
+  key: (event) => `${event.organisationId}:${event.projectId}`,
+  fallback: "local",
+  onNoLocalReader: "drop",
+});
+
 // `project.intake`: a new client report (published by the intake slice).
 export const clientReportReceived = defineChannel({
   name: "project.intake",

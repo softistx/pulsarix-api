@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { uiOrigin } from "~/auth";
 import {
+  asPreV2Key,
   codeOfBody,
   countingLimits,
   goodReport,
@@ -36,11 +37,23 @@ describe("a key reads nothing but its own config", () => {
     const { response, body } = await kit.config({ "accept-language": "fr" });
     expect(response.status).toBe(200);
     expect(body?.data).toEqual({
-      widgetConfig: { projectName: "Alpha", locale: "fr", enabled: true },
+      widgetConfig: {
+        projectName: "Alpha",
+        locale: "fr",
+        enabled: true,
+        attachments: true,
+      },
     });
     expect(response.headers.get("access-control-allow-origin")).toBe(kit.site);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+  });
+
+  test("a key stored before v2 (no file fields) still has attachments on", async () => {
+    const kit = await intakeKit();
+    await asPreV2Key(kit);
+    const { body } = await kit.config();
+    expect(body?.data).toMatchObject({ widgetConfig: { attachments: true } });
   });
 
   test("another project's key names that project, never this one", async () => {
@@ -126,7 +139,12 @@ describe("a key reads nothing but its own config", () => {
     );
     const { body } = await kit.config();
     expect(body?.data).toEqual({
-      widgetConfig: { projectName: null, locale: "en", enabled: false },
+      widgetConfig: {
+        projectName: null,
+        locale: "en",
+        enabled: false,
+        attachments: false,
+      },
     });
     const refused = await kit.submit();
     expect(codeOfBody(refused.body)).toBe("intake.errors.key-disabled");

@@ -238,12 +238,24 @@ type ClientReport {
   """
   email: String
   erasedAt: DateTime
+  """
+  The files the reader attached, oldest first (the ones whose bytes arrived).
+  Needs `issue:write`, like the report: while a file is quarantined only
+  those who triage read it.
+  """
+  files: [ClientReportFile!]!
   id: ID!
   """The issue an acceptance made."""
   issueId: ID
   locale: String!
   metadata: [ClientReportMetadata!]!
   pageUrl: String
+  """
+  How many of the attached files are not stored yet: the upload is still
+  expected (the slot is reserved and has not expired). Needs
+  `issue:write`, like `files`.
+  """
+  pendingFiles: Int!
   projectId: ID!
   state: ClientReportState!
   title: String!
@@ -262,6 +274,58 @@ type ClientReportEvent {
   at: DateTime!
   reportId: ID!
   title: String!
+}
+
+"""
+A file a reader attached to a report. The bytes are served by the media
+routes (`url`, `previewUrl`), through the UI server only: `GET` with the
+Bearer token and the organisation header. A picture's `url` is its whole
+picture (WebP, at most 2560 px; the upload itself is never kept); a PDF's is
+the PDF, served as a download. Its name and its content come from a stranger.
+"""
+type ClientReportFile {
+  createdAt: DateTime!
+  fileName: String!
+  height: Int
+  id: ID!
+  mime: String!
+  """
+  A 256 px square thumbnail (WebP); null for a PDF that could not be drawn.
+  """
+  previewUrl: String
+  reportId: ID!
+  role: ClientReportFileRole!
+  """Bytes of the upload."""
+  size: Int!
+  state: ClientReportFileState!
+  """The file, relative to the API."""
+  url: String!
+  """Pixels, for a picture; null for a PDF."""
+  width: Int
+}
+
+"""
+A file of a client report was stored: the report's pending slot is now quarantined.
+"""
+type ClientReportFileEvent {
+  at: DateTime!
+  fileId: ID!
+  reportId: ID!
+  role: String!
+}
+
+enum ClientReportFileRole {
+  file
+  screenshot
+}
+
+"""
+Where a stored file stands: `quarantined` (readable by those who triage only)
+or `released` (its report was accepted: readable by readers of the issue).
+"""
+enum ClientReportFileState {
+  quarantined
+  released
 }
 
 type ClientReportMetadata {
@@ -360,6 +424,8 @@ input CreateStatusInput {
 
 input CreateWidgetKeyInput {
   allowedOrigins: [String!]! @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  """Default true."""
+  attachmentsEnabled: Boolean
   label: String! @constraint(minLength: 1, maxLength: 100)
   projectId: ID!
 }
@@ -682,7 +748,7 @@ type Member {
 type Mutation {
   """
   Accepts a new report: an issue is made from it in the project's Triage
-  status, linked both ways. Needs `issue:write`. 409
+  status, linked both ways, and its files are released to the issue. Needs `issue:write`. 409
   `intake.errors.report-decided`; 404 `intake.errors.not-found`.
   """
   acceptClientReport(id: ID!): ClientReport!
@@ -797,7 +863,8 @@ type Mutation {
   createWidgetKey(input: CreateWidgetKeyInput!): WidgetKey!
   """
   Declines a new report with a reason (kept for the team; the reporter sees
-  only the state). Needs `issue:write`. 409 `intake.errors.report-decided`.
+  only the state). Its files stay quarantined until the purge (7 days after
+  the decision). Needs `issue:write`. 409 `intake.errors.report-decided`.
   """
   declineClientReport(id: ID!, reason: String! @constraint(minLength: 1, maxLength: 1000)): ClientReport!
   """
@@ -1258,6 +1325,14 @@ type Query {
   """
   issueAttachments(issueId: ID!): [Attachment!]!
   """
+  The files released to an issue from its client report (the report was
+  accepted), oldest first: show them as "from the client report", apart from
+  the issue's own attachments (they are not counted in the 20 per owner and
+  are not copied). Empty for an issue that came from no report. Needs
+  `attachment:read`. 404 `issues.errors.not-found`.
+  """
+  issueClientReportFiles(issueId: ID!): [ClientReportFile!]!
+  """
   The issues of a project, paged by cursor (`first` 1 to 100, default 50;
   default sort `number` ascending). Needs `issue:read`. 400
   `validation.errors.invalid-input` on `projectId`, `first` or `after`.
@@ -1497,6 +1572,10 @@ an hour; the client reconnects and refetches.
 """
 type Subscription {
   """
+  A file of a client report of a project was stored. Needs `issue:write`; 404 `projects.errors.not-found`.
+  """
+  clientReportFileReceived(projectId: ID!): ClientReportFileEvent!
+  """
   New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
   """
   clientReportReceived(projectId: ID!): ClientReportEvent!
@@ -1645,6 +1724,7 @@ input UpdateViewerInput {
 input UpdateWidgetKeyInput {
   active: Boolean
   allowedOrigins: [String!] @constraint(minItems: 1, maxItems: 20, maxLength: 200)
+  attachmentsEnabled: Boolean
   label: String @constraint(minLength: 1, maxLength: 100)
 }
 
@@ -1694,6 +1774,10 @@ type WidgetKey {
   The sites (`https://host[:port]`) allowed to use it; the public endpoint answers CORS for these only.
   """
   allowedOrigins: [String!]!
+  """
+  On by default. Off, the widget hides its screenshot and file controls and the key takes no file.
+  """
+  attachmentsEnabled: Boolean!
   createdAt: DateTime!
   id: ID!
   label: String!
@@ -1702,7 +1786,25 @@ type WidgetKey {
   projectId: ID!
   """`pk_live_` and 32 characters: the value of `data-project-key`."""
   publicKey: String!
+  """File refusals through this key, by reason, the most frequent first."""
+  refusals: [WidgetKeyRefusal!]!
   updatedAt: DateTime!
+  """
+  Files stored through this key (the quarantined or released ones the widget sent), ever.
+  """
+  uploads: Int!
+}
+
+"""
+How many times the key's file traffic was refused for one reason. `reason` is
+the slug of an `intake.errors.` code: `attachments-disabled`, `too-many-files`,
+`files-too-large`, `file-unsupported-type`, `file-undecodable`, `file-too-large`,
+`file-too-many-pixels`, `quarantine-full`, `ticket-invalid`, `ticket-expired`,
+`ticket-used`, `upload-mismatch`, `too-many-requests`.
+"""
+type WidgetKeyRefusal {
+  count: Int!
+  reason: String!
 }
 
 """An xid: 20 characters of lowercase base32hex."""

@@ -1,13 +1,15 @@
 import type { MediaBucket } from "@alxia/media";
 import { mediaPlace } from "@alxia/media";
-import { bindBucket, defineBucket } from "@softistx/s3";
+import { type BoundBucket, bindBucket, defineBucket } from "@softistx/s3";
 import { kindName, previewSize } from "./attachments.kinds";
 
 // The one private bucket the files live in. The layout of a key
 // (`organisations/<id>/attachments/<key>[/<size>.webp]`) is @alxia/media's,
 // given the tenant prefix of attachments.routes.ts.
+// `list` is for the sweeps by prefix (an organisation's whole folder); the
+// routes need only what MediaBucket names.
 export interface Media {
-  bucket: MediaBucket;
+  bucket: MediaBucket & Pick<BoundBucket<{ key: string }>, "list">;
 }
 
 export interface MediaOptions {
