@@ -6,7 +6,7 @@ import { addressKey } from "../../core/shared/address";
 import { localeOfRequest } from "../../i18n/locale";
 import type { Media } from "../attachments/public";
 import { originNotAllowed, unavailable } from "./intake.errors";
-import { dimensionsOf, maxFileBytes } from "./intake.files.kinds";
+import { maxFileBytes } from "./intake.files.kinds";
 import { reportFilesRoutes } from "./intake.files.routes";
 import { answerOf, corsHeaders, respond, secure } from "./intake.http";
 import { normaliseOrigin } from "./intake.origins";
@@ -136,7 +136,14 @@ function mediaStore(
       uploaded: async (stored, { request }: MediaContext<object>) => {
         const admission = admitted.get(request);
         if (!admission) throw new Error("no admission for this upload");
-        await uploads.store(admission, stored, dimensionsOf(request));
+        const full = stored.renditions.find((r) => r.size === "full");
+        await uploads.store(
+          admission,
+          stored,
+          full?.width && full.height
+            ? { width: full.width, height: full.height }
+            : undefined,
+        );
         return { slot: admission.claims.slot, state: "received" };
       },
     }),

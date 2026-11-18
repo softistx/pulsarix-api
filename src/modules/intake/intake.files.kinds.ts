@@ -50,45 +50,13 @@ const images = withImageRendition({
   maxPixels: maxFilePixels,
 });
 
-// Temporary, until @alxia/media#833
-// The pixel size of each picture just made, by the upload's request, for the
-// route's `uploaded` hook (`dimensionsOf`). A WeakMap: it dies with the request.
-const dimensions = new WeakMap<Request, { width: number; height: number }>();
-export const dimensionsOf = (request: Request) => dimensions.get(request);
-
-// Temporary, until @alxia/media#833
-// The size of a WebP (the format of every rendition) from its header: lossy
-// (VP8), lossless (VP8L) or extended (VP8X).
-export function webpSize(bytes: Uint8Array) {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const fourcc = new TextDecoder().decode(bytes.subarray(12, 16));
-  if (fourcc === "VP8X") {
-    const at = (offset: number) =>
-      (bytes[offset] ?? 0) |
-      ((bytes[offset + 1] ?? 0) << 8) |
-      ((bytes[offset + 2] ?? 0) << 16);
-    return { width: at(24) + 1, height: at(27) + 1 };
-  }
-  if (fourcc === "VP8L") {
-    const bits = view.getUint32(21, true);
-    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
-  }
-  return {
-    width: view.getUint16(26, true) & 0x3fff,
-    height: view.getUint16(28, true) & 0x3fff,
-  };
-}
-
 // A picture becomes its `full` and `256` renditions (keepOriginal is false: the
 // upload, EXIF and GPS data included, is never stored). A PDF is kept as it is
 // (`keepOriginal`), beside the `256` preview of its first page made here; a PDF
 // that cannot be drawn (damaged, encrypted) is stored with no preview.
 const make = async (file: MediaFile): Promise<readonly MediaRendition[]> => {
   if (file.contentType !== "application/pdf") {
-    const made = await images.renditions.make(file);
-    const full = made.find((rendition) => rendition.size === "full");
-    if (full) dimensions.set(file.request, webpSize(full.bytes));
-    return made;
+    return images.renditions.make(file);
   }
   try {
     const page = await renderPdfFirstPage(file.bytes, {

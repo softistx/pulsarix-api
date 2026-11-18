@@ -1,4 +1,8 @@
-import { type MediaContext, mediaRoutes } from "@alxia/media";
+import {
+  type MediaContext,
+  type MediaUploaded,
+  mediaRoutes,
+} from "@alxia/media";
 import type { GraphQLError } from "graphql";
 import type { Media } from "../attachments/public";
 import {
@@ -18,12 +22,7 @@ export interface ReportFilesRoutesOptions<Requires extends object>
   // The record is made here, once the renditions are stored; if it throws, the
   // objects are removed.
   uploaded: (
-    stored: {
-      key: string;
-      contentType: string;
-      size: number;
-      sizes: readonly string[];
-    },
+    stored: MediaUploaded,
     ctx: MediaContext<Requires>,
   ) => unknown | Promise<unknown>;
   // The URL prefix of the PUT and GET routes.
