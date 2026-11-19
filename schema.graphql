@@ -112,6 +112,8 @@ type ActivityConnection {
 }
 
 enum ActivityVerb {
+  """A reporter wrote in the thread of one of the issue's client reports."""
+  clientReplied
   commentDeleted
   commentEdited
   commented
@@ -227,6 +229,10 @@ A report a reader sent through the widget. Everything in it is text from a
 stranger: show it as plain text, never as markup or links.
 """
 type ClientReport {
+  """
+  True while the reporter wrote last in the request thread and the team has not replied publicly since.
+  """
+  clientWaiting: Boolean!
   closedAt: DateTime
   createdAt: DateTime!
   decidedAt: DateTime
@@ -311,6 +317,8 @@ type ClientReportFile {
   fileName: String!
   height: Int
   id: ID!
+  """The reporter's message a `reply` file belongs to; null for the others."""
+  messageId: ID
   mime: String!
   """
   A 256 px square thumbnail (WebP); null for a PDF that could not be drawn.
@@ -339,6 +347,8 @@ type ClientReportFileEvent {
 
 enum ClientReportFileRole {
   file
+  """Sent by the reporter in a reply of their request thread."""
+  reply
   screenshot
 }
 
@@ -358,6 +368,13 @@ enum ClientReportImpact {
   annoying
   blocking
   minor
+}
+
+"""A reporter wrote in the thread of a client report."""
+type ClientReportMessageEvent {
+  at: DateTime!
+  messageId: ID!
+  reportId: ID!
 }
 
 type ClientReportMetadata {
@@ -387,7 +404,8 @@ the mention input; `mentionIds` are the members they name, checked by the
 server.
 """
 type Comment {
-  authorId: ID!
+  """The member who wrote it; null for a `CLIENT` entry."""
+  authorId: ID
   body: String!
   createdAt: DateTime!
   """When the body or the flag was last changed; null if never."""
@@ -396,8 +414,22 @@ type Comment {
   issueId: ID!
   """The members the body mentions, in order of appearance."""
   mentionIds: [ID!]!
-  """A reply the tracking page of a client report shows."""
+  """
+  A reply the tracking page of a client report shows. Never true for a `CLIENT` entry.
+  """
   public: Boolean!
+  """
+  The client report a `CLIENT` entry belongs to; null for a team comment.
+  """
+  reportId: ID
+  """The reporter's name, when they gave one; null for a team comment."""
+  reporterName: String
+  """
+  Where the entry comes from. `CLIENT` entries are what a reporter wrote in
+  their request thread, merged in read only (not stored as comments): no
+  mutation changes them, and they are never `public`.
+  """
+  source: CommentSource!
   updatedAt: DateTime!
 }
 
@@ -406,6 +438,11 @@ type CommentConnection {
   endCursor: String
   hasNextPage: Boolean!
   nodes: [Comment!]!
+}
+
+enum CommentSource {
+  CLIENT
+  TEAM
 }
 
 """An ISO 3166-1 alpha-2 country code, such as FR."""
@@ -574,6 +611,11 @@ type Issue {
   assigneeId: ID
   """The client report it was accepted from, if any."""
   clientReportId: ID
+  """
+  A reporter wrote last on one of its client reports and no public reply has
+  answered since: the "client reply" indicator.
+  """
+  clientWaiting: Boolean!
   createdAt: DateTime!
   """Rich text, as the client wrote it."""
   description: String!
@@ -640,6 +682,10 @@ input IssueFilter {
   assigneeId: ID
   """The issues whose status has one of these categories."""
   categories: [StatusCategory!]
+  """
+  Only the issues a reporter wrote last on and no public reply has answered.
+  """
+  clientWaiting: Boolean
   """Due on or after (for a calendar's range)."""
   dueAfter: DateTime
   dueBefore: DateTime
@@ -1251,6 +1297,10 @@ type NotificationEvent {
 enum NotificationKind {
   """An issue was assigned to the viewer."""
   assigned
+  """
+  A reporter wrote in the thread of a client report of an issue the viewer is assigned or watches.
+  """
+  clientReplied
   """The viewer was mentioned in a comment."""
   mention
   """An issue the viewer watches changed or was commented."""
@@ -1391,7 +1441,8 @@ type Query {
   clientReports(after: String, first: Int = 50, projectId: ID!, state: ClientReportState): ClientReportConnection!
   """
   The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
-  default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
+  default 50), with the messages of the issue's client reports merged in as
+  `CLIENT` entries. Needs `comment:read`. 404 `issues.errors.not-found`.
   """
   comments(after: String, first: Int = 50, issueId: ID!): CommentConnection!
   """
@@ -1663,6 +1714,10 @@ type Subscription {
   A file of a client report of a project was stored. Needs `issue:write`; 404 `projects.errors.not-found`.
   """
   clientReportFileReceived(projectId: ID!): ClientReportFileEvent!
+  """
+  A reporter wrote in the thread of a client report of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
+  """
+  clientReportMessageReceived(projectId: ID!): ClientReportMessageEvent!
   """
   New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
   """

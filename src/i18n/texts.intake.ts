@@ -46,6 +46,8 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.file-not-found": "This file does not exist.",
     "intake.errors.identity-invalid":
       "Your identity could not be confirmed. Sign in again and retry.",
+    "intake.errors.request-declined":
+      "This request was declined: it can no longer be answered.",
   },
   fr: {
     "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",
@@ -92,5 +94,7 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.file-not-found": "Ce fichier n'existe pas.",
     "intake.errors.identity-invalid":
       "Votre identité n'a pas pu être confirmée. Reconnectez-vous et réessayez.",
+    "intake.errors.request-declined":
+      "Cette demande a été refusée : on ne peut plus y répondre.",
   },
 };

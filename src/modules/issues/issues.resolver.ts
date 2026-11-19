@@ -62,6 +62,8 @@ export const issuesResolvers: Resolvers = {
     labelIds: (issue) => issue.labelIds.map((id) => id.toHexString()),
     parentId: (issue) => issue.parentId?.toHexString() ?? null,
     clientReportId: (issue) => issue.clientReportId?.toHexString() ?? null,
+    // Issues stored before widget v3 lack the flag.
+    clientWaiting: (issue) => issue.clientWaiting === true,
     watching: (issue, _, ctx) =>
       issue.watcherIds.includes(requireViewer(ctx).id),
   },

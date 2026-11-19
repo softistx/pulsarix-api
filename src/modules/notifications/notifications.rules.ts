@@ -16,6 +16,7 @@ export interface NotifyEvent {
 const strength: Record<NotificationKind, number> = {
   mention: 3,
   assigned: 2,
+  clientReplied: 2,
   watchedChange: 1,
 };
 
@@ -26,6 +27,8 @@ const strength: Record<NotificationKind, number> = {
 // - an edited comment: its mentions only (the row dedupes the ones already told);
 // - an issue created or changed: the assignee when it is a new one, then the
 //   watchers of a change or a move;
+// - a reporter's message in a request thread: the assignee and the watchers,
+//   as `clientReplied`;
 // - a deleted issue or comment: nobody.
 export function recipientsOf(
   event: NotifyEvent,
@@ -53,6 +56,10 @@ export function recipientsOf(
         tell(event.assigneeId, "assigned");
       }
       for (const id of event.watcherIds) tell(id, "watchedChange");
+      break;
+    case "clientReplied":
+      tell(event.assigneeId, "clientReplied");
+      for (const id of event.watcherIds) tell(id, "clientReplied");
       break;
     default:
       break;

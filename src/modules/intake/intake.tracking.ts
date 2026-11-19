@@ -79,7 +79,12 @@ export async function trackedStatus(
       })
     : [];
   const files = await mongo.db.clientReportFiles.findMany({
-    filter: { reportId: report._id, state: { $in: STORED } },
+    // A reply's files belong to the thread, not to the report's own list.
+    filter: {
+      reportId: report._id,
+      state: { $in: STORED },
+      role: { $ne: "reply" },
+    },
     sort: { _id: 1 },
   });
   return {

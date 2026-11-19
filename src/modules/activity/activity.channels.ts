@@ -76,6 +76,21 @@ export const clientReportFileReceived = defineChannel({
   onNoLocalReader: "drop",
 });
 
+// `project.intake.message`: a reporter wrote in the thread of a request (A16).
+export const clientReportMessageReceived = defineChannel({
+  name: "project.intake.message",
+  schema: z.object({
+    organisationId: z.string(),
+    projectId: z.string(),
+    reportId: z.string(),
+    messageId: z.string(),
+    at: z.string(),
+  }),
+  key: (event) => `${event.organisationId}:${event.projectId}`,
+  fallback: "local",
+  onNoLocalReader: "drop",
+});
+
 // `project.intake`: a new client report (published by the intake slice).
 export const clientReportReceived = defineChannel({
   name: "project.intake",

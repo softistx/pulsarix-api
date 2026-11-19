@@ -121,3 +121,21 @@ export const openClientReportFiles = async (
     holds,
   );
 };
+
+// The messages of those reports' threads, for the same people.
+export const openClientReportMessages = async (
+  ctx: Context,
+  projectId: string,
+) => {
+  const { mongo, organisationId, holds } = await open(ctx, "issue:write");
+  const project = idOrInvalid(projectId, "projectId");
+  if (!(await mongo.db.projects.exists({ _id: project }))) {
+    throw projectNotFound();
+  }
+  return bounded(
+    realtime.channels.clientReportMessageReceived.stream(
+      `${organisationId}:${project.toHexString()}`,
+    ),
+    holds,
+  );
+};

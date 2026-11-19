@@ -126,6 +126,7 @@ export const intakeResolvers: Resolvers = {
     type: (report) => report.type ?? null,
     declineReasonPublic: (report) => report.declineReasonPublic === true,
     linkedAt: (report) => report.linkedAt ?? null,
+    clientWaiting: (report) => report.clientWaiting === true,
     publicState: async (report, _, ctx) => {
       const { mongo } = await requirePermission(ctx, "issue:write");
       return publicStateOf(mongo, report);

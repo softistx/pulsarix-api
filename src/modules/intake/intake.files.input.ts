@@ -8,7 +8,7 @@ import {
   tooManyFiles,
 } from "./intake.errors";
 import { acceptedFileTypes, maxFileBytes } from "./intake.files.kinds";
-import { reportFileRole } from "./intake.model";
+import { declaredFileRole } from "./intake.model";
 import { stripControl } from "./intake.text";
 
 // What one report may carry (plan §17, A12): one screenshot and three files,
@@ -20,7 +20,7 @@ export const MAX_FILES = MAX_SCREENSHOTS + MAX_ATTACHED;
 export const MAX_FILES_BYTES = 12 * 1024 * 1024;
 
 const declared = z.object({
-  role: reportFileRole,
+  role: declaredFileRole,
   name: z
     .string()
     .transform((value) => stripControl(value).trim())
@@ -31,7 +31,7 @@ const declared = z.object({
 export type DeclaredFile = z.input<typeof declared>;
 
 export interface CheckedFile {
-  role: z.infer<typeof reportFileRole>;
+  role: z.infer<typeof declaredFileRole>;
   // The name as a file name: no folder, at most 200 characters.
   name: string;
   type: (typeof acceptedFileTypes)[number];

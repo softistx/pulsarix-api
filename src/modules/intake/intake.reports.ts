@@ -13,6 +13,7 @@ import { reportDecided, reportNotFound } from "./intake.errors";
 import { releaseFiles } from "./intake.files.team";
 import type { ClientReportDocument, ReportState } from "./intake.model";
 import { prefillOf } from "./intake.prefill";
+import { refreshIssueWaiting } from "./intake.waiting";
 
 export type IntakeMongo = ModuleMongo<"intake">;
 
@@ -198,6 +199,13 @@ export class ReportsService {
         state: "closed",
         closedAt: new Date(),
       });
+    }
+    // A reporter who is waiting makes the issue wait.
+    if (report.clientWaiting === true) {
+      await refreshIssueWaiting(
+        this.mongo as unknown as Parameters<typeof refreshIssueWaiting>[0],
+        issue._id,
+      );
     }
     await (this.options.release ?? releaseFiles)(this.mongo, report._id).catch(
       (error) =>

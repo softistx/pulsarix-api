@@ -239,7 +239,8 @@ export class ReportUploads {
     const { intake } = this;
     intake.countUpload(new ObjectId(claims.keyId));
     const publish = intake.deps.publishFile;
-    if (publish && admission.role) {
+    // A reply's file reaches the team with its message, not as an inbox file.
+    if (publish && admission.role && admission.role !== "reply") {
       const role = admission.role;
       intake.background(async () => {
         await publish({

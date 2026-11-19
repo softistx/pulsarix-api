@@ -3,7 +3,10 @@ import { ObjectId } from "mongodb";
 import { codeOf } from "~/http";
 import { goodReport, type IntakeKit, intakeKit } from "~/intake";
 import { tenancy } from "../../config/db";
+import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { derivePublicState } from "./intake.publicstate";
+import { ReportsService } from "./intake.reports";
+import type { IntakeMongo } from "./intake.submit";
 
 // A15: public states, links, impact and type (plan §19).
 const Statuses = `query($key: String!) {
@@ -436,6 +439,55 @@ describe("linkClientReport", () => {
     }>(Link, { id: dup, issueId });
     expect(linkClientReport.publicState).toBe("resolved");
     expect((await reportOf(kit, dup)).state).toBe("closed");
+  });
+
+  test("link() reads the issue again after the claim: one that settles meanwhile closes the report", async () => {
+    const kit = await intakeKit();
+    const first = await send(kit);
+    const issueId = (await accept(kit, first)).acceptClientReport
+      .issueId as string;
+    const { statuses } = await statusesOf(kit);
+    const done = named(statuses, "Done").id;
+    const dup = await send(kit);
+    const real = (await tenancy.databaseOf(kit.organisation.id)).as(
+      SYSTEM_ACTOR,
+    ) as unknown as IntakeMongo;
+    // The issue is settled right after the claim commits, by a write the
+    // claim could not see (no change hook runs for it): only a re-read finds it.
+    const reports = real.db.clientReports;
+    const claimed = new Proxy(reports, {
+      get(target, property) {
+        if (property !== "update") {
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        }
+        return async (...given: Parameters<typeof reports.update>) => {
+          const result = await reports.update(...given);
+          if ((given[1] as { state?: string }).state === "accepted") {
+            await real.db.issues.raw.updateOne(
+              { _id: new ObjectId(issueId) },
+              { $set: { statusId: new ObjectId(done) } },
+            );
+          }
+          return result;
+        };
+      },
+    });
+    const mongo = new Proxy(real, {
+      get(target, property) {
+        if (property === "db") {
+          return new Proxy(target.db, {
+            get: (db, name) =>
+              name === "clientReports" ? claimed : Reflect.get(db, name, db),
+          });
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const service = new ReportsService(mongo, null as never, SYSTEM_ACTOR);
+    const linked = await service.link(dup, issueId);
+    expect(linked.state).toBe("closed");
   });
 
   test("only a new report links, to an issue of its own project", async () => {

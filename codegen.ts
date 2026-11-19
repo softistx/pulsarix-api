@@ -36,7 +36,7 @@ const config: CodegenConfig = {
           Label: "@/modules/projects/projects.model#LabelDocument",
           Issue: "@/modules/issues/issues.model#IssueDocument",
           IssueConnection: "@/modules/issues/issues.query#IssuePage",
-          Comment: "@/modules/comments/comments.model#CommentDocument",
+          Comment: "@/modules/comments/comments.sources#CommentEntry",
           CommentConnection: "@/modules/comments/comments.service#CommentPage",
           Attachment:
             "@/modules/attachments/attachments.model#AttachmentDocument",
