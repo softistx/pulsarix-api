@@ -97,12 +97,11 @@ describe("deploySteps", () => {
   const names = (steps: ReturnType<typeof deploySteps>) =>
     steps.map((s) => s.name);
 
-  test("check, network, pull, token, build, up, status, in that order", () => {
+  test("check, network, pull, build, up, status, in that order", () => {
     expect(names(deploySteps(input))).toEqual([
       "check",
       "network",
       "pull",
-      "token",
       "build",
       "up",
       "status",
@@ -180,9 +179,7 @@ describe("deploySteps", () => {
 
   test("renders one numbered line per step, a command under its step", () => {
     const text = renderPlan(deploySteps(input));
-    expect(text.split("\n").filter((l) => /^\s+\d+\./.test(l))).toHaveLength(
-      10,
-    );
+    expect(text.split("\n").filter((l) => /^\s+\d+\./.test(l))).toHaveLength(9);
     expect(text).toContain("$ git -C /srv/pulsarix-api pull --ff-only");
   });
 });

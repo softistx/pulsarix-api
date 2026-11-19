@@ -123,11 +123,6 @@ export function deploySteps(input: {
   }
   steps.push(
     {
-      name: "token",
-      detail:
-        "the npm.softistx.com read token for the image build, from $NPM_REGISTRY_TOKEN or ~/.config/pulsarix/npm-registry-token",
-    },
-    {
       name: "build",
       detail: `${namePrefix}pulsarix-api (its Dockerfile renders a PDF preview, so a missing native binary fails here), ${options.backup ? "backup, " : ""}minio-init${options.ui ? ", ui" : ""}`,
       command: `${compose}${profile} build`,
