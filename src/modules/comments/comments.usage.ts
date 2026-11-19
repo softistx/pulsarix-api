@@ -8,6 +8,8 @@ import type { CommentDocument } from "./comments.model";
 export interface CommentChange {
   verb: "commented" | "commentEdited" | "commentDeleted";
   comment: CommentDocument;
+  // For an edit: the comment as it was before it.
+  previous?: CommentDocument;
   actorId: string;
   organisationId: string;
 }

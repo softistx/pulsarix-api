@@ -6,6 +6,8 @@ import { tenancy } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { LIVE_REQUESTS_PATH } from "./intake.http";
 import { IDENTITY_HEADER } from "./intake.identity";
+import { eraseMyData } from "./intake.requests";
+import { streamTiming } from "./intake.requests.routes";
 import type { IntakeMongo } from "./intake.submit";
 
 // A17: the public request endpoints and the live stream (plan §19).
@@ -450,6 +452,33 @@ describe("delete my data", () => {
   });
 });
 
+describe("delete my data, when it fails", () => {
+  test("a failed erasure does not spend the hour", async () => {
+    const w = await world();
+    await w.file("ada");
+    const session = {
+      key: w.kit.key,
+      reporter: { keyId: new ObjectId(w.kit.key.id), reporterKey: "ada" },
+      mongo: {
+        db: {
+          clientReports: {
+            findMany: async () => {
+              throw new Error("database down");
+            },
+          },
+        },
+      },
+    };
+    await expect(eraseMyData(w.kit.intake, session as never)).rejects.toThrow(
+      "database down",
+    );
+    // Retried at once: the failed run spent nothing.
+    const retry = await w.as("ada", "eraseMyData", {});
+    expect(retry.response.status).toBe(200);
+    expect(retry.body?.data?.["eraseMyData"]).toEqual({ requests: 1 });
+  });
+});
+
 describe("rate limits", () => {
   test("replies are capped per reporter, reads per reporter", async () => {
     const w = await world();
@@ -540,6 +569,38 @@ describe("the live stream", () => {
     await bob.close();
   });
 
+  test("withdrawing or deleting a public reply reaches the stream", async () => {
+    const w = await world();
+    const a = await w.file("ada");
+    const issueId = await w.accept(a);
+    const ada = await w.stream("ada");
+    await ada.next("unread");
+    const add = async (body: string) =>
+      (
+        await w.kit.asOwner.call<{ addComment: { id: string } }>(AddComment, {
+          issueId,
+          input: { body, public: true },
+        })
+      ).addComment.id;
+    const first = await add("One");
+    await ada.next("request.updated");
+    await ada.next("unread");
+    await w.kit.asOwner.call(
+      `mutation($id: ID!, $input: EditCommentInput!) { editComment(id: $id, input: $input) { id } }`,
+      { id: first, input: { public: false } },
+    );
+    expect(await ada.next("request.updated")).toMatchObject({ id: a });
+    await ada.next("unread");
+    const second = await add("Two");
+    await ada.next("request.updated");
+    await ada.next("unread");
+    await w.kit.asOwner.call(`mutation($id: ID!) { deleteComment(id: $id) }`, {
+      id: second,
+    });
+    expect(await ada.next("request.updated")).toMatchObject({ id: a });
+    await ada.close();
+  });
+
   test("a decision by the team reaches the stream", async () => {
     const w = await world();
     const a = await w.file("ada");
@@ -560,6 +621,67 @@ describe("the live stream", () => {
     expect(await ada.untilEnd(5_000)).toBe(true);
     expect(ada.events.some((e) => e.event === "expired")).toBe(true);
     await ada.close();
+  });
+
+  test("a revoked key or a rotated identity secret closes an open stream", async () => {
+    const before = streamTiming.recheckMs;
+    streamTiming.recheckMs = 40;
+    try {
+      const w = await world();
+      const rotated = await w.stream("ada");
+      expect(rotated.response.status).toBe(200);
+      await rotated.next("unread");
+      await w.kit.asOwner.call(Generate, { keyId: w.kit.key.id });
+      expect(await rotated.untilEnd(2_000)).toBe(true);
+      expect(rotated.events.some((e) => e.event === "expired")).toBe(true);
+      await rotated.close();
+
+      const w2 = await world();
+      const revoked = await w2.stream("ada");
+      expect(revoked.response.status).toBe(200);
+      await revoked.next("unread");
+      await w2.kit.asOwner.call(
+        `mutation($id: ID!) { revokeWidgetKey(id: $id) }`,
+        { id: w2.kit.key.id },
+      );
+      expect(await revoked.untilEnd(2_000)).toBe(true);
+      expect(revoked.events.some((e) => e.event === "expired")).toBe(true);
+      await revoked.close();
+    } finally {
+      streamTiming.recheckMs = before;
+    }
+  });
+
+  test("a recheck that throws keeps the stream open", async () => {
+    const before = streamTiming.recheckMs;
+    streamTiming.recheckMs = 30;
+    const w = await world();
+    const real = w.kit.intake.keyOf.bind(w.kit.intake);
+    let fail = true;
+    let calls = 0;
+    w.kit.intake.keyOf = async (publicKey: string) => {
+      if (fail) {
+        calls += 1;
+        throw new Error("database blip");
+      }
+      return real(publicKey);
+    };
+    try {
+      fail = false;
+      const ada = await w.stream("ada");
+      expect(ada.response.status).toBe(200);
+      await ada.next("unread");
+      fail = true;
+      await Bun.sleep(200);
+      expect(calls).toBeGreaterThan(1);
+      expect(ada.ended).toBe(false);
+      expect(ada.events.some((e) => e.event === "expired")).toBe(false);
+      fail = false;
+      await ada.close();
+    } finally {
+      w.kit.intake.keyOf = real;
+      streamTiming.recheckMs = before;
+    }
   });
 
   test("a fourth open stream of one reporter is refused", async () => {

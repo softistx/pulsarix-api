@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import type { ObjectId } from "mongodb";
 import { type AppTenancy, coreMongo } from "../../config/db";
 import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
@@ -107,6 +108,9 @@ export function startReporterMailWorker(
     mailer,
     from: { name: "pulsarix", address: env.MAIL_FROM },
     uiOrigin: env.UI_ORIGIN,
+    allowedOrigins: async (widgetKeyId: ObjectId) =>
+      (await coreMongo.db.widgetKeys.findById(widgetKeyId))?.allowedOrigins ??
+      [],
     secret: unsubscribeSecret(serverTicketSecret()),
   };
   const worker = queue.work(({ data }) =>

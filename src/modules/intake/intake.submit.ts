@@ -278,9 +278,15 @@ export class PublicIntake {
     const parsed = submitInput.safeParse(given);
     if (!parsed.success) refused(parsed.error);
     const report = parsed.data;
-    // An identified report carries the e-mail the host vouched for; the form's
-    // own is the fallback.
-    const email = identity?.email ?? (report.email ? report.email : null);
+    // An identified report carries only the e-mail the host vouched for (none
+    // when its token has no email claim): the form's address is never trusted
+    // there, or a signed-in user could file with someone else's. An
+    // unidentified report uses the form's.
+    const email = identity
+      ? (identity.email ?? null)
+      : report.email
+        ? report.email
+        : null;
     if (email) {
       await this.limit((l) => l.intakeEmail, { digest: emailDigest(email) });
     }

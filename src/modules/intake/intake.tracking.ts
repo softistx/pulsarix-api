@@ -12,6 +12,7 @@ import {
 import { publicStateOf } from "./intake.publicstate";
 import { detailOf, type RequestDetail, type Scope } from "./intake.requests";
 import type { IntakeMongo, PublicIntake } from "./intake.submit";
+import { publicFilter } from "./intake.thread";
 import { parseTrackingToken } from "./intake.token";
 
 // The tracking page's reads (the public side of the intake, intake.submit.ts):
@@ -112,11 +113,13 @@ export async function trackedStatus(
   const { mongo } = scope;
   const replies = report.issueId
     ? await mongo.db.comments.findMany({
-        filter: { issueId: report.issueId, public: true },
-        sort: { _id: 1 },
+        filter: publicFilter(report),
+        sort: { _id: -1 },
         limit: MAX_REPLIES,
       })
     : [];
+  // Newest MAX_REPLIES, shown oldest first.
+  replies.reverse();
   const files = await mongo.db.clientReportFiles.findMany({
     // A reply's files belong to the thread, not to the report's own list.
     filter: {

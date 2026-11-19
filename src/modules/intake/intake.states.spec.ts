@@ -37,6 +37,9 @@ const Report = `query($projectId: ID!) {
 const IssueOf = `query($id: ID!) {
   issues(projectId: $id) { nodes { id key statusId priority priorityOrigin labelIds } }
 }`;
+const AddComment = `mutation($issueId: ID!, $input: AddCommentInput!) {
+  addComment(issueId: $issueId, input: $input) { id }
+}`;
 const Move = `mutation($id: ID!, $statusId: ID!) { moveIssue(id: $id, statusId: $statusId) { id } }`;
 const Update = `mutation($id: ID!, $input: UpdateIssueInput!) {
   updateIssue(id: $id, input: $input) { id priority priorityOrigin }
@@ -428,6 +431,29 @@ describe("linkClientReport", () => {
       "accepted",
       "accepted",
     ]);
+  });
+
+  test("the tracking page of a linked report hides the replies written before the link", async () => {
+    const kit = await intakeKit();
+    const first = await send(kit);
+    const issueId = (await accept(kit, first)).acceptClientReport
+      .issueId as string;
+    await kit.asOwner.call(AddComment, {
+      issueId,
+      input: { body: "Said to the first reporter", public: true },
+    });
+    await Bun.sleep(20);
+    const dup = await withTracking(kit);
+    await kit.asOwner.call(Link, { id: dup.id, issueId });
+    await Bun.sleep(20);
+    await kit.asOwner.call(AddComment, {
+      issueId,
+      input: { body: "Said after the link", public: true },
+    });
+    const { replies } = (await tracked(kit, dup.token)) as unknown as {
+      replies: { body: string }[];
+    };
+    expect(replies.map((r) => r.body)).toEqual(["Said after the link"]);
   });
 
   test("a report linked to a settled issue is closed at once", async () => {
