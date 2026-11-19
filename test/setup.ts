@@ -33,10 +33,8 @@ delete Bun.env["REDIS_URL"];
 // write inside a transaction to a collection not yet created would hang.
 {
   const { coreMongo } = await import("../src/config/db");
-  const { syncMongoAdapter } = await import("@softistx/janus-mongo");
-  const { dbOf } = await import("@alxia/tenancy");
-  await coreMongo.sync();
-  await syncMongoAdapter(dbOf(coreMongo));
+  const { syncCoreDatabase } = await import("../src/config/core-sync");
+  await syncCoreDatabase(coreMongo);
 }
 
 // Its own timeout, not the specs' 15 s: removing the server's data directory
