@@ -29,6 +29,7 @@ import {
 import {
   type IssueDocument,
   type Priority,
+  type PriorityOrigin,
   priorityLevel,
 } from "./issues.model";
 import { type IssueChange, issueChanged, issueRemoved } from "./issues.usage";
@@ -55,6 +56,9 @@ export interface CreateIssueInput {
   // Set by the intake module only (never by GraphQL's `CreateIssueInput`): the
   // client report this issue is made from.
   clientReportId?: ObjectId | null;
+  // Set by the intake module only: `client` when the priority is the
+  // reporter's impact. A member's priority is `team`.
+  priorityOrigin?: PriorityOrigin | null;
 }
 
 export interface UpdateIssueInput {
@@ -295,6 +299,7 @@ export class IssuesService {
           statusId: status._id,
           priority: level,
           priorityLevel: priorityLevel[level],
+          priorityOrigin: input.priorityOrigin ?? "team",
           assigneeId: input.assigneeId ?? null,
           labelIds: distinct(input.labelIds ?? [], "labelIds"),
           parentId: input.parentId
@@ -364,6 +369,10 @@ export class IssuesService {
         ...(input.priority != null && {
           priority: input.priority,
           priorityLevel: priorityLevel[input.priority],
+          // A member who changes the priority owns it from then on.
+          ...(input.priority !== issue.priority && {
+            priorityOrigin: "team" as const,
+          }),
         }),
         ...(input.assigneeId !== undefined && {
           assigneeId: input.assigneeId,

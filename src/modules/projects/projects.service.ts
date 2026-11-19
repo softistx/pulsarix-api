@@ -7,7 +7,11 @@ import {
 } from "../../core/shared/errors";
 import { retryWriteConflicts } from "../../core/shared/locked";
 import { keyTaken, projectNotFound } from "./projects.errors";
-import { type ProjectDocument, projectKey } from "./projects.model";
+import {
+  defaultPublicState,
+  type ProjectDocument,
+  projectKey,
+} from "./projects.model";
 import type { ProjectsMongo } from "./projects.usage";
 import { defaultWorkflow } from "./workflow";
 
@@ -84,6 +88,7 @@ export class ProjectsService {
             await tx.db.statuses.createMany(
               defaultWorkflow.map((status, order) => ({
                 ...status,
+                publicState: defaultPublicState[status.category],
                 projectId: project._id,
                 order,
               })),

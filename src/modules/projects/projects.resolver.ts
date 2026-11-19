@@ -2,6 +2,7 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission } from "../../core/access";
 import type { Context } from "../../http/context";
 import { LabelsService } from "./labels.service";
+import { publicStateOfStatus } from "./projects.model";
 import { ProjectsService } from "./projects.service";
 import { StatusesService } from "./statuses.service";
 
@@ -66,6 +67,7 @@ export const projectsResolvers: Resolvers = {
   Status: {
     id: (status) => status.id,
     projectId: (status) => status.projectId.toHexString(),
+    publicState: (status) => publicStateOfStatus(status),
   },
   Label: {
     id: (label) => label.id,

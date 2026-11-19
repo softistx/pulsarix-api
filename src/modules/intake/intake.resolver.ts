@@ -12,6 +12,7 @@ import {
 } from "./intake.files.team";
 import { WidgetKeysService } from "./intake.keys";
 import { attachmentsOn } from "./intake.model";
+import { publicStateOf } from "./intake.publicstate";
 import { ReportsService } from "./intake.reports";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
@@ -103,6 +104,8 @@ export const intakeResolvers: Resolvers = {
       (await reportsOf(ctx)).accept(id),
     declineClientReport: async (_, { id, reason }, ctx) =>
       (await reportsOf(ctx)).decline(id, reason),
+    linkClientReport: async (_, { id, issueId }, ctx) =>
+      (await reportsOf(ctx)).link(id, issueId),
   },
   WidgetKey: {
     projectId: (key) => key.projectId.toHexString(),
@@ -118,6 +121,15 @@ export const intakeResolvers: Resolvers = {
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,
+    // Reports stored before widget v3 lack these (see declineReasonShown).
+    impact: (report) => report.impact ?? null,
+    type: (report) => report.type ?? null,
+    declineReasonPublic: (report) => report.declineReasonPublic === true,
+    linkedAt: (report) => report.linkedAt ?? null,
+    publicState: async (report, _, ctx) => {
+      const { mongo } = await requirePermission(ctx, "issue:write");
+      return publicStateOf(mongo, report);
+    },
     // Quarantined files are the inbox's: the field asks for the permission
     // the report's own queries ask for, whatever parent it comes from.
     files: async (report, _, ctx) => {

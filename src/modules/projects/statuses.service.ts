@@ -12,8 +12,16 @@ import {
   statusNotFound,
 } from "./projects.errors";
 import { lockProject } from "./projects.lock";
-import type { StatusCategory, StatusDocument } from "./projects.model";
-import { colour } from "./projects.model";
+import type {
+  PublicState,
+  StatusCategory,
+  StatusDocument,
+} from "./projects.model";
+import {
+  colour,
+  defaultPublicState,
+  publicStateOfStatus,
+} from "./projects.model";
 import { type ProjectsMongo, statusIsUsed } from "./projects.usage";
 
 export interface CreateStatusInput {
@@ -21,12 +29,15 @@ export interface CreateStatusInput {
   name: string;
   category: StatusCategory;
   colour: string;
+  // What the reporter sees; the category's default when left out.
+  publicState?: PublicState | null;
 }
 
 export interface UpdateStatusInput {
   name?: string | null;
   category?: StatusCategory | null;
   colour?: string | null;
+  publicState?: PublicState | null;
 }
 
 // The workflow of the organisation's projects: their statuses, in order.
@@ -71,6 +82,8 @@ export class StatusesService {
               name,
               category: input.category,
               colour: input.colour,
+              publicState:
+                input.publicState ?? defaultPublicState[input.category],
               order: (last[0]?.order ?? -1) + 1,
             });
           }),
@@ -87,6 +100,7 @@ export class StatusesService {
       "name",
       "category",
       "colour",
+      "publicState",
     ]);
     const name = input.name?.trim();
     if (name === "")
@@ -101,11 +115,27 @@ export class StatusesService {
         ...(name && { name }),
         ...(input.category && { category: input.category }),
         ...(input.colour && { colour: input.colour }),
+        ...this.publicStateChange(status, input),
       });
     } catch (error) {
       if (error instanceof ConflictError) throw statusNameTaken(name ?? "");
       throw error;
     }
+  }
+
+  // The state the reporter sees after an update: the one asked for; or, when
+  // the category moves and the status still wears its old category's default,
+  // the new category's default; otherwise what it had.
+  private publicStateChange(
+    status: StatusDocument,
+    input: UpdateStatusInput,
+  ): { publicState?: PublicState } {
+    if (input.publicState) return { publicState: input.publicState };
+    if (!input.category || input.category === status.category) return {};
+    const current = publicStateOfStatus(status);
+    return current === defaultPublicState[status.category]
+      ? { publicState: defaultPublicState[input.category] }
+      : {};
   }
 
   // `ids` is the project's statuses, every one, in their new order.

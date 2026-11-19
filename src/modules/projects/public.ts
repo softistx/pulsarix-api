@@ -6,8 +6,14 @@ export { lockProject } from "./projects.lock";
 export type {
   LabelDocument,
   ProjectDocument,
+  PublicState,
   StatusCategory,
   StatusDocument,
+} from "./projects.model";
+export {
+  defaultPublicState,
+  publicState,
+  publicStateOfStatus,
 } from "./projects.model";
 export {
   type LabelRemoval,

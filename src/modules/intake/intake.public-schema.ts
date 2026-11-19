@@ -40,6 +40,19 @@ export const publicTypeDefs = /* GraphQL */ `
     expiresAt: String!
   }
 
+  "How much the problem blocks the reporter."
+  enum ReportImpact {
+    blocking
+    annoying
+    minor
+  }
+
+  enum ReportType {
+    bug
+    question
+    suggestion
+  }
+
   input MetadataEntryInput {
     key: String!
     value: String!
@@ -51,6 +64,8 @@ export const publicTypeDefs = /* GraphQL */ `
     email: String
     pageUrl: String
     locale: String
+    impact: ReportImpact
+    type: ReportType
     metadata: [MetadataEntryInput!]
     "Honeypot: a real form leaves it empty."
     website: String
@@ -81,6 +96,10 @@ export const publicTypeDefs = /* GraphQL */ `
 
   type TrackedReport {
     state: String!
+    "received, inProgress, resolved or declined: the status's name never leaves."
+    publicState: String!
+    "Why the report was declined, when the team wrote it knowing it is shown."
+    declineReason: String
     title: String!
     createdAt: String!
     replies: [TrackedReply!]!
@@ -134,6 +153,8 @@ export const persistedOperations = {
     query clientReportStatus($token: String!) {
       clientReportStatus(token: $token) {
         state
+        publicState
+        declineReason
         title
         createdAt
         replies {
@@ -186,6 +207,8 @@ export function publicSchema(): GraphQLSchema {
           const tracked = await ctx.intake.status(args.token, ctx.caller.ip);
           return {
             state: tracked.state,
+            publicState: tracked.publicState,
+            declineReason: tracked.declineReason,
             title: tracked.title,
             createdAt: tracked.createdAt.toISOString(),
             replies: tracked.replies.map((reply) => ({
