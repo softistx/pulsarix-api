@@ -7,7 +7,7 @@ import {
 import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { retryWriteConflicts } from "../../core/shared/locked";
-import { issueNotFound } from "../issues/public";
+import { assertProjectWritable, issueNotFound } from "../issues/public";
 import {
   commentNotFound,
   commentNotYours,
@@ -89,6 +89,14 @@ export class CommentsService {
     return result;
   }
 
+  // Refuses a write on a comment of an archived project; inside the write's
+  // transaction. An issue already gone is left to the write.
+  private async writable(tx: CommentsMongo, issueId: ObjectId): Promise<void> {
+    const issue = await tx.db.issues.findById(issueId);
+    if (issue)
+      await assertProjectWritable(tx as never, issue.projectId, { lock: true });
+  }
+
   private async issue(issueId: string): Promise<ObjectId> {
     const id = idOrInvalid(issueId, "issueId");
     if (!(await this.mongo.db.issues.exists({ _id: id }))) {
@@ -146,6 +154,7 @@ export class CommentsService {
     const issue = await this.issue(issueId);
     const resolved = await this.resolve(input.body);
     return this.write(async (tx, changed) => {
+      await this.writable(tx, issue);
       const created = await tx.db.comments.create({
         issueId: issue,
         authorId: this.viewerId,
@@ -181,6 +190,7 @@ export class CommentsService {
         ? await this.resolve(input.body)
         : null;
     return this.write(async (tx, changed) => {
+      await this.writable(tx, current.issueId);
       const edited = await tx.db.comments.update(current._id, {
         ...resolved,
         ...(input.public != null && { public: input.public }),
@@ -198,6 +208,7 @@ export class CommentsService {
   async delete(id: string): Promise<string> {
     const current = await this.changeable(id);
     await this.write(async (tx, changed) => {
+      await this.writable(tx, current.issueId);
       await tx.db.comments.hardDelete(current._id);
       await changed("commentDeleted", current);
     });
