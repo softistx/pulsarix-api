@@ -8,6 +8,7 @@ import { parseSealingKeys, sealerFor } from "@softistx/janus";
 import { z } from "zod";
 import { env } from "../../config/env";
 import { identityInvalid } from "./intake.errors";
+import type { PublicIntake } from "./intake.submit";
 
 // The reporter identity of plan §19: the host's server signs a token for its
 // signed-in user, the widget sends it in `x-pulsarix-identity`, and the report
@@ -132,4 +133,25 @@ export function verifyIdentity(
     reporterName: claims.name || null,
     email: claims.email ?? null,
   };
+}
+
+// The identity step of a submission: a token that is sent must be good (a bad
+// one is a 401 and nothing is kept, not a report that silently loses its
+// identity), and an identified reporter is rate limited on their own key. No
+// token, no change: null.
+export async function identifyCaller(
+  intake: {
+    now(): Date;
+    limit: PublicIntake["limit"];
+  },
+  key: Parameters<typeof verifyIdentity>[1],
+  token: string | null | undefined,
+): Promise<Identity | null> {
+  if (token == null) return null;
+  const identity = verifyIdentity(token, key, intake.now());
+  await intake.limit((l) => l.intakeReporter, {
+    keyId: key.id,
+    reporterKey: identity.reporterKey,
+  });
+  return identity;
 }

@@ -7,6 +7,17 @@ enum IssuePriority {
 }
 
 """
+Where an issue's priority came from: `client` is the reporter's impact,
+prefilled when the report was accepted; `team` is what a member set or
+changed; `auto` is kept for a later automatic level.
+"""
+enum PriorityOrigin {
+  client
+  team
+  auto
+}
+
+"""
 An issue of a project. Its `key` (`ABC-12`) is the project's key and its
 `number`, which counts from 1 with no gap.
 """
@@ -20,6 +31,7 @@ type Issue {
   description: String!
   statusId: ID!
   priority: IssuePriority!
+  priorityOrigin: PriorityOrigin!
   assigneeId: ID
   labelIds: [ID!]!
   parentId: ID

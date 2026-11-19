@@ -10,6 +10,13 @@ import { accountId, actors } from "../../core/shared/actors";
 export const priority = z.enum(["none", "low", "medium", "high", "urgent"]);
 export type Priority = z.infer<typeof priority>;
 
+// Where an issue's priority came from (plan §19): `client` is the reporter's
+// impact, prefilled when the report was accepted; `team` is anything a member
+// set or changed (and what every issue made by a member starts as); `auto` is
+// kept for the later automatic level.
+export const priorityOrigin = z.enum(["client", "team", "auto"]);
+export type PriorityOrigin = z.infer<typeof priorityOrigin>;
+
 // The weight of a priority, so that a sort by priority is numeric
 // (`none` 0 ... `urgent` 4); stored beside the name and kept in step with it.
 export const priorityLevel: Record<Priority, number> = {
@@ -37,6 +44,8 @@ export const issues = defineCollection({
     statusId: objectId(),
     priority: priority.default("none"),
     priorityLevel: z.number().int().min(0).max(4).default(0),
+    // Issues stored before widget v3 lack it: read it as `team`.
+    priorityOrigin: priorityOrigin.optional(),
     assigneeId: accountId.nullable().default(null),
     labelIds: z.array(objectId()).default([]),
     parentId: objectId().nullable().default(null),

@@ -6,6 +6,7 @@ import {
 } from "@softistx/mongo";
 import { z } from "zod";
 import { accountId, actors } from "../../core/shared/actors";
+import { publicState } from "../projects/public";
 
 // What a widget key is spelled like: `pk_live_` and 32 URL-safe characters
 // (192 bits). Public by design (plan §11): it names a project, it opens nothing.
@@ -73,6 +74,13 @@ export type ReportState = z.infer<typeof reportState>;
 
 export const reportLocale = z.enum(["en", "fr"]);
 
+// What the reporter says about the request (plan §19, Q27). `impact` prefills
+// the priority of the issue an acceptance makes; `type` becomes a label.
+export const reportImpact = z.enum(["blocking", "annoying", "minor"]);
+export type ReportImpact = z.infer<typeof reportImpact>;
+export const reportType = z.enum(["bug", "question", "suggestion"]);
+export type ReportType = z.infer<typeof reportType>;
+
 // A report a reader of a host page sent through the widget, in the
 // organisation's database. Text only: nothing in it is rendered as markup.
 // `trackingTokenHash` is the SHA-256 of the secret part of the tracking token
@@ -93,10 +101,24 @@ export const clientReports = defineCollection({
     // token gave it. Null for a report sent with no token.
     reporterKey: z.string().length(64).nullable().default(null),
     reporterName: z.string().max(100).nullable().default(null),
+    impact: reportImpact.nullable().default(null),
+    type: reportType.nullable().default(null),
     trackingTokenHash: z.string().length(64).nullable().default(null),
     state: reportState.default("new"),
     issueId: objectId().nullable().default(null),
     declineReason: z.string().max(1_000).nullable().default(null),
+    // Whether the reporter reads the decline reason. True for a decline made
+    // since widget v3 (the dialog says so); reports declined before lack the
+    // field and keep their reason hidden: read it with `declineReasonShown`.
+    declineReasonPublic: z.boolean().default(false),
+    // When the report was linked to an existing issue (a duplicate).
+    linkedAt: z.date().nullable().default(null),
+    // The reporter's own marks (plan §19): resolved, and reopened within 30
+    // days. `reopenedFrom` is the public state the issue had at the reopen, so
+    // the report reads "in progress" until the issue's state next changes.
+    resolvedByReporterAt: z.date().nullable().default(null),
+    reopenedAt: z.date().nullable().default(null),
+    reopenedFrom: publicState.nullable().default(null),
     pageUrl: z.string().max(2_048).nullable().default(null),
     userAgent: z.string().max(512).nullable().default(null),
     locale: reportLocale.default("en"),
@@ -200,3 +222,10 @@ export const clientReportFiles = defineCollection({
   ],
 });
 export type ClientReportFileDocument = ReadDocumentOf<typeof clientReportFiles>;
+
+// The decline reason a reporter may read: only a reason the team wrote knowing
+// it is shown.
+export const declineReasonShown = (report: {
+  declineReason: string | null;
+  declineReasonPublic?: boolean | undefined;
+}) => (report.declineReasonPublic === true ? report.declineReason : null);

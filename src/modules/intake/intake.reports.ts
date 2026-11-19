@@ -2,11 +2,17 @@ import { OptimisticLockError } from "@softistx/mongo";
 import type { ModuleMongo } from "../../config/db";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
-import type { IssuesService } from "../issues/public";
+import {
+  assertProjectWritable,
+  type IssuesService,
+  issueNotFound,
+} from "../issues/public";
 import { projectNotFound } from "../projects/public";
+import { isSettled } from "./intake.closing";
 import { reportDecided, reportNotFound } from "./intake.errors";
 import { releaseFiles } from "./intake.files.team";
 import type { ClientReportDocument, ReportState } from "./intake.model";
+import { prefillOf } from "./intake.prefill";
 
 export type IntakeMongo = ModuleMongo<"intake">;
 
@@ -81,7 +87,12 @@ export class ReportsService {
   private async claim(
     report: ClientReportDocument,
     state: "accepted" | "declined",
-    extra: { declineReason?: string } = {},
+    extra: Partial<
+      Pick<
+        ClientReportDocument,
+        "declineReason" | "declineReasonPublic" | "issueId" | "linkedAt"
+      >
+    > = {},
   ): Promise<ClientReportDocument> {
     if (report.state !== "new") throw reportDecided();
     try {
@@ -117,6 +128,7 @@ export class ReportsService {
         description: report.description,
         statusId: triage?.id ?? null,
         clientReportId: report._id,
+        ...(await prefillOf(this.mongo, report)),
       });
       created = true;
       // The files go to the issue in place (intake.files.team.ts). The report
@@ -153,8 +165,44 @@ export class ReportsService {
     if (!text) {
       throw invalid([{ path: "reason", code: "validation.errors.required" }]);
     }
+    // The reason is shown to the reporter (plan §19); the dialog says so.
     return this.claim(await this.byId(id), "declined", {
       declineReason: text,
+      declineReasonPublic: true,
     });
+  }
+
+  // Accepts a new report into an issue that already exists (a duplicate): no
+  // issue is made, the report points at the issue and follows it from then on
+  // (intake.closing.ts), and its files are released to it.
+  async link(id: string, issueId: string): Promise<ClientReportDocument> {
+    const report = await this.byId(id);
+    const issue = await this.mongo.db.issues.findById(
+      idOrInvalid(issueId, "issueId"),
+    );
+    if (!issue) throw issueNotFound();
+    if (!issue.projectId.equals(report.projectId)) {
+      throw invalid([{ path: "issueId", code: "validation.errors.invalid" }]);
+    }
+    await assertProjectWritable(this.mongo, issue.projectId);
+    await this.claim(report, "accepted", {
+      issueId: issue._id,
+      linkedAt: new Date(),
+    });
+    // The issue may already be settled: the report is then closed at once.
+    if (await isSettled(this.mongo, issue)) {
+      await this.mongo.db.clientReports.update(report._id, {
+        state: "closed",
+        closedAt: new Date(),
+      });
+    }
+    await (this.options.release ?? releaseFiles)(this.mongo, report._id).catch(
+      (error) =>
+        (this.options.log ?? ((m, e) => console.warn(m, e)))(
+          "intake: releasing the files of a linked report failed",
+          error,
+        ),
+    );
+    return this.byId(id);
   }
 }

@@ -58,6 +58,7 @@ export const issuesResolvers: Resolvers = {
     id: (issue) => issue.id,
     projectId: (issue) => issue.projectId.toHexString(),
     statusId: (issue) => issue.statusId.toHexString(),
+    priorityOrigin: (issue) => issue.priorityOrigin ?? "team",
     labelIds: (issue) => issue.labelIds.map((id) => id.toHexString()),
     parentId: (issue) => issue.parentId?.toHexString() ?? null,
     clientReportId: (issue) => issue.clientReportId?.toHexString() ?? null,

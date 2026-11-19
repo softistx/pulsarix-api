@@ -27,6 +27,34 @@ export const statusCategory = z.enum([
 ]);
 export type StatusCategory = z.infer<typeof statusCategory>;
 
+// What a reporter sees of a status (plan §19): four fixed states, whatever the
+// workflow's own names are. The names themselves never leave the team.
+export const publicState = z.enum([
+  "received",
+  "inProgress",
+  "resolved",
+  "declined",
+]);
+export type PublicState = z.infer<typeof publicState>;
+
+// The state a category maps to until the team sets one.
+export const defaultPublicState: Record<StatusCategory, PublicState> = {
+  triage: "received",
+  backlog: "received",
+  todo: "received",
+  inProgress: "inProgress",
+  done: "resolved",
+  cancelled: "declined",
+};
+
+// The state of a status: its own, or its category's. Statuses stored before
+// widget v3 lack the field (the mongo layer applies no schema default on read),
+// so every reader goes through this.
+export const publicStateOfStatus = (status: {
+  category: StatusCategory;
+  publicState?: PublicState | null | undefined;
+}): PublicState => status.publicState ?? defaultPublicState[status.category];
+
 // A project, in the organisation's database: the key is unique there, so
 // unique per organisation (the database is the organisation's). The key is
 // fixed when the project is made, since the issues' keys derive from it.
@@ -67,6 +95,8 @@ export const statuses = defineCollection({
     projectId: objectId(),
     name: z.string().trim().min(1).max(100),
     category: statusCategory,
+    // Shown to the reporter in its place; absent until set (see above).
+    publicState: publicState.optional(),
     order: z.number().int().min(0),
     colour,
   }),

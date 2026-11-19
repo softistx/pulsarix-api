@@ -72,6 +72,20 @@ enum ClientReportState {
   closed
 }
 
+"How much the problem blocks the reporter. Prefills the priority at acceptance: blocking High, annoying Medium, minor Low."
+enum ClientReportImpact {
+  blocking
+  annoying
+  minor
+}
+
+"What the reporter says it is. Becomes a label (Bug, Question, Suggestion, made on first use) at acceptance."
+enum ClientReportType {
+  bug
+  question
+  suggestion
+}
+
 type ClientReportMetadata {
   key: String!
   value: String!
@@ -89,9 +103,28 @@ type ClientReport {
   "Null if none was given, or once erased (90 days after the report is closed or declined)."
   email: String
   state: ClientReportState!
-  "The issue an acceptance made."
+  "The issue an acceptance made, or the one the report was linked to. Several reports may share one."
   issueId: ID
+  "What the reporter said about the impact, if anything."
+  impact: ClientReportImpact
+  "What the reporter said it is, if anything."
+  type: ClientReportType
+  """
+  What the reporter sees: `declined` when the report was declined or its issue
+  sits in a status mapped to `declined`; `resolved` when the reporter resolved
+  it and has not reopened since; `inProgress` after a reopen until the issue's
+  mapped state next changes; otherwise the state of the issue's status
+  (`Status.publicState`), `received` before any issue.
+  """
+  publicState: PublicState!
   declineReason: String
+  """
+  Whether the reporter reads `declineReason`: true for a decline made since
+  widget v3, false for the earlier ones, whose reason stays with the team.
+  """
+  declineReasonPublic: Boolean!
+  "When the report was linked to an existing issue; null if it made its own or none."
+  linkedAt: DateTime
   pageUrl: String
   userAgent: String
   locale: String!
@@ -223,12 +256,23 @@ type Mutation {
   """
   acceptClientReport(id: ID!): ClientReport!
   """
-  Declines a new report with a reason (kept for the team; the reporter sees
-  only the state). Its files stay quarantined until the purge (7 days after
-  the decision). Needs `issue:write`. 409 `intake.errors.report-decided`.
+  Declines a new report with a reason. The reporter reads the reason
+  (`declineReasonPublic` is true), so write it for them. Its files stay
+  quarantined until the purge (7 days after the decision). Needs
+  `issue:write`. 409 `intake.errors.report-decided`.
   """
   declineClientReport(
     id: ID!
     reason: String! @constraint(minLength: 1, maxLength: 1000)
   ): ClientReport!
+  """
+  Accepts a new report into an issue of the same project that already exists
+  (a duplicate): no issue is made, the report follows the issue (its closing
+  and reopening) and its files are released to it. Several reports may share
+  one issue. Needs `issue:write`. 409 `intake.errors.report-decided`, 409
+  `issues.errors.project-archived`; 404 `intake.errors.not-found` (report) or
+  `issues.errors.not-found` (issue); 400 `validation.errors.invalid-input`
+  (`issueId`, an issue of another project).
+  """
+  linkClientReport(id: ID!, issueId: ID!): ClientReport!
 }

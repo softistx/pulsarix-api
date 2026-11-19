@@ -1,7 +1,13 @@
 import { ObjectId } from "mongodb";
 import { withoutMarkers } from "../comments/public";
+import type { PublicState } from "../projects/public";
 import { fileNotFound, reportNotFound } from "./intake.errors";
-import type { ReportFileRole, ReportState } from "./intake.model";
+import {
+  declineReasonShown,
+  type ReportFileRole,
+  type ReportState,
+} from "./intake.model";
+import { publicStateOf } from "./intake.publicstate";
 import type { IntakeMongo, PublicIntake } from "./intake.submit";
 import { parseTrackingToken } from "./intake.token";
 
@@ -20,6 +26,11 @@ export interface TrackedFile {
 
 export interface Tracked {
   state: ReportState;
+  // The four public states (plan §19), derived from the report and the state
+  // its issue's status maps to; never the status's name.
+  publicState: PublicState;
+  // Null unless the team wrote it knowing the reporter reads it.
+  declineReason: string | null;
   title: string;
   createdAt: Date;
   replies: { at: Date; body: string }[];
@@ -73,6 +84,8 @@ export async function trackedStatus(
   });
   return {
     state: report.state,
+    publicState: await publicStateOf(mongo, report),
+    declineReason: declineReasonShown(report),
     title: report.title,
     createdAt: report.createdAt,
     replies: replies.map((reply) => ({

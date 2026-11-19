@@ -14,7 +14,7 @@ import {
   unknownKey,
 } from "./intake.errors";
 import { type CheckedFile, checkFiles } from "./intake.files.input";
-import { verifyIdentity } from "./intake.identity";
+import { identifyCaller } from "./intake.identity";
 import { trackingMail } from "./intake.mail";
 import {
   attachmentsOn,
@@ -284,18 +284,7 @@ export class PublicIntake {
     await this.limit((l) => l.intakeKey, { publicKey });
     if (!key.active) throw keyDisabled();
 
-    // A token that is sent must be good: a bad one is a 401 and nothing is
-    // kept, not a report that silently loses its identity. No token, no change.
-    const identity =
-      caller.identity != null
-        ? verifyIdentity(caller.identity, key, this.now())
-        : null;
-    if (identity) {
-      await this.limit((l) => l.intakeReporter, {
-        keyId: key.id,
-        reporterKey: identity.reporterKey,
-      });
-    }
+    const identity = await identifyCaller(this, key, caller.identity);
 
     const parsed = submitInput.safeParse(given);
     if (!parsed.success) refused(parsed.error);
@@ -358,10 +347,17 @@ export class PublicIntake {
       email,
       reporterKey: identity?.reporterKey ?? null,
       reporterName: identity?.reporterName ?? null,
+      impact: report.impact ?? null,
+      type: report.type ?? null,
       trackingTokenHash: tracking?.hash ?? null,
       state: "new",
       issueId: null,
       declineReason: null,
+      declineReasonPublic: false,
+      linkedAt: null,
+      resolvedByReporterAt: null,
+      reopenedAt: null,
+      reopenedFrom: null,
       pageUrl: pageUrlOf(report.pageUrl),
       userAgent: stripControl(caller.userAgent ?? "").slice(0, 512) || null,
       locale: report.locale ?? caller.language,
