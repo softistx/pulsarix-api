@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import { ObjectId } from "mongodb";
+import { codeOf } from "~/http";
 import { goodReport, type IntakeKit, intakeKit } from "~/intake";
 import { coreMongo, tenancy } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
@@ -35,6 +36,7 @@ const AddComment = `mutation($issueId: ID!, $input: AddCommentInput!) {
 const EditComment = `mutation($id: ID!, $input: EditCommentInput!) {
   editComment(id: $id, input: $input) { id }
 }`;
+const DeleteComment = `mutation($id: ID!) { deleteComment(id: $id) }`;
 const Comments = `query($issueId: ID!) {
   comments(issueId: $issueId) {
     nodes { id body public source reportId reporterName authorId }
@@ -201,6 +203,32 @@ describe("the request thread", () => {
     });
     // Not stored twice: the comments collection holds the team's only.
     expect(await w.mongo.db.comments.count({})).toBe(1);
+  });
+
+  test("a CLIENT entry cannot be edited or deleted by the team", async () => {
+    const w = await world();
+    const a = await w.host.file("ada");
+    const { acceptClientReport } = await w.kit.asOwner.call<{
+      acceptClientReport: { issueId: string };
+    }>(Accept, { id: a });
+    const { issueId } = acceptClientReport;
+    await w.say("ada", a, "Still broken");
+    const { comments } = await w.kit.asOwner.call<{
+      comments: { nodes: { id: string; source: string }[] };
+    }>(Comments, { issueId });
+    const client = comments.nodes.find((node) => node.source === "CLIENT");
+    if (!client) throw new Error("no CLIENT entry");
+    // Its id is a message id: the comments collection has no such row.
+    const edit = await w.kit.asOwner.attempt(EditComment, {
+      id: client.id,
+      input: { body: "tampered" },
+    });
+    const del = await w.kit.asOwner.attempt(DeleteComment, { id: client.id });
+    for (const failure of [edit, del]) {
+      expect(codeOf(failure)).toBe("comments.errors.not-found");
+    }
+    const stored = await w.thread("ada", a);
+    expect(stored.map((entry) => entry.body)).toEqual(["Still broken"]);
   });
 
   test("counts the team's public replies not read yet", async () => {
