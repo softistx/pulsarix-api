@@ -20,7 +20,12 @@ import {
 import { idOrInvalid } from "../../core/shared/ids";
 import { retryWriteConflicts } from "../../core/shared/locked";
 import { lockProject, type ProjectDocument } from "../projects/public";
-import { badPlacement, issueNotFound, parentCycle } from "./issues.errors";
+import {
+  badPlacement,
+  issueNotFound,
+  parentCycle,
+  projectArchived,
+} from "./issues.errors";
 import {
   type IssueDocument,
   type Priority,
@@ -147,6 +152,8 @@ export class IssuesService {
       project: ProjectDocument,
       changed: Changed,
     ) => Promise<T>,
+    // Watching is a viewer's own mark, not a change of the issue.
+    options: { archivedOk?: boolean } = {},
   ): Promise<T> {
     let later: AfterCommit[] = [];
     const result = await retryWriteConflicts(
@@ -154,6 +161,9 @@ export class IssuesService {
         this.mongo.transaction(async (tx) => {
           later = [];
           const project = await lockProject(tx, projectId);
+          if (project.archivedAt && !options.archivedOk) {
+            throw projectArchived();
+          }
           const changed: Changed = async (verb, issue, changes) => {
             later.push(
               ...(await issueChanged(tx as IssuesMongo, {
@@ -556,16 +566,20 @@ export class IssuesService {
   // Repeatable, and so is its reverse.
   async setWatching(id: string, watching: boolean): Promise<IssueDocument> {
     const current = await this.byId(id);
-    return this.inProject(current.projectId, async (tx) => {
-      const issue = await tx.db.issues.findById(current._id);
-      if (!issue) throw issueNotFound();
-      if (issue.watcherIds.includes(this.viewerId) === watching) return issue;
-      return tx.db.issues.update(issue._id, {
-        watcherIds: watching
-          ? [...issue.watcherIds, this.viewerId]
-          : issue.watcherIds.filter((account) => account !== this.viewerId),
-      });
-    });
+    return this.inProject(
+      current.projectId,
+      async (tx) => {
+        const issue = await tx.db.issues.findById(current._id);
+        if (!issue) throw issueNotFound();
+        if (issue.watcherIds.includes(this.viewerId) === watching) return issue;
+        return tx.db.issues.update(issue._id, {
+          watcherIds: watching
+            ? [...issue.watcherIds, this.viewerId]
+            : issue.watcherIds.filter((account) => account !== this.viewerId),
+        });
+      },
+      { archivedOk: true },
+    );
   }
 }
 

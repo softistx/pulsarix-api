@@ -38,5 +38,10 @@ export const issuesModule = defineModule({
     member: ["issue:read", "issue:write"],
     viewer: ["issue:read"],
   },
-  codes: defineCodes("issues", ["not-found", "parent-cycle", "bad-placement"]),
+  codes: defineCodes("issues", [
+    "not-found",
+    "parent-cycle",
+    "bad-placement",
+    "project-archived",
+  ]),
 });

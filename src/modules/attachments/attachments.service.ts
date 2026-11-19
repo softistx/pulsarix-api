@@ -8,6 +8,7 @@ import { idOrInvalid } from "../../core/shared/ids";
 import { retryWriteConflicts } from "../../core/shared/locked";
 import { commentNotFound } from "../comments/public";
 import {
+  assertProjectWritable,
   type IssueChange,
   issueChanged,
   issueNotFound,
@@ -103,8 +104,24 @@ export class AttachmentsService {
     });
   }
 
-  // Refuses an owner that already carries `maxPerOwner` files.
+  // Refuses a write on the files of an archived project.
+  private async writable(
+    mongo: AttachmentsMongo,
+    issueId: string,
+    lock = false,
+  ): Promise<void> {
+    const issue = await mongo.db.issues.findById(
+      idOrInvalid(issueId, "issueId"),
+    );
+    if (issue) {
+      await assertProjectWritable(mongo as never, issue.projectId, { lock });
+    }
+  }
+
+  // Refuses an upload to an archived project (before the file is stored) and
+  // an owner that already carries `maxPerOwner` files.
   async ensureRoom(owner: Owner): Promise<void> {
+    await this.writable(this.mongo, owner.issueId);
     const count = await this.mongo.db.attachments.count({
       ownerType: owner.ownerType,
       ownerId: idOrInvalid(owner.ownerId, "ownerId"),
@@ -132,6 +149,7 @@ export class AttachmentsService {
       () =>
         this.mongo.transaction(async (tx) => {
           later = [];
+          await this.writable(tx as AttachmentsMongo, issueId, true);
           const changed = async (from: string | null, to: string | null) => {
             const issue = await tx.db.issues.findById(
               idOrInvalid(issueId, "issueId"),
