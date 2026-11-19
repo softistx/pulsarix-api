@@ -3,6 +3,8 @@ import type { MediaContext } from "@alxia/media";
 import { GraphQLError } from "graphql";
 import { ObjectId } from "mongodb";
 import { addressKey } from "../../core/shared/address";
+import { fail } from "../../core/shared/errors";
+import { clientHeader } from "../../http/csrf";
 import { localeOfRequest } from "../../i18n/locale";
 import type { Media } from "../attachments/public";
 import { originNotAllowed, unavailable } from "./intake.errors";
@@ -97,6 +99,12 @@ async function handlePut(
       );
     }
     if (!store) throw unavailable();
+    if (claims?.tracking && !request.headers.get(clientHeader)?.trim()) {
+      throw fail("auth.errors.client-header-required", {
+        params: { header: clientHeader },
+        status: 403,
+      });
+    }
     const admission = await uploads.admit(
       params["slot"] ?? "",
       ticket,

@@ -9,13 +9,20 @@ import {
   persistedOnly,
   unsupportedMedia,
 } from "./intake.errors";
-import { answerOf, corsHeaders, respond, secure } from "./intake.http";
+import {
+  answerOf,
+  corsHeaders,
+  respond,
+  secure,
+  TRACKING_HEADER,
+} from "./intake.http";
 import { IDENTITY_HEADER } from "./intake.identity";
 import { normaliseOrigin } from "./intake.origins";
 import {
   type PersistedId,
   persistedOperations,
   publicSchema,
+  trackingOperations,
 } from "./intake.public-schema";
 import type { Caller, PublicIntake } from "./intake.submit";
 
@@ -33,7 +40,7 @@ const isPersisted = (id: unknown): id is PersistedId =>
 // - JSON only (a form cannot send it, so no cross-site form reaches a resolver);
 // - CORS for the origins some live key allows, and the key's own list is
 //   checked on every call; the answer to a foreign origin carries no CORS header;
-// - `clientReportStatus` is for the UI server: refused when the request has an
+// - the tracking page's operations (`clientReportStatus`, `tracking*`) are for the UI server: refused when the request has an
 //   `Origin` (a browser) or lacks the client header.
 export function publicRoutes(intake: PublicIntake, log = console.warn) {
   const schema = publicSchema();
@@ -47,6 +54,7 @@ export function publicRoutes(intake: PublicIntake, log = console.warn) {
         origin,
         userAgent: request.headers.get("user-agent"),
         identity: request.headers.get(IDENTITY_HEADER),
+        tracking: request.headers.get(TRACKING_HEADER),
         language: localeOfRequest(),
         originGranted: false,
       };
@@ -129,7 +137,7 @@ export function publicRoutes(intake: PublicIntake, log = console.warn) {
         ) {
           throw persistedOnly();
         }
-        if (id === "clientReportStatus") {
+        if (trackingOperations.has(id)) {
           // For the UI server only: a browser always sends an Origin.
           if (origin !== null) throw originNotAllowed();
           if (!request.headers.get(clientHeader)?.trim()) {

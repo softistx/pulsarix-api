@@ -106,6 +106,8 @@ export interface Caller {
   userAgent: string | null;
   // The `x-pulsarix-identity` header, when the host sent one (intake.identity.ts).
   identity?: string | null;
+  // The `x-pulsarix-tracking` header, on the tracking page's operations.
+  tracking?: string | null;
   language: Locale;
   // Set once the key's allow-list accepted `origin`: from then on the answer
   // carries the CORS headers, so the widget can read a 429 or a refusal too.

@@ -32,6 +32,7 @@ export function ticketFor(
   file: CheckedFile,
   decoy: boolean,
   expiresAt: Date,
+  tracking = false,
 ): FileTicket {
   return {
     slot,
@@ -46,6 +47,7 @@ export function ticketFor(
       size: file.size,
       expiresAt: expiresAt.getTime(),
       decoy,
+      ...(tracking && { tracking }),
     }),
   };
 }
@@ -74,7 +76,7 @@ export async function reserveSlots(
   report: { _id: ObjectId; id: string },
   files: CheckedFile[],
   expiresAt: Date,
-  reply?: { messageId: ObjectId },
+  reply?: { messageId: ObjectId; tracking?: boolean },
 ): Promise<FileTicket[]> {
   const tickets: FileTicket[] = [];
   for (const file of files) {
@@ -94,7 +96,16 @@ export async function reserveSlots(
       claimedAt: null,
     });
     tickets.push(
-      ticketFor(secret, key, report.id, slot.id, file, false, expiresAt),
+      ticketFor(
+        secret,
+        key,
+        report.id,
+        slot.id,
+        file,
+        false,
+        expiresAt,
+        reply?.tracking === true,
+      ),
     );
   }
   return tickets;
