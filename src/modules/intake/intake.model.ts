@@ -129,6 +129,14 @@ export const clientReports = defineCollection({
     // the tracking page's toggle; the e-mails are A19). Reports stored before
     // A17 lack it: read `emailsOff === true`.
     emailsOff: z.boolean().default(false),
+    // The reporter's e-mails (A19, intake.notify.ts): the tracking token,
+    // sealed (the later mails link to the tracking page; null for a report
+    // made before A19, whose mails carry no link), the moment up to which the
+    // team's public replies were mailed, and the public state the last mail
+    // told. Absent on reports stored before A19.
+    trackingTokenSealed: z.string().nullable().default(null),
+    mailedThrough: z.date().nullable().default(null),
+    mailedState: publicState.nullable().default(null),
     pageUrl: z.string().max(2_048).nullable().default(null),
     userAgent: z.string().max(512).nullable().default(null),
     locale: reportLocale.default("en"),

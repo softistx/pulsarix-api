@@ -54,7 +54,10 @@ export const MAX_THREAD = 200;
 // The comments of the report's issue that belong to its thread: the team's
 // public ones, from the report's link on when it was linked to an existing
 // issue (it never sees what was said before). Internal comments never.
-const publicFilter = (report: ClientReportDocument, after?: Date | null) => {
+export const publicFilter = (
+  report: ClientReportDocument,
+  after?: Date | null,
+) => {
   const from = [report.linkedAt, after].filter((date) => date != null);
   const since = from.length
     ? new Date(Math.max(...from.map((date) => date.getTime())))

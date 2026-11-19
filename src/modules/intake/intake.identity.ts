@@ -71,6 +71,14 @@ export const sealIdentitySecret = (plain: string, keyId: string) =>
 export const openIdentitySecret = (sealed: string, keyId: string) =>
   sealer().unseal(keyId, sealed);
 
+// The tracking token, sealed the same way, bound to the widget key (the report
+// has no id yet when the token is made): the e-mails of A19 link to the
+// tracking page, and only the hash of the token is otherwise kept.
+export const sealTrackingToken = (token: string, keyId: string) =>
+  sealer().seal(`tracking:${keyId}`, token);
+export const openTrackingToken = (sealed: string, keyId: string) =>
+  sealer().unseal(`tracking:${keyId}`, sealed);
+
 // `sub` is never stored: the reporter is this digest, per key, so one user of
 // the host is a different reporter under each key.
 export const reporterKeyOf = (keyId: string, sub: string) =>

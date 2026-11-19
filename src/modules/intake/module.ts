@@ -14,6 +14,7 @@ import {
 } from "./intake.live.handlers";
 import { clientReportMessages } from "./intake.messages.model";
 import { clientReportFiles, clientReports, widgetKeys } from "./intake.model";
+import { mailPublicReply, mailStateChange } from "./intake.notify";
 import { intakeResolvers } from "./intake.resolver";
 import { clearClientWaiting } from "./intake.waiting";
 
@@ -24,10 +25,13 @@ registerIssueChange(followIssue);
 // (intake.comments.ts).
 registerCommentChange(clearClientWaiting);
 registerCommentSource(clientMessages);
-// The reporters' live streams hear the team's replies and issue moves
+// The reporters' e-mails (intake.notify.ts): a public reply or a move of the
+// issue schedules one batched e-mail. The reporters' live streams hear the team's replies and issue moves
 // (intake.live.handlers.ts).
 registerCommentChange(announcePublicReply);
 registerIssueChange(announceIssueChange);
+registerCommentChange(mailPublicReply);
+registerIssueChange(mailStateChange);
 
 // The intake: widget keys with their allowed origins (core database), the
 // client reports they bring in (organisation database), the team's inbox with

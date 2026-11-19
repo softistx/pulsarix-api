@@ -14,7 +14,7 @@ import {
   unknownKey,
 } from "./intake.errors";
 import { type CheckedFile, checkFiles } from "./intake.files.input";
-import { identifyCaller } from "./intake.identity";
+import { identifyCaller, sealTrackingToken } from "./intake.identity";
 import type { IntakeLimits, Limiter } from "./intake.limits.types";
 import { trackingMail } from "./intake.mail";
 import {
@@ -339,6 +339,9 @@ export class PublicIntake {
       impact: report.impact ?? null,
       type: report.type ?? null,
       trackingTokenHash: tracking?.hash ?? null,
+      trackingTokenSealed: tracking
+        ? sealTrackingToken(tracking.token, key.id)
+        : null,
       state: "new",
       issueId: null,
       declineReason: null,

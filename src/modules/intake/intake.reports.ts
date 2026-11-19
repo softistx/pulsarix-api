@@ -14,6 +14,7 @@ import { reportDecided, reportNotFound } from "./intake.errors";
 import { releaseFiles } from "./intake.files.team";
 import { announceChanged } from "./intake.live";
 import type { ClientReportDocument, ReportState } from "./intake.model";
+import { scheduleReporterMails } from "./intake.notify";
 import { prefillOf } from "./intake.prefill";
 import { refreshIssueWaiting } from "./intake.waiting";
 
@@ -85,6 +86,9 @@ export class ReportsService {
   ): Promise<ClientReportDocument> {
     await runAfterCommit([
       announceChanged(this.options.organisationId ?? "", [report]),
+      // A decline, an acceptance or a link may change the public state: the
+      // reporter's e-mail follows (intake.notify.ts).
+      scheduleReporterMails(this.options.organisationId ?? "", [report]),
     ]);
     return report;
   }

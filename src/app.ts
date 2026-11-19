@@ -26,14 +26,19 @@ import {
   useMedia,
 } from "./modules/attachments/attachments.storage";
 import { reportFilesReadRoutes } from "./modules/intake/intake.files.read";
+import { unsubscribeSecret } from "./modules/intake/intake.notify";
 import {
   liveRequestRoutes,
   requestFileRoutes,
 } from "./modules/intake/intake.requests.routes";
 import { publicRoutes } from "./modules/intake/intake.routes";
-import { serverIntake } from "./modules/intake/intake.server";
+import {
+  serverIntake,
+  serverTicketSecret,
+} from "./modules/intake/intake.server";
 import type { PublicIntake } from "./modules/intake/intake.submit";
 import { trackingFileRoutes } from "./modules/intake/intake.tracking.routes";
+import { unsubscribeRoutes } from "./modules/intake/intake.unsubscribe";
 import { uploadRoutes } from "./modules/intake/intake.uploads.routes";
 import { modules } from "./modules/registry";
 import {
@@ -138,6 +143,12 @@ export function createApp(
       .plugin(uploadRoutes(intake, media))
       // The reporter's own thumbnails, for the tracking page (UI server only).
       .plugin(trackingFileRoutes(intake, media))
+      // One-click unsubscribe of the reporter's e-mails (a signed link).
+      .plugin(
+        unsubscribeRoutes(tenancy, () =>
+          unsubscribeSecret(serverTicketSecret()),
+        ),
+      )
       // The identified reporter's requests: the live stream and the thumbnails
       // (the identity token in a header, the key in the query).
       .plugin(liveRequestRoutes(intake))

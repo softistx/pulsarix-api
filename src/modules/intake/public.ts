@@ -8,5 +8,6 @@ export type {
 } from "./intake.model";
 export {
   startFilesRetentionWorker,
+  startReporterMailWorker,
   startRetentionWorker,
 } from "./intake.server";

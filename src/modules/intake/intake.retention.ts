@@ -58,6 +58,7 @@ export async function eraseReport(
     pageUrl: null,
     metadata: [],
     trackingTokenHash: null,
+    trackingTokenSealed: null,
     erasedAt: now,
     clientWaiting: false,
   });
