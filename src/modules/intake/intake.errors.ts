@@ -133,3 +133,9 @@ export const quarantineFull = () =>
 // token with no such thumbnail.
 export const fileNotFound = () =>
   fail("intake.errors.file-not-found", { status: 404 });
+
+// 401: the `x-pulsarix-identity` token is forged, expired, not yet valid, over
+// 24 hours, signed for another key, or its key has no identity secret. One
+// answer for all, so a caller learns nothing about which check failed.
+export const identityInvalid = () =>
+  fail("intake.errors.identity-invalid", { status: 401 });

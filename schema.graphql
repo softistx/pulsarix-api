@@ -910,6 +910,13 @@ type Mutation {
   """
   enrollSecondFactor: SecondFactorEnrolment!
   """
+  Makes a new identity secret for the key and shows it once; it is stored
+  sealed. The previous secret stops working at once: tokens signed with it are
+  refused. Needs `intake:manage` and a recent proof of identity (403
+  `auth.errors.step-up-required`); 404 `intake.errors.key-not-found`.
+  """
+  generateWidgetIdentitySecret(keyId: ID!): WidgetIdentitySecret!
+  """
   Invites an e-mail address to the request's organisation with a role, and
   mails the link (in the request's language). Inviting an address again
   replaces its pending invitation. Needs `member:manage`; only an owner invites
@@ -1764,6 +1771,15 @@ type Viewer {
 scalar Void
 
 """
+A freshly generated identity secret, the only time it is shown. The host signs
+its identity tokens with it on its own server, never in a browser.
+"""
+type WidgetIdentitySecret {
+  key: WidgetKey!
+  secret: String!
+}
+
+"""
 A key the widget of a project is embedded with. The key is public by design: it
 reads its own configuration and sends reports for its project, nothing else.
 """
@@ -1780,6 +1796,10 @@ type WidgetKey {
   attachmentsEnabled: Boolean!
   createdAt: DateTime!
   id: ID!
+  """
+  When the identity secret was last generated; null if the key has none (reports then cannot be identified). The secret itself is never readable.
+  """
+  identitySecretSetAt: DateTime
   label: String!
   """When it was last used, to the minute; null if never."""
   lastUsedAt: DateTime

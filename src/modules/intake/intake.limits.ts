@@ -84,3 +84,14 @@ export const intakeDecoySlot = defineRateLimit({
   limit: 1,
   per: 15 * MINUTE,
 });
+
+// Reports of one identified reporter through one key (the key id and the
+// `reporterKey`, plan §19). Shorter than the address limit: a signed-in user
+// who changes address is still one reporter.
+export const intakeReporter = defineRateLimit({
+  name: "intake.reporter",
+  key: (p: { keyId: string; reporterKey: string }) =>
+    `${p.keyId}/${p.reporterKey}`,
+  limit: 10,
+  per: 10 * MINUTE,
+});

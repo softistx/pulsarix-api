@@ -14,6 +14,7 @@ import {
   unknownKey,
 } from "./intake.errors";
 import { type CheckedFile, checkFiles } from "./intake.files.input";
+import { verifyIdentity } from "./intake.identity";
 import { trackingMail } from "./intake.mail";
 import {
   attachmentsOn,
@@ -63,6 +64,7 @@ export interface IntakeLimits {
   intakeIpKey: Limiter<{ ip: string; publicKey: string }>;
   intakeEmail: Limiter<{ digest: string }>;
   intakeOrganisation: Limiter<{ organisationId: string }>;
+  intakeReporter: Limiter<{ keyId: string; reporterKey: string }>;
   intakeReadIp: Limiter<{ ip: string }>;
   intakeTrackingIp: Limiter<{ ip: string }>;
   // Bytes (the `cost` of a consume), per address and key, and per key.
@@ -115,6 +117,8 @@ export interface Caller {
   // The `Origin` header; null when there is none.
   origin: string | null;
   userAgent: string | null;
+  // The `x-pulsarix-identity` header, when the host sent one (intake.identity.ts).
+  identity?: string | null;
   language: Locale;
   // Set once the key's allow-list accepted `origin`: from then on the answer
   // carries the CORS headers, so the widget can read a 429 or a refusal too.
@@ -280,10 +284,24 @@ export class PublicIntake {
     await this.limit((l) => l.intakeKey, { publicKey });
     if (!key.active) throw keyDisabled();
 
+    // A token that is sent must be good: a bad one is a 401 and nothing is
+    // kept, not a report that silently loses its identity. No token, no change.
+    const identity = caller.identity
+      ? verifyIdentity(caller.identity, key, this.now())
+      : null;
+    if (identity) {
+      await this.limit((l) => l.intakeReporter, {
+        keyId: key.id,
+        reporterKey: identity.reporterKey,
+      });
+    }
+
     const parsed = submitInput.safeParse(given);
     if (!parsed.success) refused(parsed.error);
     const report = parsed.data;
-    const email = report.email ? report.email : null;
+    // An identified report carries the e-mail the host vouched for; the form's
+    // own is the fallback.
+    const email = identity?.email ?? (report.email ? report.email : null);
     if (email) {
       await this.limit((l) => l.intakeEmail, { digest: emailDigest(email) });
     }
@@ -337,6 +355,8 @@ export class PublicIntake {
       title: report.title,
       description: report.description,
       email,
+      reporterKey: identity?.reporterKey ?? null,
+      reporterName: identity?.reporterName ?? null,
       trackingTokenHash: tracking?.hash ?? null,
       state: "new",
       issueId: null,

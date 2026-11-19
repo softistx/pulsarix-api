@@ -56,5 +56,6 @@ export const intakeModule = defineModule({
     "upload-mismatch",
     "quarantine-full",
     "file-not-found",
+    "identity-invalid",
   ]),
 });

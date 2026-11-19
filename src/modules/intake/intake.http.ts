@@ -19,6 +19,7 @@ export type Status =
   | 200
   | 204
   | 400
+  | 401
   | 403
   | 404
   | 405
@@ -30,7 +31,7 @@ export type Status =
   | 500
   | 503;
 const statuses: readonly number[] = [
-  400, 403, 404, 405, 409, 410, 413, 415, 429, 500, 503,
+  400, 401, 403, 404, 405, 409, 410, 413, 415, 429, 500, 503,
 ];
 export const asStatus = (value: unknown): Status =>
   typeof value === "number" && statuses.includes(value)

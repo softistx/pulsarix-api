@@ -10,6 +10,7 @@ import {
   unsupportedMedia,
 } from "./intake.errors";
 import { answerOf, corsHeaders, respond, secure } from "./intake.http";
+import { IDENTITY_HEADER } from "./intake.identity";
 import { normaliseOrigin } from "./intake.origins";
 import {
   type PersistedId,
@@ -45,6 +46,7 @@ export function publicRoutes(intake: PublicIntake, log = console.warn) {
         ip: addressKey(ip),
         origin,
         userAgent: request.headers.get("user-agent"),
+        identity: request.headers.get(IDENTITY_HEADER),
         language: localeOfRequest(),
         originGranted: false,
       };
@@ -79,7 +81,8 @@ export function publicRoutes(intake: PublicIntake, log = console.warn) {
               ...secure,
               ...corsHeaders(origin),
               "access-control-allow-methods": "POST, OPTIONS",
-              "access-control-allow-headers": "content-type, accept-language",
+              "access-control-allow-headers":
+                "content-type, accept-language, x-pulsarix-identity",
               "access-control-max-age": "600",
             },
           });
