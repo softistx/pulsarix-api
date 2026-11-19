@@ -47,6 +47,9 @@ export function serverIntake(
     publishFile: async (event) => {
       await realtime.channels.clientReportFileReceived.publish(event);
     },
+    publishMessage: async (event) => {
+      await realtime.channels.clientReportMessageReceived.publish(event);
+    },
   });
 }
 

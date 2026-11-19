@@ -119,6 +119,12 @@ export const clientReports = defineCollection({
     resolvedByReporterAt: z.date().nullable().default(null),
     reopenedAt: z.date().nullable().default(null),
     reopenedFrom: publicState.nullable().default(null),
+    // The reporter's thread (plan §19, A16): when they last read it (the
+    // unread count is the team's public replies since), and whether they
+    // wrote last: set by a reporter's message, cleared by a public reply.
+    // Reports stored before A16 lack both: read `clientWaiting === true`.
+    reporterReadAt: z.date().nullable().default(null),
+    clientWaiting: z.boolean().default(false),
     pageUrl: z.string().max(2_048).nullable().default(null),
     userAgent: z.string().max(512).nullable().default(null),
     locale: reportLocale.default("en"),
@@ -165,7 +171,10 @@ export const clientReports = defineCollection({
 });
 export type ClientReportDocument = ReadDocumentOf<typeof clientReports>;
 
-export const reportFileRole = z.enum(["screenshot", "file"]);
+// What a reader declares a file to be when sending a report or a reply: the
+// widget's two controls. A file sent in a reply is stored with the role `reply`.
+export const declaredFileRole = z.enum(["screenshot", "file"]);
+export const reportFileRole = z.enum(["screenshot", "file", "reply"]);
 export type ReportFileRole = z.infer<typeof reportFileRole>;
 
 // Where a file stands. `pending`: the slot is reserved, the bytes may still
@@ -190,6 +199,8 @@ export const clientReportFiles = defineCollection({
     _id: id(),
     reportId: objectId(),
     role: reportFileRole,
+    // The reporter's message a `reply` file belongs to (clientReportMessages).
+    messageId: objectId().nullable().optional(),
     fileName: z.string().trim().min(1).max(200),
     mime: z.string().min(1).max(100),
     size: z.number().int().min(0),
@@ -206,6 +217,12 @@ export const clientReportFiles = defineCollection({
   timestamps: true,
   indexes: [
     { key: { reportId: 1, _id: 1 }, name: "clientReportFiles_reportIdId" },
+    // The files of a thread's messages.
+    {
+      key: { messageId: 1 },
+      partialFilterExpression: { messageId: { $type: "objectId" } },
+      name: "clientReportFiles_messageId",
+    },
     // The purge of pending slots.
     {
       key: { state: 1, expiresAt: 1 },

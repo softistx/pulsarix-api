@@ -139,3 +139,7 @@ export const fileNotFound = () =>
 // answer for all, so a caller learns nothing about which check failed.
 export const identityInvalid = () =>
   fail("intake.errors.identity-invalid", { status: 401 });
+
+// 409: the request was declined: it is read only, nothing can be added to it.
+export const requestDeclined = () =>
+  fail("intake.errors.request-declined", { status: 409 });

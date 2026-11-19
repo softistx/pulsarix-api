@@ -1,5 +1,6 @@
 import type { AppTenancy, ModuleMongo } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
+import { refreshIssueWaiting } from "./intake.waiting";
 
 // How long a settled report keeps its personal data (plan Q15).
 export const RETENTION_DAYS = 90;
@@ -36,7 +37,21 @@ export async function eraseSettled(
       metadata: [],
       trackingTokenHash: null,
       erasedAt: now,
+      clientWaiting: false,
     });
+    // An erased report no longer makes its issue wait.
+    if (report.issueId) {
+      await refreshIssueWaiting(
+        as as unknown as Parameters<typeof refreshIssueWaiting>[0],
+        report.issueId,
+      );
+    }
+    // What the reporter wrote in the thread is personal data too: the messages
+    // leave both threads (A16).
+    await as.db.clientReportMessages.updateMany(
+      { reportId: report._id, erasedAt: null },
+      { body: "", erasedAt: now },
+    );
   }
   return due.length;
 }

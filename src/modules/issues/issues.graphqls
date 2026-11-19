@@ -46,6 +46,11 @@ type Issue {
   "The client report it was accepted from, if any."
   clientReportId: ID
   watcherIds: [ID!]!
+  """
+  A reporter wrote last on one of its client reports and no public reply has
+  answered since: the "client reply" indicator.
+  """
+  clientWaiting: Boolean!
   "Whether the viewer watches it."
   watching: Boolean!
   createdAt: DateTime!
@@ -77,6 +82,8 @@ input IssueFilter {
   reporterId: ID
   "Only the issues the viewer watches."
   watching: Boolean
+  "Only the issues a reporter wrote last on and no public reply has answered."
+  clientWaiting: Boolean
   "Part of the title, any case."
   text: String @constraint(maxLength: 200)
   startAfter: DateTime

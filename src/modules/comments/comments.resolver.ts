@@ -2,6 +2,7 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import { can, requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
 import { CommentsService } from "./comments.service";
+import { isClientEntry } from "./comments.sources";
 
 type Permission = "comment:read" | "comment:write";
 
@@ -37,5 +38,9 @@ export const commentsResolvers: Resolvers = {
   Comment: {
     id: (comment) => comment.id,
     issueId: (comment) => comment.issueId.toHexString(),
+    source: (comment) => (isClientEntry(comment) ? "CLIENT" : "TEAM"),
+    reportId: (comment) => (isClientEntry(comment) ? comment.reportId : null),
+    reporterName: (comment) =>
+      isClientEntry(comment) ? comment.reporterName : null,
   },
 };

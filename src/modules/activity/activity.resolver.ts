@@ -3,6 +3,7 @@ import { requirePermission } from "../../core/access";
 import { ActivityService } from "./activity.service";
 import {
   openClientReportFiles,
+  openClientReportMessages,
   openClientReports,
   openIssueChanged,
   openNotifications,
@@ -50,6 +51,11 @@ export const activityResolvers: Resolvers = {
     clientReportFileReceived: {
       subscribe: (_, { projectId }, ctx) =>
         openClientReportFiles(ctx, projectId),
+      resolve: issueEvent as never,
+    },
+    clientReportMessageReceived: {
+      subscribe: (_, { projectId }, ctx) =>
+        openClientReportMessages(ctx, projectId),
       resolve: issueEvent as never,
     },
   },

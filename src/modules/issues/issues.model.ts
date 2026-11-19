@@ -59,6 +59,10 @@ export const issues = defineCollection({
     // The client report it was accepted from (intake, A9), if any.
     clientReportId: objectId().nullable().default(null),
     watcherIds: z.array(accountId).default([]),
+    // A reporter wrote last on one of its client reports and no public reply
+    // has answered since (plan §19, A16). Issues stored before lack it: read
+    // `clientWaiting === true`.
+    clientWaiting: z.boolean().default(false),
   }),
   timestamps: true,
   optimisticLock: true,
@@ -75,6 +79,12 @@ export const issues = defineCollection({
       name: "issues_projectIdStatusIdRank",
     },
     { key: { parentId: 1 }, name: "issues_parentId" },
+    // The "client replied" filter of the issue list.
+    {
+      key: { projectId: 1, clientWaiting: 1 },
+      partialFilterExpression: { clientWaiting: true },
+      name: "issues_projectIdClientWaiting",
+    },
     { key: { labelIds: 1 }, name: "issues_labelIds" },
     { key: { projectId: 1, dueDate: 1 }, name: "issues_projectIdDueDate" },
     // Search (A8): no stemming nor stop words, so French and English alike.

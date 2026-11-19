@@ -1,13 +1,25 @@
 import { defineModule } from "@alxia/modules";
 import { defineCodes } from "../../i18n/define-codes";
+import {
+  registerCommentChange,
+  registerCommentSource,
+} from "../comments/public";
 import { registerIssueChange } from "../issues/public";
 import { followIssue } from "./intake.closing";
+import { clientMessages } from "./intake.comments";
 import intakeTypeDefs from "./intake.graphqls" with { type: "text" };
+import { clientReportMessages } from "./intake.messages.model";
 import { clientReportFiles, clientReports, widgetKeys } from "./intake.model";
 import { intakeResolvers } from "./intake.resolver";
+import { clearClientWaiting } from "./intake.waiting";
 
 // A report follows its issue to its end (intake.closing.ts).
 registerIssueChange(followIssue);
+// A public reply clears "the client is waiting" (intake.waiting.ts), and the
+// reporters' messages read as `source: CLIENT` entries of the issue's comments
+// (intake.comments.ts).
+registerCommentChange(clearClientWaiting);
+registerCommentSource(clientMessages);
 
 // The intake: widget keys with their allowed origins (core database), the
 // client reports they bring in (organisation database), the team's inbox with
@@ -21,10 +33,11 @@ export const intakeModule = defineModule({
     "projects",
     "issues",
     "comments",
+    "activity",
     "attachments",
   ],
   coreCollections: { widgetKeys },
-  collections: { clientReportFiles, clientReports },
+  collections: { clientReportFiles, clientReportMessages, clientReports },
   typeDefs: [intakeTypeDefs],
   resolvers: intakeResolvers as never,
   // Keys are managed by admins; the inbox is worked with `issue:write`.
@@ -57,5 +70,6 @@ export const intakeModule = defineModule({
     "quarantine-full",
     "file-not-found",
     "identity-invalid",
+    "request-declined",
   ]),
 });

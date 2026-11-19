@@ -125,6 +125,8 @@ type ClientReport {
   declineReasonPublic: Boolean!
   "When the report was linked to an existing issue; null if it made its own or none."
   linkedAt: DateTime
+  "True while the reporter wrote last in the request thread and the team has not replied publicly since."
+  clientWaiting: Boolean!
   pageUrl: String
   userAgent: String
   locale: String!
@@ -151,6 +153,8 @@ type ClientReport {
 enum ClientReportFileRole {
   screenshot
   file
+  "Sent by the reporter in a reply of their request thread."
+  reply
 }
 
 """
@@ -173,6 +177,8 @@ type ClientReportFile {
   id: ID!
   reportId: ID!
   role: ClientReportFileRole!
+  "The reporter's message a `reply` file belongs to; null for the others."
+  messageId: ID
   fileName: String!
   mime: String!
   "Bytes of the upload."

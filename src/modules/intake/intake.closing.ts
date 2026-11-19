@@ -1,5 +1,6 @@
 import type { ModuleMongo } from "../../config/db";
 import type { IssueChange } from "../issues/public";
+import { refreshIssueWaiting } from "./intake.waiting";
 
 type ClosingMongo = ModuleMongo<"intake"> & ModuleMongo<"issues">;
 
@@ -29,9 +30,13 @@ export async function followIssue(
   if (change.verb === "created") {
     const reportId = change.issue.clientReportId;
     if (reportId) {
-      await tx.db.clientReports.update(reportId, {
+      const report = await tx.db.clientReports.update(reportId, {
         issueId: change.issue._id,
       });
+      // A reporter who wrote while the report was new is still waiting.
+      if (report.clientWaiting === true) {
+        await refreshIssueWaiting(tx, change.issue._id);
+      }
     }
     return;
   }

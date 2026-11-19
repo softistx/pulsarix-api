@@ -8,7 +8,7 @@ import { parseSealingKeys, sealerFor } from "@softistx/janus";
 import { z } from "zod";
 import { env } from "../../config/env";
 import { identityInvalid } from "./intake.errors";
-import type { PublicIntake } from "./intake.submit";
+import type { IntakeLimits, Limiter } from "./intake.limits.types";
 
 // The reporter identity of plan §19: the host's server signs a token for its
 // signed-in user, the widget sends it in `x-pulsarix-identity`, and the report
@@ -142,7 +142,11 @@ export function verifyIdentity(
 export async function identifyCaller(
   intake: {
     now(): Date;
-    limit: PublicIntake["limit"];
+    limit<P>(
+      pick: (limits: IntakeLimits) => Limiter<P>,
+      params: P,
+      cost?: number,
+    ): Promise<void>;
   },
   key: Parameters<typeof verifyIdentity>[1],
   token: string | null | undefined,
