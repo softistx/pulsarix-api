@@ -7,6 +7,10 @@ enum NotificationKind {
   watchedChange
   "A reporter wrote in the thread of a client report of an issue the viewer is assigned or watches."
   clientReplied
+  "A reporter marked a client report of an issue the viewer is assigned or watches as resolved."
+  clientResolved
+  "A reporter reopened a client report of an issue the viewer is assigned or watches."
+  clientReopened
 }
 
 """

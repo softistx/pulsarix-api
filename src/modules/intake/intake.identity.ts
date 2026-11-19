@@ -43,6 +43,8 @@ export interface Identity {
   reporterKey: string;
   reporterName: string | null;
   email: string | null;
+  // When the token stops being valid: a live stream ends then.
+  expiresAt: Date;
 }
 
 // The secret is sealed before any store sees it: janus `sealerFor` under the
@@ -132,6 +134,7 @@ export function verifyIdentity(
     reporterKey: reporterKeyOf(key.id, claims.sub),
     reporterName: claims.name || null,
     email: claims.email ?? null,
+    expiresAt: new Date(claims.exp * 1000),
   };
 }
 

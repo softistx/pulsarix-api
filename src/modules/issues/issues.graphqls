@@ -6,6 +6,15 @@ enum IssuePriority {
   urgent
 }
 
+enum ClientMarker {
+  "A reporter marked a request of the issue resolved."
+  resolved
+  "A reporter reopened a request of the issue."
+  reopened
+  "A reporter erased their data."
+  deleted
+}
+
 """
 Where an issue's priority came from: `client` is the reporter's impact,
 prefilled when the report was accepted; `team` is what a member set or
@@ -51,6 +60,8 @@ type Issue {
   answered since: the "client reply" indicator.
   """
   clientWaiting: Boolean!
+  "What reporters did to its requests: resolved or reopened (the latest), and deleted once one erased their data."
+  clientMarkers: [ClientMarker!]!
   "Whether the viewer watches it."
   watching: Boolean!
   createdAt: DateTime!

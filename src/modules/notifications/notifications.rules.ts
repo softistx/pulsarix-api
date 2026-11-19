@@ -17,6 +17,8 @@ const strength: Record<NotificationKind, number> = {
   mention: 3,
   assigned: 2,
   clientReplied: 2,
+  clientResolved: 2,
+  clientReopened: 2,
   watchedChange: 1,
 };
 
@@ -28,7 +30,8 @@ const strength: Record<NotificationKind, number> = {
 // - an issue created or changed: the assignee when it is a new one, then the
 //   watchers of a change or a move;
 // - a reporter's message in a request thread: the assignee and the watchers,
-//   as `clientReplied`;
+//   as `clientReplied`; a reporter who resolves or reopens a request: the same
+//   people, as `clientResolved` or `clientReopened`;
 // - a deleted issue or comment: nobody.
 export function recipientsOf(
   event: NotifyEvent,
@@ -60,6 +63,11 @@ export function recipientsOf(
     case "clientReplied":
       tell(event.assigneeId, "clientReplied");
       for (const id of event.watcherIds) tell(id, "clientReplied");
+      break;
+    case "clientResolved":
+    case "clientReopened":
+      tell(event.assigneeId, event.verb);
+      for (const id of event.watcherIds) tell(id, event.verb);
       break;
     default:
       break;

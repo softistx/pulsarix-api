@@ -8,6 +8,10 @@ enum ActivityVerb {
   commentDeleted
   "A reporter wrote in the thread of one of the issue's client reports."
   clientReplied
+  "A reporter marked one of the issue's requests as resolved."
+  clientResolved
+  "A reporter reopened one of the issue's requests."
+  clientReopened
 }
 
 "One field a change touched. Values are text, `null` for none; a list is JSON text; a long text is cut."

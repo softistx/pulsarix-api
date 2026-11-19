@@ -44,6 +44,7 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
   [CONTEXT.md](CONTEXT.md). Behind a proxy set `TRUSTED_PROXIES`, or every client shares one address.
 - `GET /media/report-files/<key>/<full|file|256>` is the team's read of a report file (UI server: `x-pulsarix-client`, a session, `attachment:read`; a quarantined file also needs `issue:write`, else 404).
 - `GET /public/tracking/files/<id>` is the reporter's thumbnail (UI server only: `x-pulsarix-client` and the token in `x-pulsarix-tracking`; refused when the request has an `Origin`). Keep both off the public proxy.
+- The identified reporter's requests (A17), all behind the `x-pulsarix-identity` token and CORS per key: persisted operations on `/public/graphql` (`myRequests`, `request`, `replyToRequest`, `resolveRequest`, `reopenRequest`, `markRequestRead`, `setRequestEmails`, `eraseMyData`, each with the `publicKey` variable), `GET /public/requests/files/<id>?key=<publicKey>` (a thumbnail) and `GET /public/live/requests?key=<publicKey>` (server-sent events read with `fetch`: `unread {count}`, `request.updated {id, publicState, unread}`, `expired {}`, then the stream ends; at most 3 open per reporter; it closes when the token expires). These are for browsers: unlike the tracking reads, they may go through the public proxy, which must not buffer `text/event-stream`.
 - `bun run schema:print` writes `schema.graphql`, the committed contract the UI generates
   its client from.
 

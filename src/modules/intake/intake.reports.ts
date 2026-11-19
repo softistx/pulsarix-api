@@ -1,5 +1,6 @@
 import { OptimisticLockError } from "@softistx/mongo";
 import type { ModuleMongo } from "../../config/db";
+import { runAfterCommit } from "../../core/shared/after-commit";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import {
@@ -11,6 +12,7 @@ import { projectNotFound } from "../projects/public";
 import { isSettled } from "./intake.closing";
 import { reportDecided, reportNotFound } from "./intake.errors";
 import { releaseFiles } from "./intake.files.team";
+import { announceChanged } from "./intake.live";
 import type { ClientReportDocument, ReportState } from "./intake.model";
 import { prefillOf } from "./intake.prefill";
 import { refreshIssueWaiting } from "./intake.waiting";
@@ -36,6 +38,8 @@ export class ReportsService {
       // Injected by a spec; the files retention job retries a failed release.
       release?: typeof releaseFiles;
       log?: (message: string, error: unknown) => void;
+      // The organisation, for the live event the reporter's stream hears.
+      organisationId?: string;
     } = {},
   ) {}
 
@@ -73,6 +77,16 @@ export class ReportsService {
       endCursor: hasNextPage && last ? last.id : null,
       hasNextPage,
     };
+  }
+
+  // The reporter's stream hears that their request was decided.
+  private async told(
+    report: ClientReportDocument,
+  ): Promise<ClientReportDocument> {
+    await runAfterCommit([
+      announceChanged(this.options.organisationId ?? "", [report]),
+    ]);
+    return report;
   }
 
   private async byId(id: string): Promise<ClientReportDocument> {
@@ -115,6 +129,10 @@ export class ReportsService {
   // report pointing back at it. If the issue cannot be made, the report is
   // new again.
   async accept(id: string): Promise<ClientReportDocument> {
+    return this.told(await this.acceptReport(id));
+  }
+
+  private async acceptReport(id: string): Promise<ClientReportDocument> {
     const report = await this.byId(id);
     const claimed = await this.claim(report, "accepted");
     let created = false;
@@ -162,6 +180,13 @@ export class ReportsService {
   }
 
   async decline(id: string, reason: string): Promise<ClientReportDocument> {
+    return this.told(await this.declineReport(id, reason));
+  }
+
+  private async declineReport(
+    id: string,
+    reason: string,
+  ): Promise<ClientReportDocument> {
     const text = reason.trim();
     if (!text) {
       throw invalid([{ path: "reason", code: "validation.errors.required" }]);
@@ -177,6 +202,13 @@ export class ReportsService {
   // issue is made, the report points at the issue and follows it from then on
   // (intake.closing.ts), and its files are released to it.
   async link(id: string, issueId: string): Promise<ClientReportDocument> {
+    return this.told(await this.linkReport(id, issueId));
+  }
+
+  private async linkReport(
+    id: string,
+    issueId: string,
+  ): Promise<ClientReportDocument> {
     const report = await this.byId(id);
     const issue = await this.mongo.db.issues.findById(
       idOrInvalid(issueId, "issueId"),

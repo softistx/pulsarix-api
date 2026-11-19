@@ -48,6 +48,8 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
       "Your identity could not be confirmed. Sign in again and retry.",
     "intake.errors.request-declined":
       "This request was declined: it can no longer be answered.",
+    "intake.errors.reopen-expired":
+      "This request was resolved too long ago to be reopened. Send a new request.",
   },
   fr: {
     "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",
@@ -96,5 +98,7 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
       "Votre identité n'a pas pu être confirmée. Reconnectez-vous et réessayez.",
     "intake.errors.request-declined":
       "Cette demande a été refusée : on ne peut plus y répondre.",
+    "intake.errors.reopen-expired":
+      "Cette demande a été résolue il y a trop longtemps pour être rouverte. Envoyez une nouvelle demande.",
   },
 };

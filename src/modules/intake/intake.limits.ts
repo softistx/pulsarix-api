@@ -95,3 +95,49 @@ export const intakeReporter = defineRateLimit({
   limit: 10,
   per: 10 * MINUTE,
 });
+
+// The reads of one identified reporter through one key: the lists, a request,
+// the read marks, the e-mail switch and every open of the live stream (plan §19).
+export const intakeReporterRead = defineRateLimit({
+  name: "intake.reporter-read",
+  key: (p: { keyId: string; reporterKey: string }) =>
+    `${p.keyId}/${p.reporterKey}`,
+  limit: 120,
+  per: 10 * MINUTE,
+});
+
+// The replies of one identified reporter through one key.
+export const intakeReporterReply = defineRateLimit({
+  name: "intake.reporter-reply",
+  key: (p: { keyId: string; reporterKey: string }) =>
+    `${p.keyId}/${p.reporterKey}`,
+  limit: 10,
+  per: 10 * MINUTE,
+});
+
+// The replies one key takes, whoever sends them: a ceiling against a host that
+// signs tokens for a crowd.
+export const intakeKeyReply = defineRateLimit({
+  name: "intake.key-reply",
+  key: (p: { keyId: string }) => p.keyId,
+  limit: 600,
+  per: HOUR,
+});
+
+// "Mark as resolved" and "Reopen" of one identified reporter.
+export const intakeReporterSettle = defineRateLimit({
+  name: "intake.reporter-settle",
+  key: (p: { keyId: string; reporterKey: string }) =>
+    `${p.keyId}/${p.reporterKey}`,
+  limit: 20,
+  per: 24 * HOUR,
+});
+
+// "Delete my data": once an hour per reporter.
+export const intakeReporterErase = defineRateLimit({
+  name: "intake.reporter-erase",
+  key: (p: { keyId: string; reporterKey: string }) =>
+    `${p.keyId}/${p.reporterKey}`,
+  limit: 1,
+  per: HOUR,
+});

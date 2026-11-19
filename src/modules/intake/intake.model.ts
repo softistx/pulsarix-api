@@ -125,6 +125,10 @@ export const clientReports = defineCollection({
     // Reports stored before A16 lack both: read `clientWaiting === true`.
     reporterReadAt: z.date().nullable().default(null),
     clientWaiting: z.boolean().default(false),
+    // The reporter turned the e-mails of their requests off (the widget's or
+    // the tracking page's toggle; the e-mails are A19). Reports stored before
+    // A17 lack it: read `emailsOff === true`.
+    emailsOff: z.boolean().default(false),
     pageUrl: z.string().max(2_048).nullable().default(null),
     userAgent: z.string().max(512).nullable().default(null),
     locale: reportLocale.default("en"),

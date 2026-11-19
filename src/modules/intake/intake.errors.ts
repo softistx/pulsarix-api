@@ -140,6 +140,10 @@ export const fileNotFound = () =>
 export const identityInvalid = () =>
   fail("intake.errors.identity-invalid", { status: 401 });
 
+// 409: the request was resolved more than 30 days ago: it cannot be reopened.
+export const reopenExpired = () =>
+  fail("intake.errors.reopen-expired", { status: 409 });
+
 // 409: the request was declined: it is read only, nothing can be added to it.
 export const requestDeclined = () =>
   fail("intake.errors.request-declined", { status: 409 });

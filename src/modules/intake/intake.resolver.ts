@@ -43,6 +43,7 @@ async function reportsOf(ctx: Context) {
       organisationId,
     ),
     viewerId,
+    { organisationId },
   );
 }
 

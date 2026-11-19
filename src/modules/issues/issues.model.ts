@@ -10,6 +10,10 @@ import { accountId, actors } from "../../core/shared/actors";
 export const priority = z.enum(["none", "low", "medium", "high", "urgent"]);
 export type Priority = z.infer<typeof priority>;
 
+// What a reporter did to the issue's requests (plan §19), shown to the team.
+export const clientMarker = z.enum(["resolved", "reopened", "deleted"]);
+export type ClientMarker = z.infer<typeof clientMarker>;
+
 // Where an issue's priority came from (plan §19): `client` is the reporter's
 // impact, prefilled when the report was accepted; `team` is anything a member
 // set or changed (and what every issue made by a member starts as); `auto` is
@@ -63,6 +67,10 @@ export const issues = defineCollection({
     // has answered since (plan §19, A16). Issues stored before lack it: read
     // `clientWaiting === true`.
     clientWaiting: z.boolean().default(false),
+    // What the reporters did to the issue's requests (plan §19, A17): the
+    // latest of "resolved" and "reopened", and "deleted" once one erased their
+    // data. Issues stored before lack it: read `clientMarkers ?? []`.
+    clientMarkers: z.array(clientMarker).default([]),
   }),
   timestamps: true,
   optimisticLock: true,

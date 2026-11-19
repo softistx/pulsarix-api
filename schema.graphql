@@ -112,8 +112,12 @@ type ActivityConnection {
 }
 
 enum ActivityVerb {
+  """A reporter reopened one of the issue's requests."""
+  clientReopened
   """A reporter wrote in the thread of one of the issue's client reports."""
   clientReplied
+  """A reporter marked one of the issue's requests as resolved."""
+  clientResolved
   commentDeleted
   commentEdited
   commented
@@ -222,6 +226,15 @@ scalar CIDRv6 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc4291")
 input ChangePasswordInput {
   currentPassword: String! @constraint(maxLength: 1024)
   newPassword: String! @constraint(maxLength: 1024)
+}
+
+enum ClientMarker {
+  """A reporter erased their data."""
+  deleted
+  """A reporter reopened a request of the issue."""
+  reopened
+  """A reporter marked a request of the issue resolved."""
+  resolved
 }
 
 """
@@ -609,6 +622,10 @@ An issue of a project. Its `key` (`ABC-12`) is the project's key and its
 """
 type Issue {
   assigneeId: ID
+  """
+  What reporters did to its requests: resolved or reopened (the latest), and deleted once one erased their data.
+  """
+  clientMarkers: [ClientMarker!]!
   """The client report it was accepted from, if any."""
   clientReportId: ID
   """
@@ -1298,9 +1315,17 @@ enum NotificationKind {
   """An issue was assigned to the viewer."""
   assigned
   """
+  A reporter reopened a client report of an issue the viewer is assigned or watches.
+  """
+  clientReopened
+  """
   A reporter wrote in the thread of a client report of an issue the viewer is assigned or watches.
   """
   clientReplied
+  """
+  A reporter marked a client report of an issue the viewer is assigned or watches as resolved.
+  """
+  clientResolved
   """The viewer was mentioned in a comment."""
   mention
   """An issue the viewer watches changed or was commented."""
