@@ -84,11 +84,27 @@ to the UI, so no router changes.
 
 ## Migrations
 
-There is no migration step. Each organisation has its own database, created at runtime, so no
-deploy step can sync them. The API runs with `MONGO_AUTO_SYNC=true` (declared in
-`src/config/env.ts`: `1`, `true`, `yes` or `on`; off in production when unset; the compose file
-sets it): validators and indexes are created on first use. For that the app user holds
-`readWriteAnyDatabase` and `dbAdminAnyDatabase` (the backup user holds `backup` only).
+There is no migration script; the schema is synced in two places.
+- **The core database at every boot.** `src/server.ts` calls `syncCoreAtBoot`
+  (`src/config/core-sync.ts`) before the API listens: `coreMongo.sync()` (the
+  organisation registry, locks, invitations) and janus-mongo's `syncMongoAdapter`
+  (users, sessions, tokens, relations). So a new janus-mongo validator or index
+  reaches production with the next deploy, no step to remember. It is
+  idempotent (`collMod` and `createIndexes`; an index is rebuilt only when its
+  options changed, nothing else is dropped, no document is touched) and cheap
+  (a handful of collections, no loop over organisations). A failure is logged
+  (`core database sync failed, not starting`) and the process exits 1, so the
+  container never turns healthy on a stale schema. The log line
+  `core database validators and indexes synced` confirms it.
+- **Each organisation database on first use.** Each organisation has its own
+  database, created at runtime, so the boot sync cannot cover them. The API runs
+  with `MONGO_AUTO_SYNC=true` (declared in `src/config/env.ts`: `1`, `true`,
+  `yes` or `on`; off in production when unset; the compose file sets it):
+  validators and indexes are created on first use. For that the app user holds
+  `readWriteAnyDatabase` and `dbAdminAnyDatabase` (the backup user holds `backup`
+  only). `tenancy.sync()` (which also loops over every organisation) is not called at
+  boot, as it would open every organisation database. A collection option MongoDB
+  cannot change in place makes the boot sync throw: the API then exits 1 until it is fixed by hand.
 
 ## First deploy
 
