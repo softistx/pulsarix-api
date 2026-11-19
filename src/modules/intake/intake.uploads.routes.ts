@@ -39,82 +39,104 @@ export function uploadRoutes(
   return alxia().all(
     `${UPLOAD_PATH}/:slot`,
     { bodyLimit: maxFileBytes },
-    async ({ request, ip, params }) => {
-      const origin = request.headers.get("origin");
-      const caller: Caller = {
-        ip: addressKey(ip),
-        origin,
-        userAgent: null,
-        language: localeOfRequest(),
-        originGranted: false,
-      };
-      // The key a refusal is counted on (A13): the signed ticket's, and only
-      // once the key's own `Origin` check has passed.
-      const ticket = request.headers.get(TICKET_HEADER);
-      const claims = ticket
-        ? readTicket(intake.deps.ticketSecret, ticket)
-        : null;
-      const count = (error: unknown) => {
-        if (claims && caller.originGranted) {
-          intake.countRefusal(new ObjectId(claims.keyId), error);
-        }
-      };
-      const cors = () =>
-        caller.originGranted && origin ? corsHeaders(origin) : {};
-      try {
-        if (request.method === "OPTIONS") {
-          return await preflight(intake, origin, caller.ip);
-        }
-        if (request.method !== "PUT") {
-          return respond(
-            405,
-            { errors: [] },
-            { headers: { ...secure, allow: "PUT, OPTIONS" } },
-          );
-        }
-        if (!store) throw unavailable();
-        const admission = await uploads.admit(
-          params["slot"] ?? "",
-          ticket,
-          {
-            contentType: request.headers.get("content-type"),
-            length: request.headers.get("content-length"),
-          },
-          caller,
-        );
-        if (admission.decoy) {
-          // Nothing is read and nothing is stored.
-          return respond(
-            200,
-            { slot: admission.claims.slot, state: "received" },
-            { headers: { ...secure, ...cors() } },
-          );
-        }
-        return await forward(
-          request,
-          admission,
-          { store, uploads, admitted },
-          { cors: cors(), count },
-        );
-      } catch (error) {
-        if (error instanceof GraphQLError) {
-          count(error);
-          return refusal(error, { ...cors() }, log);
-        }
-        if ((error as { status?: number }).status === 413) {
-          return respond(413, { errors: [] }, { headers: secure });
-        }
-        log("report file upload failed", error);
-        return refusal(
-          new GraphQLError("Internal error", {
-            originalError: error as Error,
-          }),
-          cors(),
-          log,
-        );
-      }
-    },
+    (call) => handlePut({ intake, uploads, store, admitted, log }, call),
   );
+}
+
+// What one PUT needs: the intake, the admissions, the media store behind them.
+interface PutParts {
+  intake: PublicIntake;
+  uploads: ReportUploads;
+  store: ReturnType<typeof mediaStore> | undefined;
+  admitted: WeakMap<Request, Admission>;
+  log: (message: string, error?: unknown) => void;
+}
+
+// One request on the upload path: the preflight, the refusals, the admission,
+// then the body handed to the media route.
+async function handlePut(
+  { intake, uploads, store, admitted, log }: PutParts,
+  {
+    request,
+    ip,
+    params,
+  }: {
+    request: Request;
+    ip: string | undefined;
+    params: Record<string, string | undefined>;
+  },
+) {
+  const origin = request.headers.get("origin");
+  const caller: Caller = {
+    ip: addressKey(ip),
+    origin,
+    userAgent: null,
+    language: localeOfRequest(),
+    originGranted: false,
+  };
+  // The key a refusal is counted on (A13): the signed ticket's, and only
+  // once the key's own `Origin` check has passed.
+  const ticket = request.headers.get(TICKET_HEADER);
+  const claims = ticket ? readTicket(intake.deps.ticketSecret, ticket) : null;
+  const count = (error: unknown) => {
+    if (claims && caller.originGranted) {
+      intake.countRefusal(new ObjectId(claims.keyId), error);
+    }
+  };
+  const cors = () =>
+    caller.originGranted && origin ? corsHeaders(origin) : {};
+  try {
+    if (request.method === "OPTIONS") {
+      return await preflight(intake, origin, caller.ip);
+    }
+    if (request.method !== "PUT") {
+      return respond(
+        405,
+        { errors: [] },
+        { headers: { ...secure, allow: "PUT, OPTIONS" } },
+      );
+    }
+    if (!store) throw unavailable();
+    const admission = await uploads.admit(
+      params["slot"] ?? "",
+      ticket,
+      {
+        contentType: request.headers.get("content-type"),
+        length: request.headers.get("content-length"),
+      },
+      caller,
+    );
+    if (admission.decoy) {
+      // Nothing is read and nothing is stored.
+      return respond(
+        200,
+        { slot: admission.claims.slot, state: "received" },
+        { headers: { ...secure, ...cors() } },
+      );
+    }
+    return await forward(
+      request,
+      admission,
+      { store, uploads, admitted },
+      { cors: cors(), count },
+    );
+  } catch (error) {
+    if (error instanceof GraphQLError) {
+      count(error);
+      return refusal(error, { ...cors() }, log);
+    }
+    if ((error as { status?: number }).status === 413) {
+      return respond(413, { errors: [] }, { headers: secure });
+    }
+    log("report file upload failed", error);
+    return refusal(
+      new GraphQLError("Internal error", {
+        originalError: error as Error,
+      }),
+      cors(),
+      log,
+    );
+  }
 }
 
 // The `report-files` routes of @alxia/media behind the admissions: a write

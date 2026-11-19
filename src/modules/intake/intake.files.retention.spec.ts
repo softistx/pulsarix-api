@@ -147,6 +147,41 @@ describe("the report files purge", () => {
     expect(await mongo.db.clientReportFiles.count({})).toBe(0);
   });
 
+  test("the sweep starts from the files: reports with no files left are never read", async () => {
+    const { mongo, organisationId, report, file } = await setup();
+    const now = new Date();
+    const old = new Date(now.getTime() - DECLINED_FILES_DAYS * DAY);
+    // Old declined reports whose files are already gone, and one with files.
+    const gone = [
+      await report({ state: "declined", decidedAt: old }),
+      await report({ state: "declined", decidedAt: old }),
+    ];
+    const held = await report({ state: "declined", decidedAt: old });
+    await file(held);
+    const reads: unknown[] = [];
+    const raw = mongo.db.clientReports.raw;
+    const find = raw.find.bind(raw);
+    (raw as { find: unknown }).find = (filter: unknown, ...rest: unknown[]) => {
+      reads.push(filter);
+      return (find as (...a: unknown[]) => unknown)(filter, ...rest);
+    };
+    try {
+      const purged = await purgeReportFiles(mongo, media, organisationId, now);
+      expect(purged.declined).toBe(1);
+    } finally {
+      (raw as { find: unknown }).find = find;
+    }
+    expect(reads.length).toBeGreaterThan(0);
+    // Every read of the reports is by `_id` among the reports holding files.
+    for (const filter of reads) {
+      const ids = (filter as { _id?: { $in?: ObjectId[] } })._id?.$in;
+      expect(ids).toBeDefined();
+      for (const id of gone) {
+        expect(ids?.some((x) => x.equals(id))).toBe(false);
+      }
+    }
+  });
+
   test("a report nobody triaged loses its files after 90 days, an accepted one never", async () => {
     const { mongo, organisationId, report, file, objects } = await setup();
     const now = new Date();

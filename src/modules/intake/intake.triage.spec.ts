@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { TestS3 } from "@softistx/s3/testing";
-import { ObjectId } from "mongodb";
+import { Collection, ObjectId } from "mongodb";
 import { memberWith } from "~/auth";
 import { codeOf } from "~/http";
 import { goodReport, type IntakeKit, intakeKit } from "~/intake";
@@ -489,6 +489,65 @@ describe("the pending files of a report", () => {
           .attempt(Pending, { projectId: w.kit.project.id }),
       ),
     ).toBe("auth.errors.forbidden");
+  }, 120_000);
+});
+
+describe("the pending files of a page of reports", () => {
+  test("one aggregate serves the whole page, not one per report", async () => {
+    const w = await setup();
+    const reports: string[] = [];
+    for (let n = 0; n < 4; n++) {
+      const sent = await w.kit.submit(
+        goodReport({
+          files: [
+            {
+              role: "file",
+              name: "b.pdf",
+              type: "application/pdf",
+              size: pdf.length,
+            },
+          ],
+        }),
+      );
+      (
+        w.kit.limits as unknown as {
+          intakeIpKey: { counts: Map<string, number> };
+        }
+      ).intakeIpKey.counts.clear();
+      reports.push(
+        (
+          (sent.body as { data: unknown }).data as unknown as {
+            submitClientReport: { reportId: string };
+          }
+        ).submitClientReport.reportId,
+      );
+    }
+    // Counted on the driver's collection, whatever wrapper the request uses.
+    const proto = Collection.prototype as unknown as {
+      aggregate: (...args: unknown[]) => unknown;
+    };
+    const aggregate = proto.aggregate;
+    let aggregates = 0;
+    proto.aggregate = function (this: Collection, ...args: unknown[]) {
+      if (this.collectionName === "clientReportFiles") aggregates += 1;
+      return aggregate.apply(this, args);
+    };
+    let nodes: { id: string; pendingFiles: number }[];
+    try {
+      nodes = (
+        await w.kit.asOwner.call<{
+          clientReports: { nodes: { id: string; pendingFiles: number }[] };
+        }>(
+          `query($projectId: ID!) { clientReports(projectId: $projectId) { nodes { id pendingFiles } } }`,
+          { projectId: w.kit.project.id },
+        )
+      ).clientReports.nodes;
+    } finally {
+      proto.aggregate = aggregate;
+    }
+    expect(nodes.filter((n) => reports.includes(n.id))).toHaveLength(4);
+    expect(nodes.every((n) => n.pendingFiles === 1)).toBe(true);
+    expect(aggregates).toBe(1);
   }, 120_000);
 });
 
