@@ -307,6 +307,41 @@ describe("e-mails and erasure", () => {
   });
 });
 
+describe("trackingErase when the erasure fails", () => {
+  test("does not spend the hour: a retry erases", async () => {
+    const w = await world();
+    const { token, id } = await w.report();
+    const real = w.kit.intake.databaseOf.bind(w.kit.intake);
+    let armed = true;
+    w.kit.intake.databaseOf = (async (key: Parameters<typeof real>[0]) => {
+      const mongo = await real(key);
+      return new Proxy(mongo, {
+        get(target, property) {
+          if (property === "as" && armed) {
+            armed = false;
+            return () => {
+              throw new Error("database down");
+            };
+          }
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+    }) as typeof real;
+    try {
+      const failed = await w.ui("trackingErase", token);
+      expect(failed.status).toBeGreaterThanOrEqual(500);
+    } finally {
+      w.kit.intake.databaseOf = real;
+    }
+    const retry = await w.ui("trackingErase", token);
+    expect(retry.body?.data?.["trackingErase"]).toEqual({ requests: 1 });
+    expect(
+      (await w.mongo.db.clientReports.findById(new ObjectId(id)))?.["erasedAt"],
+    ).toBeInstanceOf(Date);
+  });
+});
+
 describe("rate limits and foreign ids", () => {
   test("actions share the tracking read limit of the address", async () => {
     const w = await world();

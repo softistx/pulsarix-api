@@ -652,6 +652,38 @@ describe("the live stream", () => {
     }
   });
 
+  test("a recheck that throws keeps the stream open", async () => {
+    const before = streamTiming.recheckMs;
+    streamTiming.recheckMs = 30;
+    const w = await world();
+    const real = w.kit.intake.keyOf.bind(w.kit.intake);
+    let fail = true;
+    let calls = 0;
+    w.kit.intake.keyOf = async (publicKey: string) => {
+      if (fail) {
+        calls += 1;
+        throw new Error("database blip");
+      }
+      return real(publicKey);
+    };
+    try {
+      fail = false;
+      const ada = await w.stream("ada");
+      expect(ada.response.status).toBe(200);
+      await ada.next("unread");
+      fail = true;
+      await Bun.sleep(200);
+      expect(calls).toBeGreaterThan(1);
+      expect(ada.ended).toBe(false);
+      expect(ada.events.some((e) => e.event === "expired")).toBe(false);
+      fail = false;
+      await ada.close();
+    } finally {
+      w.kit.intake.keyOf = real;
+      streamTiming.recheckMs = before;
+    }
+  });
+
   test("a fourth open stream of one reporter is refused", async () => {
     const w = await world();
     await w.file("ada");

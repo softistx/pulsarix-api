@@ -173,9 +173,17 @@ export function liveRequestRoutes(intake: PublicIntake, log = console.warn) {
               const key = await intake.keyOf(publicKey);
               if (!key.active) throw keyDisabled();
               verifyIdentity(token, key, intake.now());
-            } catch {
-              send(frame("expired", {}));
-              finish();
+            } catch (error) {
+              // A definite answer (key missing, revoked or inactive, secret
+              // changed) ends the stream; the widget treats `expired` as
+              // final. Anything else (a database blip) keeps it: the next
+              // tick checks again.
+              if (error instanceof GraphQLError) {
+                send(frame("expired", {}));
+                finish();
+              } else {
+                log("public request stream recheck failed", error);
+              }
             } finally {
               rechecking = false;
             }
