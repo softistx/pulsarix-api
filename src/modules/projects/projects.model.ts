@@ -130,6 +130,9 @@ export const labels = defineCollection({
       key: { projectId: 1, name: 1 },
       unique: true,
       name: "labels_projectIdNameUnique",
+      // Case-insensitive, as the lookups are ("bug" and "Bug" are one label):
+      // sync rebuilds the index when its options change.
+      collation: { locale: "en", strength: 2 },
     },
   ],
 });

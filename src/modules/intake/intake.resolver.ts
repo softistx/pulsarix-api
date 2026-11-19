@@ -12,8 +12,8 @@ import {
 } from "./intake.files.team";
 import { WidgetKeysService } from "./intake.keys";
 import { attachmentsOn } from "./intake.model";
-import { publicStateOf } from "./intake.publicstate";
 import { ReportsService } from "./intake.reports";
+import { publicStateLoaderOf } from "./intake.requests.state";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
 // recent proof of identity (plan §11, "step-up for key creation").
@@ -130,7 +130,9 @@ export const intakeResolvers: Resolvers = {
     clientWaiting: (report) => report.clientWaiting === true,
     publicState: async (report, _, ctx) => {
       const { mongo } = await requirePermission(ctx, "issue:write");
-      return publicStateOf(mongo, report);
+      // One read of the issues and statuses per request, whatever the
+      // number of reports the field is asked for.
+      return publicStateLoaderOf(ctx, mongo)(report);
     },
     // Quarantined files are the inbox's: the field asks for the permission
     // the report's own queries ask for, whatever parent it comes from.

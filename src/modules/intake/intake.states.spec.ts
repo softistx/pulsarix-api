@@ -6,6 +6,7 @@ import { tenancy } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { derivePublicState } from "./intake.publicstate";
 import { ReportsService } from "./intake.reports";
+import { publicStateLoaderOf } from "./intake.requests.state";
 import type { IntakeMongo } from "./intake.submit";
 
 // A15: public states, links, impact and type (plan §19).
@@ -17,6 +18,9 @@ const CreateStatus = `mutation($input: CreateStatusInput!) {
 }`;
 const UpdateStatus = `mutation($id: ID!, $input: UpdateStatusInput!) {
   updateStatus(id: $id, input: $input) { id category publicState }
+}`;
+const CreateLabel = `mutation($input: CreateLabelInput!) {
+  createLabel(input: $input) { id name }
 }`;
 const Accept = `mutation($id: ID!) { acceptClientReport(id: $id) { id state issueId publicState } }`;
 const Decline = `mutation($id: ID!, $reason: String!) {
@@ -507,5 +511,70 @@ describe("linkClientReport", () => {
       ),
     ).toBe("issues.errors.not-found");
     expect((await reportOf(kit, fresh)).state).toBe("new");
+  });
+});
+
+describe("type labels", () => {
+  test("a team's own lower-case label is reused, and the index refuses a second spelling", async () => {
+    const kit = await intakeKit();
+    const { createLabel } = await kit.asOwner.call<{
+      createLabel: { id: string };
+    }>(CreateLabel, {
+      input: { projectId: kit.project.id, name: "bug", colour: "#112233" },
+    });
+    const id = await send(kit, { type: "bug" });
+    const { acceptClientReport } = await accept(kit, id);
+    const issue = await issueOf(kit, acceptClientReport.issueId as string);
+    expect(issue.labelIds).toEqual([createLabel.id]);
+    expect((await statusesOf(kit)).labels).toHaveLength(1);
+    const taken = await kit.asOwner.attempt(CreateLabel, {
+      input: { projectId: kit.project.id, name: "BUG", colour: "#112233" },
+    });
+    expect(codeOf(taken)).toBe("projects.errors.label-name-taken");
+  });
+});
+
+describe("public state loader", () => {
+  test("reads the issues and the statuses once for every report asked in a tick", async () => {
+    const kit = await intakeKit();
+    const ids = [await send(kit), await send(kit), await send(kit)];
+    for (const id of ids) await accept(kit, id);
+    const real = (await tenancy.databaseOf(kit.organisation.id)).as(
+      SYSTEM_ACTOR,
+    ) as unknown as IntakeMongo;
+    const reads = { issues: 0, statuses: 0 };
+    const counted = (name: "issues" | "statuses") =>
+      new Proxy(real.db[name], {
+        get(target, property) {
+          const value = Reflect.get(target, property, target);
+          if (typeof value !== "function") return value;
+          return (...given: unknown[]) => {
+            if (property === "findMany" || property === "findById") {
+              reads[name]++;
+            }
+            return value.apply(target, given);
+          };
+        },
+      });
+    const mongo = new Proxy(real, {
+      get(target, property) {
+        if (property === "db") {
+          return new Proxy(target.db, {
+            get: (db, name) =>
+              name === "issues" || name === "statuses"
+                ? counted(name)
+                : Reflect.get(db, name, db),
+          });
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const docs = await real.db.clientReports.findMany({ limit: 10 });
+    expect(docs).toHaveLength(3);
+    const load = publicStateLoaderOf({}, mongo);
+    const states = await Promise.all(docs.map((doc) => load(doc)));
+    expect(states).toEqual(["received", "received", "received"]);
+    expect(reads).toEqual({ issues: 1, statuses: 1 });
   });
 });

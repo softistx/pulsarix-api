@@ -35,6 +35,14 @@ export const publicTypeDefs = /* GraphQL */ `
     attachments: Boolean!
   }
 
+  "What a reporter sees of a request: the status's name never leaves."
+  enum PublicState {
+    received
+    inProgress
+    resolved
+    declined
+  }
+
   enum ReportFileRole {
     screenshot
     file
@@ -115,8 +123,7 @@ export const publicTypeDefs = /* GraphQL */ `
 
   type TrackedReport {
     state: String!
-    "received, inProgress, resolved or declined: the status's name never leaves."
-    publicState: String!
+    publicState: PublicState!
     "Why the report was declined, when the team wrote it knowing it is shown."
     declineReason: String
     title: String!
@@ -146,8 +153,7 @@ export const publicTypeDefs = /* GraphQL */ `
   type RequestSummary {
     id: ID!
     title: String!
-    "received, inProgress, resolved or declined."
-    publicState: String!
+    publicState: PublicState!
     impact: String
     type: String
     createdAt: String!
@@ -193,7 +199,7 @@ export const publicTypeDefs = /* GraphQL */ `
     id: ID!
     title: String!
     description: String!
-    publicState: String!
+    publicState: PublicState!
     impact: String
     type: String
     createdAt: String!
