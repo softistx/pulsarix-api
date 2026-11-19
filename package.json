@@ -46,7 +46,7 @@
     "@softistx/mail": "^1.6.0",
     "@softistx/mail-smtp": "^1.1.0",
     "@softistx/mongo": "^0.29.0",
-    "@softistx/redis": "^0.22.0",
+    "@softistx/redis": "^0.23.0",
     "@softistx/s3": "^0.13.0",
     "graphql": "^17.0.2",
     "graphql-yoga": "^5.24.2",
