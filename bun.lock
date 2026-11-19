@@ -13,7 +13,7 @@
         "@alxia/language": "^0.3.21",
         "@alxia/media": "^0.11.0",
         "@alxia/modules": "^0.4.0",
-        "@alxia/tenancy": "^0.7.0",
+        "@alxia/tenancy": "^0.7.1",
         "@graphql-tools/merge": "^10.0.6",
         "@napi-rs/canvas": "^1.1.0",
         "@nxgt/graphql-scalars": "^0.7.1",
@@ -67,7 +67,7 @@
 
     "@alxia/modules": ["@alxia/modules@0.4.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-kzmHJpf9ZzhFhNvH/LoQJSaQ+xOMzbSffnV+F6zkvmOkLUZJzPa3t7/47cQ5mzGfC1InimCMystRP9VFqK26gg=="],
 
-    "@alxia/tenancy": ["@alxia/tenancy@0.7.0", "", { "peerDependencies": { "@alxia/modules": "^0.4.0", "@softistx/mongo": "^0.27.0", "mongodb": "^7.7.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-fXbdEi42ZTXAughSunlD0g6nmCmcEbD9xTX3damQghbfGszD0GhEnVA8FpHvGIL+zJnIyTAoHZglq1BAG49Sww=="],
+    "@alxia/tenancy": ["@alxia/tenancy@0.7.1", "", { "peerDependencies": { "@alxia/modules": "^0.4.0", "@softistx/mongo": "^0.27.0", "mongodb": "^7.7.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-m8MBZiG9z2iqgoxjl7UID3XXftXPxi/dn2G51qfl/wFjaFWn6uzk26tCN3MJLCEVEbJ9XPFnAlgcZI4QmXtZUA=="],
 
     "@ardatan/relay-compiler": ["@ardatan/relay-compiler@13.0.3", "", { "dependencies": { "@babel/runtime": "^8.1.0", "immutable": "^5.1.9", "invariant": "^2.2.4" }, "peerDependencies": { "graphql": "*" } }, "sha512-ESuRrAASIZbih3pSypvNhL32dXTnt9tnOv8gPINRgE7AE5seCqssvEy6+cYf3jWXOD+6Y7877VTJsNpUz2JEtA=="],
 
