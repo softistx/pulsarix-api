@@ -44,6 +44,12 @@ export const widgetKeys = defineCollection({
     // intake.counters.ts). Raw `$inc`s: they do not touch `version`.
     uploads: z.number().int().min(0).default(0),
     refusals: z.record(z.string(), z.number().int().min(0)).default({}),
+    // The secret the host signs identity tokens with (plan §19): sealed with
+    // the application's sealing keys, bound to the key's id (intake.identity.ts),
+    // never returned after it was shown once. Null until generated; keys stored
+    // before widget v3 lack both fields.
+    identitySecret: z.string().min(1).nullable().default(null),
+    identitySecretSetAt: z.date().nullable().default(null),
     revokedAt: z.date().nullable().default(null),
     lastUsedAt: z.date().nullable().default(null),
   }),
@@ -82,6 +88,11 @@ export const clientReports = defineCollection({
     title: z.string().trim().min(1).max(200),
     description: z.string().trim().min(1).max(10_000),
     email: z.string().max(254).nullable().default(null),
+    // The reporter an identity token vouched for (plan §19): the SHA-256 of
+    // the key id and the token's `sub`, never the raw user id; the name as the
+    // token gave it. Null for a report sent with no token.
+    reporterKey: z.string().length(64).nullable().default(null),
+    reporterName: z.string().max(100).nullable().default(null),
     trackingTokenHash: z.string().length(64).nullable().default(null),
     state: reportState.default("new"),
     issueId: objectId().nullable().default(null),
@@ -118,6 +129,11 @@ export const clientReports = defineCollection({
       name: "clientReports_trackingTokenHashUnique",
     },
     { key: { issueId: 1 }, name: "clientReports_issueId" },
+    // A reporter's own requests (the later "My requests" reads).
+    {
+      key: { widgetKeyId: 1, reporterKey: 1, _id: -1 },
+      name: "clientReports_widgetKeyIdReporterKey",
+    },
     // The retention job: what was settled, and not erased yet.
     {
       key: { erasedAt: 1, state: 1, decidedAt: 1, closedAt: 1 },

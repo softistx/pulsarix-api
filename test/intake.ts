@@ -9,6 +9,7 @@ import {
   intakeKey,
   intakeOrganisation,
   intakeReadIp,
+  intakeReporter,
   intakeTrackingIp,
   intakeUploadIpKey,
   intakeUploadKey,
@@ -62,6 +63,11 @@ export function countingLimits() {
     intakeOrganisation: counting(
       intakeOrganisation.limit,
       (p: { organisationId: string }) => p.organisationId,
+    ),
+    intakeReporter: counting(
+      intakeReporter.limit,
+      (p: { keyId: string; reporterKey: string }) =>
+        `${p.keyId}/${p.reporterKey}`,
     ),
     intakeReadIp: counting(intakeReadIp.limit, (p: { ip: string }) => p.ip),
     intakeTrackingIp: counting(

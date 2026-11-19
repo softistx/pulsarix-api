@@ -16,12 +16,23 @@ type WidgetKey {
   attachmentsEnabled: Boolean!
   "When it was last used, to the minute; null if never."
   lastUsedAt: DateTime
+  "When the identity secret was last generated; null if the key has none (reports then cannot be identified). The secret itself is never readable."
+  identitySecretSetAt: DateTime
   "Files stored through this key (the quarantined or released ones the widget sent), ever."
   uploads: Int!
   "File refusals through this key, by reason, the most frequent first."
   refusals: [WidgetKeyRefusal!]!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""
+A freshly generated identity secret, the only time it is shown. The host signs
+its identity tokens with it on its own server, never in a browser.
+"""
+type WidgetIdentitySecret {
+  key: WidgetKey!
+  secret: String!
 }
 
 """
@@ -193,6 +204,13 @@ type Mutation {
   `intake:manage` and a recent proof of identity.
   """
   rotateWidgetKey(id: ID!): WidgetKey!
+  """
+  Makes a new identity secret for the key and shows it once; it is stored
+  sealed. The previous secret stops working at once: tokens signed with it are
+  refused. Needs `intake:manage` and a recent proof of identity (403
+  `auth.errors.step-up-required`); 404 `intake.errors.key-not-found`.
+  """
+  generateWidgetIdentitySecret(keyId: ID!): WidgetIdentitySecret!
   """
   Retires the key for good: it answers like an unknown one. Answers its id.
   Needs `intake:manage`.

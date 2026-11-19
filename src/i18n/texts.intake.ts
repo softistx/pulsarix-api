@@ -44,6 +44,8 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.quarantine-full":
       "Files cannot be taken right now. Send the report without them.",
     "intake.errors.file-not-found": "This file does not exist.",
+    "intake.errors.identity-invalid":
+      "Your identity could not be confirmed. Sign in again and retry.",
   },
   fr: {
     "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",
@@ -88,5 +90,7 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.quarantine-full":
       "Les fichiers ne peuvent pas être pris pour le moment. Envoyez le signalement sans eux.",
     "intake.errors.file-not-found": "Ce fichier n'existe pas.",
+    "intake.errors.identity-invalid":
+      "Votre identité n'a pas pu être confirmée. Reconnectez-vous et réessayez.",
   },
 };

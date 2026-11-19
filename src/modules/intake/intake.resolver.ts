@@ -96,6 +96,8 @@ export const intakeResolvers: Resolvers = {
       (await keysOf(ctx)).update(id, input),
     rotateWidgetKey: async (_, { id }, ctx) =>
       (await keysOf(ctx, true)).rotate(id),
+    generateWidgetIdentitySecret: async (_, { keyId }, ctx) =>
+      (await keysOf(ctx, true)).generateIdentitySecret(keyId),
     revokeWidgetKey: async (_, { id }, ctx) => (await keysOf(ctx)).revoke(id),
     acceptClientReport: async (_, { id }, ctx) =>
       (await reportsOf(ctx)).accept(id),
@@ -107,6 +109,7 @@ export const intakeResolvers: Resolvers = {
     // Keys stored before v2 lack the counters (see attachmentsOn).
     attachmentsEnabled: (key) => attachmentsOn(key),
     uploads: (key) => key.uploads ?? 0,
+    identitySecretSetAt: (key) => key.identitySecretSetAt ?? null,
     refusals: (key) =>
       Object.entries(key.refusals ?? {})
         .map(([reason, count]) => ({ reason, count }))

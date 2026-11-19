@@ -39,6 +39,7 @@ describe("the limits over Redis", () => {
         "intakeKey",
         "intakeOrganisation",
         "intakeReadIp",
+        "intakeReporter",
         "intakeTrackingIp",
         "intakeUploadIpKey",
         "intakeUploadKey",
