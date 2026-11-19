@@ -65,6 +65,7 @@ export async function postMessage(
   key: WidgetKeyDocument,
   report: ClientReportDocument,
   given: { body: string; files?: readonly DeclaredFile[] | null },
+  options: { tracking?: boolean } = {},
 ): Promise<Posted> {
   if (report.state === "declined") throw requestDeclined();
   const body = messageBody(given.body);
@@ -104,7 +105,7 @@ export async function postMessage(
           report,
           files,
           expiresAt,
-          { messageId: message._id },
+          { messageId: message._id, tracking: options.tracking === true },
         );
         if (tickets.length > 0) {
           await tx.db.clientReportMessages.update(message._id, {

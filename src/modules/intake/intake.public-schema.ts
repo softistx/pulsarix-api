@@ -14,6 +14,13 @@ import {
   setRequestEmails,
 } from "./intake.requests";
 import type { Caller, PublicIntake, Submitted } from "./intake.submit";
+import {
+  trackingEmails,
+  trackingErase,
+  trackingReopen,
+  trackingReply,
+  trackingResolve,
+} from "./intake.tracking.actions";
 
 // The schema of /public/graphql: a schema of its own, apart from /graphql's, so
 // that nothing of the application can be asked through it. Three fields, run as
@@ -116,6 +123,16 @@ export const publicTypeDefs = /* GraphQL */ `
     createdAt: String!
     replies: [TrackedReply!]!
     files: [TrackedFile!]!
+    id: ID!
+    description: String!
+    impact: String
+    type: String
+    "The reporter's messages and the team's public replies, oldest first."
+    thread: [RequestMessage!]!
+    canReply: Boolean!
+    canReopen: Boolean!
+    resolvedAt: String
+    emailsOn: Boolean!
   }
 
   enum RequestFilter {
@@ -211,7 +228,8 @@ export const publicTypeDefs = /* GraphQL */ `
 
   type Query {
     widgetConfig(publicKey: String!): WidgetConfig!
-    clientReportStatus(token: String!): TrackedReport!
+    "The tracking page's read. The token is the x-pulsarix-tracking header; the variable is the older way."
+    clientReportStatus(token: String): TrackedReport!
     myRequests(
       publicKey: String!
       filter: RequestFilter = OPEN
@@ -236,6 +254,12 @@ export const publicTypeDefs = /* GraphQL */ `
     markRequestRead(publicKey: String!, id: ID!): UnreadCount!
     setRequestEmails(publicKey: String!, on: Boolean!): Boolean!
     eraseMyData(publicKey: String!): ErasedData!
+    "The tracking page's actions: the token is the x-pulsarix-tracking header."
+    trackingReply(input: RequestReplyInput!): RequestReply!
+    trackingResolve: RequestSummary!
+    trackingReopen: RequestSummary!
+    trackingErase: ErasedData!
+    trackingEmails(on: Boolean!): Boolean!
   }
 `;
 
@@ -270,7 +294,7 @@ export const persistedOperations = {
     }
   `,
   clientReportStatus: /* GraphQL */ `
-    query clientReportStatus($token: String!) {
+    query clientReportStatus($token: String) {
       clientReportStatus(token: $token) {
         state
         publicState
@@ -287,6 +311,15 @@ export const persistedOperations = {
           name
           thumbnailUrl
         }
+        id
+        description
+        impact
+        type
+        thread { id from body at files { id name thumbnailUrl } }
+        canReply
+        canReopen
+        resolvedAt
+        emailsOn
       }
     }
   `,
@@ -372,8 +405,65 @@ export const persistedOperations = {
       eraseMyData(publicKey: $publicKey) { requests }
     }
   `,
+  trackingReply: /* GraphQL */ `
+    mutation trackingReply($input: RequestReplyInput!) {
+      trackingReply(input: $input) {
+        messageId
+        files { slot role ticket expiresAt }
+      }
+    }
+  `,
+  trackingResolve: /* GraphQL */ `
+    mutation trackingResolve {
+      trackingResolve {
+        id
+        title
+        publicState
+        impact
+        type
+        createdAt
+        declineReason
+        unread
+      }
+    }
+  `,
+  trackingReopen: /* GraphQL */ `
+    mutation trackingReopen {
+      trackingReopen {
+        id
+        title
+        publicState
+        impact
+        type
+        createdAt
+        declineReason
+        unread
+      }
+    }
+  `,
+  trackingErase: /* GraphQL */ `
+    mutation trackingErase {
+      trackingErase { requests }
+    }
+  `,
+  trackingEmails: /* GraphQL */ `
+    mutation trackingEmails($on: Boolean!) {
+      trackingEmails(on: $on)
+    }
+  `,
 } as const;
 export type PersistedId = keyof typeof persistedOperations;
+
+// The operations of the tracking page: for the UI server only (no `Origin`,
+// the client header), the tracking token in `x-pulsarix-tracking`.
+export const trackingOperations: ReadonlySet<PersistedId> = new Set([
+  "clientReportStatus",
+  "trackingReply",
+  "trackingResolve",
+  "trackingReopen",
+  "trackingErase",
+  "trackingEmails",
+]);
 
 export interface PublicContext {
   intake: PublicIntake;
@@ -427,11 +517,24 @@ export function publicSchema(): GraphQLSchema {
         ) => ctx.intake.config(args.publicKey, ctx.caller),
         clientReportStatus: async (
           _: unknown,
-          args: { token: string },
+          args: { token?: string | null },
           ctx: PublicContext,
         ) => {
-          const tracked = await ctx.intake.status(args.token, ctx.caller.ip);
+          const tracked = await ctx.intake.status(
+            ctx.caller.tracking ?? args.token ?? "",
+            ctx.caller.ip,
+          );
+          const { request } = tracked;
           return {
+            id: request.id,
+            description: request.description,
+            impact: request.impact,
+            type: request.type,
+            thread: request.thread,
+            canReply: request.canReply,
+            canReopen: request.canReopen,
+            resolvedAt: request.resolvedAt,
+            emailsOn: request.emailsOn,
             state: tracked.state,
             publicState: tracked.publicState,
             declineReason: tracked.declineReason,
@@ -528,6 +631,50 @@ export function publicSchema(): GraphQLSchema {
           eraseMyData(
             ctx.intake,
             await openSession(ctx.intake, args.publicKey, ctx.caller),
+          ),
+        trackingReply: async (
+          _: unknown,
+          args: { input: Parameters<typeof trackingReply>[3] },
+          ctx: PublicContext,
+        ) => {
+          const reply = await trackingReply(
+            ctx.intake,
+            ctx.caller.tracking ?? null,
+            ctx.caller.ip,
+            args.input,
+          );
+          return {
+            ...reply,
+            files: reply.files.map((file) => ({
+              ...file,
+              expiresAt: file.expiresAt.toISOString(),
+            })),
+          };
+        },
+        trackingResolve: (_: unknown, __: unknown, ctx: PublicContext) =>
+          trackingResolve(
+            ctx.intake,
+            ctx.caller.tracking ?? null,
+            ctx.caller.ip,
+          ),
+        trackingReopen: (_: unknown, __: unknown, ctx: PublicContext) =>
+          trackingReopen(
+            ctx.intake,
+            ctx.caller.tracking ?? null,
+            ctx.caller.ip,
+          ),
+        trackingErase: (_: unknown, __: unknown, ctx: PublicContext) =>
+          trackingErase(ctx.intake, ctx.caller.tracking ?? null, ctx.caller.ip),
+        trackingEmails: (
+          _: unknown,
+          args: { on: boolean },
+          ctx: PublicContext,
+        ) =>
+          trackingEmails(
+            ctx.intake,
+            ctx.caller.tracking ?? null,
+            ctx.caller.ip,
+            args.on,
           ),
         submitClientReport: (
           _: unknown,

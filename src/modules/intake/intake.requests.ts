@@ -56,12 +56,18 @@ const MAX_REQUESTS = 500;
 const DEFAULT_PAGE = 20;
 const MAX_PAGE = 50;
 
-export interface Session {
+// What the services below need to know of who asks: the key the report came
+// in by, the organisation's database and the reporter's handle (the limits'
+// key). The tracking page's is made from its token (intake.tracking.actions.ts).
+export interface Scope {
   key: WidgetKeyDocument;
   mongo: IntakeMongo;
   reporter: Reporter;
-  identity: Identity;
   organisationId: string;
+}
+
+export interface Session extends Scope {
+  identity: Identity;
 }
 
 // The caller as a reporter: the address is not over its limit, the key is live
@@ -126,7 +132,7 @@ const summaryOf = (
   unread,
 });
 
-const reportsOf = (session: Session) =>
+const reportsOf = (session: Scope) =>
   session.mongo.db.clientReports.findMany({
     filter: {
       widgetKeyId: session.reporter.keyId,
@@ -228,8 +234,10 @@ export interface RequestDetail extends RequestSummary {
   emailsOn: boolean;
 }
 
-const thumbnailUrl = (file: { id: string; thumbnail: boolean }) =>
-  file.thumbnail ? `${REQUEST_FILES_PATH}/${file.id}` : null;
+const thumbnailUrl = (
+  path: string,
+  file: { id: string; thumbnail: boolean },
+) => (file.thumbnail ? `${path}/${file.id}` : null);
 
 // When the request settled, for the 30 days of "Reopen": the reporter's own
 // resolve when it stands, else the closing of its issue; null when the request
@@ -253,11 +261,22 @@ const canReopenAt = (settled: Date | null, now: Date) =>
 // team's public replies), never anyone else's.
 export async function requestOf(
   intake: PublicIntake,
-  session: Session,
+  session: Scope,
   id: string,
 ): Promise<RequestDetail> {
+  const report = await ownedReport(session.mongo, session.reporter, id);
+  return detailOf(intake, session, report, REQUEST_FILES_PATH);
+}
+
+// The same for a report already found (the tracking page's), its thumbnails
+// under `path`.
+export async function detailOf(
+  intake: PublicIntake,
+  session: Scope,
+  report: ClientReportDocument,
+  path: string,
+): Promise<RequestDetail> {
   const { mongo } = session;
-  const report = await ownedReport(mongo, session.reporter, id);
   const [states, unread, thread, files] = await Promise.all([
     publicStatesOf(mongo, [report]),
     unreadOf(mongo, [report]),
@@ -284,13 +303,13 @@ export async function requestOf(
       files: entry.files.map((file) => ({
         id: file.id,
         name: file.name,
-        thumbnailUrl: thumbnailUrl(file),
+        thumbnailUrl: thumbnailUrl(path, file),
       })),
     })),
     files: files.map((file) => ({
       id: file.id,
       name: file.fileName,
-      thumbnailUrl: thumbnailUrl({
+      thumbnailUrl: thumbnailUrl(path, {
         id: file.id,
         thumbnail: file.previewKey !== null && file.mime !== "application/pdf",
       }),
@@ -304,7 +323,7 @@ export async function requestOf(
 
 // The summary of one request, as the marks answer with.
 async function summaryOfOwned(
-  session: Session,
+  session: Scope,
   id: ObjectId,
 ): Promise<RequestSummary> {
   const report = await session.mongo.db.clientReports.findById(id);
@@ -329,11 +348,23 @@ export interface Reply {
 // report's file rules; the tickets are for `PUT /public/media/report-files`).
 export async function replyToRequest(
   intake: PublicIntake,
-  session: Session,
+  session: Scope,
   id: string,
   given: { body: string; files?: readonly DeclaredFile[] | null },
 ): Promise<Reply> {
   const report = await ownedReport(session.mongo, session.reporter, id);
+  return replyToReport(intake, session, report, given);
+}
+
+// The reply to a report already found. `tracking` marks the tickets of the
+// tracking page's files: the UI server PUTs them, with no `Origin`.
+export async function replyToReport(
+  intake: PublicIntake,
+  session: Scope,
+  report: ClientReportDocument,
+  given: { body: string; files?: readonly DeclaredFile[] | null },
+  options: { tracking?: boolean } = {},
+): Promise<Reply> {
   const params = {
     keyId: session.key.id,
     reporterKey: session.reporter.reporterKey,
@@ -346,6 +377,7 @@ export async function replyToRequest(
     session.key,
     report,
     given,
+    options,
   );
   // The reporter's other tabs follow.
   await runAfterCommit([
@@ -365,7 +397,7 @@ type SettleMongo = IntakeMongo &
 // issue's status never moves.
 async function settle(
   intake: PublicIntake,
-  session: Session,
+  session: Scope,
   report: ClientReportDocument,
   verb: "clientResolved" | "clientReopened",
   patch: ReportPatch,
@@ -407,7 +439,7 @@ async function settle(
   await runAfterCommit(later);
 }
 
-async function settleLimit(intake: PublicIntake, session: Session) {
+async function settleLimit(intake: PublicIntake, session: Scope) {
   await intake.limit((l) => l.intakeReporterSettle, {
     keyId: session.key.id,
     reporterKey: session.reporter.reporterKey,
@@ -418,10 +450,18 @@ async function settleLimit(intake: PublicIntake, session: Session) {
 // (the issue's status does not move). Already resolved: nothing changes.
 export async function resolveRequest(
   intake: PublicIntake,
-  session: Session,
+  session: Scope,
   id: string,
 ): Promise<RequestSummary> {
   const report = await ownedReport(session.mongo, session.reporter, id);
+  return resolveReport(intake, session, report);
+}
+
+export async function resolveReport(
+  intake: PublicIntake,
+  session: Scope,
+  report: ClientReportDocument,
+): Promise<RequestSummary> {
   if (report.state === "declined") throw requestDeclined();
   const mapped = await mappedStateOf(session.mongo, report.issueId);
   if (derivePublicState(report, mapped) !== "resolved") {
@@ -439,10 +479,18 @@ export async function resolveRequest(
 // is not resolved stays as it is.
 export async function reopenRequest(
   intake: PublicIntake,
-  session: Session,
+  session: Scope,
   id: string,
 ): Promise<RequestSummary> {
   const report = await ownedReport(session.mongo, session.reporter, id);
+  return reopenReport(intake, session, report);
+}
+
+export async function reopenReport(
+  intake: PublicIntake,
+  session: Scope,
+  report: ClientReportDocument,
+): Promise<RequestSummary> {
   if (report.state === "declined") throw requestDeclined();
   const mapped = await mappedStateOf(session.mongo, report.issueId);
   const state = derivePublicState(report, mapped);
