@@ -286,9 +286,10 @@ export class PublicIntake {
 
     // A token that is sent must be good: a bad one is a 401 and nothing is
     // kept, not a report that silently loses its identity. No token, no change.
-    const identity = caller.identity
-      ? verifyIdentity(caller.identity, key, this.now())
-      : null;
+    const identity =
+      caller.identity != null
+        ? verifyIdentity(caller.identity, key, this.now())
+        : null;
     if (identity) {
       await this.limit((l) => l.intakeReporter, {
         keyId: key.id,

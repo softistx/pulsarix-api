@@ -224,6 +224,27 @@ describe("a token that is refused is a 401 and saves nothing", () => {
         `${b64(JSON.stringify({ alg: "none", sub: "u", aud: kit.key.publicKey, iat: now(), exp: now() + 60 }))}.`,
     ));
 
+  test("an empty header", () =>
+    refused(
+      () => "",
+      () => "",
+    ));
+
+  test("too many segments, a bad alphabet, or too long", async () => {
+    await refused(
+      () => "",
+      (secret, kit) => `${token(secret, kit)}.x`,
+    );
+    await refused(
+      () => "",
+      (secret, kit) => `${token(secret, kit)}!`,
+    );
+    await refused(
+      () => "",
+      (secret, kit) => `${token(secret, kit)}${"A".repeat(2_100)}`,
+    );
+  });
+
   test("garbage", () =>
     refused(
       () => "",
