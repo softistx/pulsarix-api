@@ -65,14 +65,6 @@ networks:
   proxy:
     external: true
 
-# Build-time only (bun install of the @softistx/* packages from npm.softistx.com):
-# deploy.ts reads the token from $NPM_REGISTRY_TOKEN or
-# ~/.config/pulsarix/npm-registry-token. Both Dockerfiles ask for the secret id
-# NPM_REGISTRY_TOKEN.
-secrets:
-  NPM_REGISTRY_TOKEN:
-    environment: NPM_REGISTRY_TOKEN
-
 volumes:
   mongo-data:
   redis-data:
@@ -443,8 +435,6 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-      secrets:
-        - NPM_REGISTRY_TOKEN
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api
     # bun spawns children (and runc leaves its own): tini (init) reaps them, else
     # they pile up as zombies.
@@ -496,8 +486,6 @@ services:
     build:
       context: ${UI_CONTEXT:-../../pulsarix-ui}
       dockerfile: Dockerfile
-      secrets:
-        - NPM_REGISTRY_TOKEN
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-ui
     depends_on:
       api:

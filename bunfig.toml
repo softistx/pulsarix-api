@@ -1,6 +1,2 @@
-# @softistx/* comes from npm.softistx.com; the token is read from the environment.
-[install.scopes]
-"@softistx" = { url = "https://npm.softistx.com/", token = "$NPM_REGISTRY_TOKEN" }
-
 [test]
 preload = ["./test/setup.ts"]

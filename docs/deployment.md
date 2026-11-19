@@ -114,10 +114,9 @@ bun deploy/deploy.ts --dry-run          # the plan, and what the env file still 
 bun deploy/deploy.ts                    # pull, build, up --wait
 ```
 
-`--dry-run` pulls, builds and starts nothing, looks up no token and opens no connection; it exits
-1 when the env file has problems, so it is also the preflight. The build needs the npm.softistx.com
-read token (`$NPM_REGISTRY_TOKEN` or `~/.config/pulsarix/npm-registry-token`),
-handed to BuildKit as a secret. Flags: `--env`, `--prefix` (a second stack), `--no-pull`, `--ui`,
+`--dry-run` pulls, builds and starts nothing and opens no connection; it exits
+1 when the env file has problems, so it is also the preflight. The build needs no registry token (the
+@softistx packages come from npmjs). Flags: `--env`, `--prefix` (a second stack), `--no-pull`, `--ui`,
 `--backup` (see "Backups"), `--timeout`. Without `--backup` the deploy prints one line saying the
 backup is off. A rerun with nothing changed recreates nothing.
 

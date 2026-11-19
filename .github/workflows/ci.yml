@@ -39,8 +39,6 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
           restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
       - run: bun install --frozen-lockfile
-        env:
-          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
       # A9's Redis-backed specs (the intake limits, the live channels across instances) run
       # over a real server, found at $REDIS_BIN. Redis publishes no prebuilt binary, so the
       # job takes the runner's own redis-server when it has one, else builds the pinned
