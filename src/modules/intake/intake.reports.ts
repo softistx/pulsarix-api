@@ -190,7 +190,10 @@ export class ReportsService {
       linkedAt: new Date(),
     });
     // The issue may already be settled: the report is then closed at once.
-    if (await isSettled(this.mongo, issue)) {
+    // Read again after the claim, so a change that committed meanwhile (which
+    // could not see the report yet) is not missed; a vanished issue is settled.
+    const fresh = await this.mongo.db.issues.findById(issue._id);
+    if (!fresh || (await isSettled(this.mongo, fresh))) {
       await this.mongo.db.clientReports.update(report._id, {
         state: "closed",
         closedAt: new Date(),

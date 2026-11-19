@@ -37,6 +37,7 @@ export async function followIssue(
   }
   const reports = await tx.db.clientReports.findMany({
     filter: { issueId: change.issue._id },
+    limit: 10_000,
   });
   if (reports.length === 0) return;
   const deleted = change.verb === "deleted";

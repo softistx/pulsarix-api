@@ -7,6 +7,7 @@ type StateMongo = ModuleMongo<"intake">;
 // The pieces of a report its public state is read from (plan §19, "Public
 // states"). Reports stored before widget v3 lack the reporter's marks.
 type Derivable = Pick<ClientReportDocument, "state"> &
+  Partial<Pick<ClientReportDocument, "issueId">> &
   Partial<
     Pick<
       ClientReportDocument,
@@ -33,6 +34,8 @@ export function derivePublicState(
   if (reopened && (report.reopenedFrom ?? null) === mapped) {
     return "inProgress";
   }
+  // An issue that was set but is gone: the request was settled with it.
+  if (mapped === null && report.issueId) return "resolved";
   return mapped ?? "received";
 }
 

@@ -257,6 +257,10 @@ describe("a report's public state", () => {
         "received",
       ),
     ).toBe("resolved");
+    // Its issue was deleted: settled, not "received".
+    expect(derivePublicState({ ...base, issueId: new ObjectId() }, null)).toBe(
+      "resolved",
+    );
     // Declined wins over a reporter's resolve.
     expect(derivePublicState(resolved, "declined")).toBe("declined");
   });
