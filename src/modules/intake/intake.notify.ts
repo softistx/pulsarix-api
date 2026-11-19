@@ -142,8 +142,28 @@ export interface ReporterMailDeps {
   mailer: Mailer;
   from: Address;
   uiOrigin: string;
+  // The allow-list of the widget key a report came in through.
+  allowedOrigins(widgetKeyId: ObjectId): Promise<readonly string[]>;
   // The key unsubscribe links are signed with (`unsubscribeSecret`).
   secret: string;
+}
+
+// The page the reporter filed from, as a link in the e-mail: only when its
+// origin is one of the key's allowed origins. The page URL is client-supplied,
+// so any other would let a reporter put their own link in a branded mail.
+async function hostPageLink(
+  deps: ReporterMailDeps,
+  report: ClientReportDocument,
+): Promise<string | null> {
+  if (!report.pageUrl) return null;
+  let origin: string;
+  try {
+    origin = new URL(report.pageUrl).origin;
+  } catch {
+    return null;
+  }
+  const allowed = await deps.allowedOrigins(report.widgetKeyId);
+  return allowed.includes(origin) ? report.pageUrl : null;
 }
 
 export type ReporterMailOutcome = "sent" | "nothing" | "skipped";
@@ -192,7 +212,7 @@ export async function sendReporterMail(
         )
       : null;
   const link = identified
-    ? report.pageUrl
+    ? await hostPageLink(deps, report)
     : token
       ? `${deps.uiOrigin}/track/${token}`
       : null;

@@ -5,6 +5,7 @@ import { addressKey } from "../../core/shared/address";
 import { localeOfRequest } from "../../i18n/locale";
 import type { Media } from "../attachments/public";
 import {
+  keyDisabled,
   originNotAllowed,
   tooManyRequests,
   unavailable,
@@ -19,7 +20,7 @@ import {
   respond,
   secure,
 } from "./intake.http";
-import { IDENTITY_HEADER } from "./intake.identity";
+import { IDENTITY_HEADER, verifyIdentity } from "./intake.identity";
 import { normaliseOrigin } from "./intake.origins";
 import {
   openSession,
@@ -40,6 +41,12 @@ import type { Caller, PublicIntake } from "./intake.submit";
 export const MAX_STREAMS = 3;
 // A comment line keeps proxies from closing a quiet stream.
 export const HEARTBEAT_MS = 20_000;
+// How often an open stream re-reads its key and identity secret: a key revoked
+// or deactivated, or a secret rotated, ends the stream within this delay. The
+// object lets a spec shorten it.
+export const streamTiming = { recheckMs: 30_000 };
+// The count is per process: the cap holds with one API container only (as
+// deployed). With several, a reporter could hold MAX_STREAMS on each.
 const open = new Map<string, number>();
 
 const callerOf = (request: Request, ip: string | undefined): Caller => ({
@@ -123,7 +130,9 @@ export function liveRequestRoutes(intake: PublicIntake, log = console.warn) {
           { headers: { ...secure, allow: "GET, OPTIONS" } },
         );
       }
-      const session = await openSession(intake, keyOf(request), caller);
+      const publicKey = keyOf(request);
+      const token = caller.identity as string;
+      const session = await openSession(intake, publicKey, caller);
       const slot = `${session.reporter.keyId.toHexString()}:${session.reporter.reporterKey}`;
       if ((open.get(slot) ?? 0) >= MAX_STREAMS) {
         throw tooManyRequests(30_000);
@@ -154,6 +163,24 @@ export function liveRequestRoutes(intake: PublicIntake, log = console.warn) {
           };
           const beat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);
           request.signal.addEventListener("abort", finish);
+          // A key revoked or disabled, or an identity secret rotated, since the
+          // stream opened ends it: the token alone is no longer proof.
+          let rechecking = false;
+          const recheck = setInterval(async () => {
+            if (closed || rechecking) return;
+            rechecking = true;
+            try {
+              const key = await intake.keyOf(publicKey);
+              if (!key.active) throw keyDisabled();
+              verifyIdentity(token, key, intake.now());
+            } catch {
+              send(frame("expired", {}));
+              finish();
+            } finally {
+              rechecking = false;
+            }
+          }, streamTiming.recheckMs);
+          timers.push(recheck as unknown as ReturnType<typeof setTimeout>);
           const left =
             session.identity.expiresAt.getTime() - intake.now().getTime();
           timers.push(

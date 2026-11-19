@@ -70,21 +70,21 @@ export async function trackingEmails(
 }
 
 // "Delete my data" for this request, through the shared eraser; the token is
-// unknown afterwards. Once an hour.
+// unknown afterwards. Once an hour, spent after the erasure succeeded.
 export async function trackingErase(
   intake: PublicIntake,
   token: string | null,
   ip: string,
 ): Promise<{ requests: number }> {
   const { scope, report } = await open(intake, token, ip);
-  await intake.limit((l) => l.intakeReporterErase, {
-    keyId: scope.key.id,
-    reporterKey: scope.reporter.reporterKey,
-  });
   const now = intake.now();
   await retryWriteConflicts(
     () => eraseReport(scope.mongo, report, now),
     exhausted,
   );
+  await intake.limit((l) => l.intakeReporterErase, {
+    keyId: scope.key.id,
+    reporterKey: scope.reporter.reporterKey,
+  });
   return { requests: 1 };
 }

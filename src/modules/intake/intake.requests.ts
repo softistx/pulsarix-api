@@ -543,15 +543,12 @@ export async function setRequestEmails(
 }
 
 // "Delete my data": every request of the reporter under this key goes through
-// the shared eraser (intake.retention.ts). Once an hour.
+// the shared eraser (intake.retention.ts). Once an hour: the hour is spent
+// after the erasure succeeded, so a failed one (a 5xx) can be retried at once.
 export async function eraseMyData(
   intake: PublicIntake,
   session: Session,
 ): Promise<{ requests: number }> {
-  await intake.limit((l) => l.intakeReporterErase, {
-    keyId: session.key.id,
-    reporterKey: session.reporter.reporterKey,
-  });
   const now = intake.now();
   let requests = 0;
   // Every request of the reporter, not only the newest 500: an erased report
@@ -575,6 +572,10 @@ export async function eraseMyData(
       requests += 1;
     }
   }
+  await intake.limit((l) => l.intakeReporterErase, {
+    keyId: session.key.id,
+    reporterKey: session.reporter.reporterKey,
+  });
   return { requests };
 }
 

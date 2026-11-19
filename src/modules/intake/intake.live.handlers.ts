@@ -5,7 +5,8 @@ import type { IssueChangeHandler } from "../issues/public";
 import { announceChanged } from "./intake.live";
 
 // What the team does that a reporter's open stream must hear (plan §19, A17):
-// a public reply on the issue of their request, and any move, edit or deletion
+// a public reply on the issue of their request (added, edited, withdrawn or
+// deleted), and any move, edit or deletion
 // of that issue (its status gives the request's public state). They run in the
 // team's own transaction and answer the event to publish once it committed.
 // Registered in module.ts.
@@ -26,9 +27,12 @@ async function announceIssue(
 
 export const announcePublicReply: CommentChangeHandler = async (
   mongo,
-  { comment, verb, organisationId },
+  { comment, previous, organisationId },
 ) => {
-  if (!comment.public || verb === "commentDeleted") return undefined;
+  // A reporter saw the comment when it is public now, was public before (a
+  // reply switched to internal) or is the public one just deleted (`comment`
+  // is then as it was).
+  if (!comment.public && !previous?.public) return undefined;
   return announceIssue(
     mongo as unknown as ModuleMongo<"intake">,
     comment.issueId,

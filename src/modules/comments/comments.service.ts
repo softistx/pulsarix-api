@@ -65,6 +65,7 @@ export class CommentsService {
       changed: (
         verb: CommentChange["verb"],
         comment: CommentDocument,
+        previous?: CommentDocument,
       ) => Promise<void>,
     ) => Promise<T>,
   ): Promise<T> {
@@ -73,11 +74,12 @@ export class CommentsService {
       () =>
         this.mongo.transaction(async (tx) => {
           later = [];
-          return work(tx as CommentsMongo, async (verb, comment) => {
+          return work(tx as CommentsMongo, async (verb, comment, previous) => {
             later.push(
               ...(await commentChanged(tx as CommentsMongo, {
                 verb,
                 comment,
+                ...(previous && { previous }),
                 actorId: this.viewerId,
                 organisationId: this.organisationId,
               })),
@@ -201,7 +203,7 @@ export class CommentsService {
           editedAt: new Date(),
         }),
       });
-      await changed("commentEdited", edited);
+      await changed("commentEdited", edited, current);
       return edited;
     });
   }
