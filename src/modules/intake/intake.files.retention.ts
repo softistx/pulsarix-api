@@ -1,7 +1,6 @@
-import type { ObjectId } from "mongodb";
 import type { AppTenancy, ModuleMongo } from "../../config/db";
 import type { Media } from "../attachments/public";
-import { fileObjectKeys, removeObjects } from "./intake.files.storage";
+import { sweepFiles, sweepReportFiles } from "./intake.files.sweep";
 import { releaseStranded } from "./intake.files.team";
 
 // How long a report's files stay (plan Q15 and the widget v2 decisions): a
@@ -40,7 +39,6 @@ export async function purgeReportFiles(
   now = new Date(),
   PAGE = PAGE_SIZE,
 ): Promise<FilesPurged> {
-  const files = mongo.db.clientReportFiles;
   const purged: FilesPurged = {
     pending: 0,
     declined: 0,
@@ -49,58 +47,11 @@ export async function purgeReportFiles(
     released: 0,
     failed: 0,
   };
-  // Removes the files matching the filter, page by page by _id so a file whose
-  // objects cannot be removed (it stays) never blocks the ones behind it.
-  const sweep = async (
-    filter: Record<string, unknown>,
-    counter: "pending" | "declined" | "untriaged" | "deleted",
-  ) => {
-    let after: ObjectId | undefined;
-    for (;;) {
-      const found = (await files.raw
-        .find(after ? { ...filter, _id: { $gt: after } } : filter)
-        .sort({ _id: 1 })
-        .limit(PAGE)
-        .toArray()) as Array<{ _id: ObjectId; storageKey?: string | null }>;
-      if (found.length === 0) return;
-      for (const file of found) {
-        const failed = file.storageKey
-          ? await removeObjects(
-              media,
-              fileObjectKeys(organisationId, file.storageKey),
-            )
-          : 0;
-        purged.failed += failed;
-        if (failed === 0) {
-          await files.hardDelete(file._id);
-          purged[counter] += 1;
-        }
-      }
-      after = found[found.length - 1]?._id;
-    }
-  };
-  // The reports past their date, page by page, then their files.
-  const sweepReports = async (
-    reportFilter: Record<string, unknown>,
-    counter: "declined" | "untriaged",
-  ) => {
-    let after: ObjectId | undefined;
-    for (;;) {
-      const page = (await mongo.db.clientReports.raw
-        .find(after ? { ...reportFilter, _id: { $gt: after } } : reportFilter, {
-          projection: { _id: 1 },
-        })
-        .sort({ _id: 1 })
-        .limit(PAGE)
-        .toArray()) as Array<{ _id: ObjectId }>;
-      if (page.length === 0) return;
-      await sweep({ reportId: { $in: page.map((r) => r._id) } }, counter);
-      after = page[page.length - 1]?._id;
-    }
-  };
+  const run = { mongo, media, organisationId, page: PAGE, purged };
   // A pending slot is purged once its ticket expired, or, with no expiry
   // recorded, once it is older than the ticket's life.
-  await sweep(
+  await sweepFiles(
+    run,
     {
       state: "pending",
       $or: [
@@ -117,7 +68,8 @@ export async function purgeReportFiles(
   );
   // The files of a deleted issue: marked with a removal date by the issue's
   // deletion (intake.closing.ts), removed with their objects once it passes.
-  await sweep(
+  await sweepFiles(
+    run,
     {
       state: { $in: ["released", "quarantined"] },
       expiresAt: { $ne: null, $lte: now },
@@ -125,7 +77,8 @@ export async function purgeReportFiles(
     "deleted",
   );
   purged.released = await releaseStranded(mongo);
-  await sweepReports(
+  await sweepReportFiles(
+    run,
     {
       state: "declined",
       decidedAt: {
@@ -134,7 +87,8 @@ export async function purgeReportFiles(
     },
     "declined",
   );
-  await sweepReports(
+  await sweepReportFiles(
+    run,
     {
       state: "new",
       createdAt: {

@@ -153,6 +153,11 @@ export class ReportUploads {
       throw ticketInvalid();
     }
     if (file.expiresAt && file.expiresAt <= now) throw ticketExpired();
+    // Pending slots count toward the cap on purpose (decision of #142): a
+    // submit that announces files without sending them reserves its bytes
+    // until the ticket expires (15 minutes, PENDING_SLOT_MINUTES), so in-flight
+    // PUTs can never overrun the quota. The abuse this allows is bounded by
+    // that expiry and the submit limits.
     // The sum already holds this slot (it is pending), so the incoming file is
     // counted once. The sum and the claim below are two steps: concurrent PUTs
     // of different slots can each pass the check and overshoot the cap by the
