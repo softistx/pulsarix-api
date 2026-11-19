@@ -10,6 +10,17 @@ import { accountId, actors } from "../../core/shared/actors";
 export const priority = z.enum(["none", "low", "medium", "high", "urgent"]);
 export type Priority = z.infer<typeof priority>;
 
+// What a reporter did to the issue's requests (plan §19), shown to the team.
+export const clientMarker = z.enum(["resolved", "reopened", "deleted"]);
+export type ClientMarker = z.infer<typeof clientMarker>;
+
+// Where an issue's priority came from (plan §19): `client` is the reporter's
+// impact, prefilled when the report was accepted; `team` is anything a member
+// set or changed (and what every issue made by a member starts as); `auto` is
+// kept for the later automatic level.
+export const priorityOrigin = z.enum(["client", "team", "auto"]);
+export type PriorityOrigin = z.infer<typeof priorityOrigin>;
+
 // The weight of a priority, so that a sort by priority is numeric
 // (`none` 0 ... `urgent` 4); stored beside the name and kept in step with it.
 export const priorityLevel: Record<Priority, number> = {
@@ -37,6 +48,8 @@ export const issues = defineCollection({
     statusId: objectId(),
     priority: priority.default("none"),
     priorityLevel: z.number().int().min(0).max(4).default(0),
+    // Issues stored before widget v3 lack it: read it as `team`.
+    priorityOrigin: priorityOrigin.optional(),
     assigneeId: accountId.nullable().default(null),
     labelIds: z.array(objectId()).default([]),
     parentId: objectId().nullable().default(null),
@@ -50,6 +63,14 @@ export const issues = defineCollection({
     // The client report it was accepted from (intake, A9), if any.
     clientReportId: objectId().nullable().default(null),
     watcherIds: z.array(accountId).default([]),
+    // A reporter wrote last on one of its client reports and no public reply
+    // has answered since (plan §19, A16). Issues stored before lack it: read
+    // `clientWaiting === true`.
+    clientWaiting: z.boolean().default(false),
+    // What the reporters did to the issue's requests (plan §19, A17): the
+    // latest of "resolved" and "reopened", and "deleted" once one erased their
+    // data. Issues stored before lack it: read `clientMarkers ?? []`.
+    clientMarkers: z.array(clientMarker).default([]),
   }),
   timestamps: true,
   optimisticLock: true,
@@ -66,6 +87,12 @@ export const issues = defineCollection({
       name: "issues_projectIdStatusIdRank",
     },
     { key: { parentId: 1 }, name: "issues_parentId" },
+    // The "client replied" filter of the issue list.
+    {
+      key: { projectId: 1, clientWaiting: 1 },
+      partialFilterExpression: { clientWaiting: true },
+      name: "issues_projectIdClientWaiting",
+    },
     { key: { labelIds: 1 }, name: "issues_labelIds" },
     { key: { projectId: 1, dueDate: 1 }, name: "issues_projectIdDueDate" },
     // Search (A8): no stemming nor stop words, so French and English alike.

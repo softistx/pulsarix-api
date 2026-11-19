@@ -1,8 +1,18 @@
 import { ObjectId } from "mongodb";
 import { withoutMarkers } from "../comments/public";
+import type { PublicState } from "../projects/public";
 import { fileNotFound, reportNotFound } from "./intake.errors";
-import type { ReportFileRole, ReportState } from "./intake.model";
+import { TRACKING_FILES_PATH } from "./intake.http";
+import {
+  type ClientReportDocument,
+  declineReasonShown,
+  type ReportFileRole,
+  type ReportState,
+} from "./intake.model";
+import { publicStateOf } from "./intake.publicstate";
+import { detailOf, type RequestDetail, type Scope } from "./intake.requests";
 import type { IntakeMongo, PublicIntake } from "./intake.submit";
+import { publicFilter } from "./intake.thread";
 import { parseTrackingToken } from "./intake.token";
 
 // The tracking page's reads (the public side of the intake, intake.submit.ts):
@@ -20,10 +30,19 @@ export interface TrackedFile {
 
 export interface Tracked {
   state: ReportState;
+  // The four public states (plan §19), derived from the report and the state
+  // its issue's status maps to; never the status's name.
+  publicState: PublicState;
+  // Null unless the team wrote it knowing the reporter reads it.
+  declineReason: string | null;
   title: string;
   createdAt: Date;
   replies: { at: Date; body: string }[];
   files: TrackedFile[];
+  // The request as the reporter's widget reads it (A17): the thread with the
+  // reporter's own messages, impact, type, and what they may still do. Its
+  // thumbnails are the tracking page's (`TRACKING_FILES_PATH`).
+  request: RequestDetail;
 }
 
 const MAX_REPLIES = 50;
@@ -36,7 +55,7 @@ const hasThumbnail = (file: { previewKey: string | null; mime: string }) =>
 
 // The report a tracking token opens, with its organisation's database; 404
 // for a token that is malformed, unknown or erased.
-async function reportOf(intake: PublicIntake, token: string) {
+export async function reportOf(intake: PublicIntake, token: string) {
   const parsed = parseTrackingToken(token);
   if (!parsed) throw reportNotFound();
   const { tenancy } = intake.deps;
@@ -50,29 +69,70 @@ async function reportOf(intake: PublicIntake, token: string) {
   return { mongo, report, organisationId: parsed.organisationId };
 }
 
+// The report a token opens, as the services of the reporter's side take it
+// (intake.requests.ts): the key it came in by and the organisation's database
+// as the system. The reporter's handle is the report's own key, or, for a
+// report filed without identity, the report itself: it only keys the limits.
+// 404 for a token that is malformed, unknown or erased (one answer for all).
+export async function scopeOf(
+  intake: PublicIntake,
+  token: string,
+): Promise<{ scope: Scope; report: ClientReportDocument }> {
+  const { report, organisationId } = await reportOf(intake, token);
+  const key = await intake.deps.core.db.widgetKeys.findFirst({
+    _id: report.widgetKeyId,
+    organisationId: new ObjectId(organisationId),
+  });
+  if (!key) throw reportNotFound();
+  const mongo = await intake.databaseOf(key);
+  return {
+    report,
+    scope: {
+      key,
+      mongo,
+      organisationId,
+      reporter: {
+        keyId: key._id,
+        reporterKey: report.reporterKey ?? `tracking:${report.id}`,
+      },
+    },
+  };
+}
+
 // The tracking page's read: the state, the replies marked public, and the
-// reporter's own files (name, role, whether a thumbnail exists). Nothing else
-// of the report or its issue leaves (no author, no id, no private comment).
+// reporter's own files (name, role, whether a thumbnail exists), and their
+// request (A17: id, description, own thread, impact, type). Nothing of the
+// issue leaves (no author, no status name, no private comment).
 export async function trackedStatus(
   intake: PublicIntake,
   token: string,
   ip: string,
 ): Promise<Tracked> {
   await intake.limit((l) => l.intakeTrackingIp, { ip });
-  const { mongo, report } = await reportOf(intake, token);
+  const { scope, report } = await scopeOf(intake, token);
+  const { mongo } = scope;
   const replies = report.issueId
     ? await mongo.db.comments.findMany({
-        filter: { issueId: report.issueId, public: true },
-        sort: { _id: 1 },
+        filter: publicFilter(report),
+        sort: { _id: -1 },
         limit: MAX_REPLIES,
       })
     : [];
+  // Newest MAX_REPLIES, shown oldest first.
+  replies.reverse();
   const files = await mongo.db.clientReportFiles.findMany({
-    filter: { reportId: report._id, state: { $in: STORED } },
+    // A reply's files belong to the thread, not to the report's own list.
+    filter: {
+      reportId: report._id,
+      state: { $in: STORED },
+      role: { $ne: "reply" },
+    },
     sort: { _id: 1 },
   });
   return {
     state: report.state,
+    publicState: await publicStateOf(mongo, report),
+    declineReason: declineReasonShown(report),
     title: report.title,
     createdAt: report.createdAt,
     replies: replies.map((reply) => ({
@@ -85,6 +145,7 @@ export async function trackedStatus(
       name: file.fileName,
       thumbnail: hasThumbnail(file),
     })),
+    request: await detailOf(intake, scope, report, TRACKING_FILES_PATH),
   };
 }
 

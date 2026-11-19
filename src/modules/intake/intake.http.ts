@@ -19,6 +19,7 @@ export type Status =
   | 200
   | 204
   | 400
+  | 401
   | 403
   | 404
   | 405
@@ -30,7 +31,7 @@ export type Status =
   | 500
   | 503;
 const statuses: readonly number[] = [
-  400, 403, 404, 405, 409, 410, 413, 415, 429, 500, 503,
+  400, 401, 403, 404, 405, 409, 410, 413, 415, 429, 500, 503,
 ];
 export const asStatus = (value: unknown): Status =>
   typeof value === "number" && statuses.includes(value)
@@ -67,6 +68,10 @@ export function answerOf(
 // (intake.tracking.routes.ts); the token stays out of the URL, which logs keep.
 export const TRACKING_HEADER = "x-pulsarix-tracking";
 export const TRACKING_FILES_PATH = "/public/tracking/files";
+// The identified reporter's thumbnails (intake.requests.routes.ts), read with
+// the identity token and the key, as the live stream is.
+export const REQUEST_FILES_PATH = "/public/requests/files";
+export const LIVE_REQUESTS_PATH = "/public/live/requests";
 
 // A JSON answer, built as a plain `Response` (what an alxia `all` route ends
 // with): no body for `undefined`, the content type for anything else.

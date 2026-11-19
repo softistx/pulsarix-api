@@ -6,6 +6,7 @@ import {
 } from "@softistx/mongo";
 import { z } from "zod";
 import { accountId, actors } from "../../core/shared/actors";
+import { publicState } from "../projects/public";
 
 // What a widget key is spelled like: `pk_live_` and 32 URL-safe characters
 // (192 bits). Public by design (plan §11): it names a project, it opens nothing.
@@ -44,6 +45,12 @@ export const widgetKeys = defineCollection({
     // intake.counters.ts). Raw `$inc`s: they do not touch `version`.
     uploads: z.number().int().min(0).default(0),
     refusals: z.record(z.string(), z.number().int().min(0)).default({}),
+    // The secret the host signs identity tokens with (plan §19): sealed with
+    // the application's sealing keys, bound to the key's id (intake.identity.ts),
+    // never returned after it was shown once. Null until generated; keys stored
+    // before widget v3 lack both fields.
+    identitySecret: z.string().min(1).nullable().default(null),
+    identitySecretSetAt: z.date().nullable().default(null),
     revokedAt: z.date().nullable().default(null),
     lastUsedAt: z.date().nullable().default(null),
   }),
@@ -67,6 +74,13 @@ export type ReportState = z.infer<typeof reportState>;
 
 export const reportLocale = z.enum(["en", "fr"]);
 
+// What the reporter says about the request (plan §19, Q27). `impact` prefills
+// the priority of the issue an acceptance makes; `type` becomes a label.
+export const reportImpact = z.enum(["blocking", "annoying", "minor"]);
+export type ReportImpact = z.infer<typeof reportImpact>;
+export const reportType = z.enum(["bug", "question", "suggestion"]);
+export type ReportType = z.infer<typeof reportType>;
+
 // A report a reader of a host page sent through the widget, in the
 // organisation's database. Text only: nothing in it is rendered as markup.
 // `trackingTokenHash` is the SHA-256 of the secret part of the tracking token
@@ -82,10 +96,47 @@ export const clientReports = defineCollection({
     title: z.string().trim().min(1).max(200),
     description: z.string().trim().min(1).max(10_000),
     email: z.string().max(254).nullable().default(null),
+    // The reporter an identity token vouched for (plan §19): the SHA-256 of
+    // the key id and the token's `sub`, never the raw user id; the name as the
+    // token gave it. Null for a report sent with no token.
+    reporterKey: z.string().length(64).nullable().default(null),
+    reporterName: z.string().max(100).nullable().default(null),
+    impact: reportImpact.nullable().default(null),
+    type: reportType.nullable().default(null),
     trackingTokenHash: z.string().length(64).nullable().default(null),
     state: reportState.default("new"),
     issueId: objectId().nullable().default(null),
     declineReason: z.string().max(1_000).nullable().default(null),
+    // Whether the reporter reads the decline reason. True for a decline made
+    // since widget v3 (the dialog says so); reports declined before lack the
+    // field and keep their reason hidden: read it with `declineReasonShown`.
+    declineReasonPublic: z.boolean().default(false),
+    // When the report was linked to an existing issue (a duplicate).
+    linkedAt: z.date().nullable().default(null),
+    // The reporter's own marks (plan §19): resolved, and reopened within 30
+    // days. `reopenedFrom` is the public state the issue had at the reopen, so
+    // the report reads "in progress" until the issue's state next changes.
+    resolvedByReporterAt: z.date().nullable().default(null),
+    reopenedAt: z.date().nullable().default(null),
+    reopenedFrom: publicState.nullable().default(null),
+    // The reporter's thread (plan §19, A16): when they last read it (the
+    // unread count is the team's public replies since), and whether they
+    // wrote last: set by a reporter's message, cleared by a public reply.
+    // Reports stored before A16 lack both: read `clientWaiting === true`.
+    reporterReadAt: z.date().nullable().default(null),
+    clientWaiting: z.boolean().default(false),
+    // The reporter turned the e-mails of their requests off (the widget's or
+    // the tracking page's toggle; the e-mails are A19). Reports stored before
+    // A17 lack it: read `emailsOff === true`.
+    emailsOff: z.boolean().default(false),
+    // The reporter's e-mails (A19, intake.notify.ts): the tracking token,
+    // sealed (the later mails link to the tracking page; null for a report
+    // made before A19, whose mails carry no link), the moment up to which the
+    // team's public replies were mailed, and the public state the last mail
+    // told. Absent on reports stored before A19.
+    trackingTokenSealed: z.string().nullable().default(null),
+    mailedThrough: z.date().nullable().default(null),
+    mailedState: publicState.nullable().default(null),
     pageUrl: z.string().max(2_048).nullable().default(null),
     userAgent: z.string().max(512).nullable().default(null),
     locale: reportLocale.default("en"),
@@ -118,6 +169,11 @@ export const clientReports = defineCollection({
       name: "clientReports_trackingTokenHashUnique",
     },
     { key: { issueId: 1 }, name: "clientReports_issueId" },
+    // A reporter's own requests (the later "My requests" reads).
+    {
+      key: { widgetKeyId: 1, reporterKey: 1, _id: -1 },
+      name: "clientReports_widgetKeyIdReporterKey",
+    },
     // The retention job: what was settled, and not erased yet.
     {
       key: { erasedAt: 1, state: 1, decidedAt: 1, closedAt: 1 },
@@ -127,7 +183,10 @@ export const clientReports = defineCollection({
 });
 export type ClientReportDocument = ReadDocumentOf<typeof clientReports>;
 
-export const reportFileRole = z.enum(["screenshot", "file"]);
+// What a reader declares a file to be when sending a report or a reply: the
+// widget's two controls. A file sent in a reply is stored with the role `reply`.
+export const declaredFileRole = z.enum(["screenshot", "file"]);
+export const reportFileRole = z.enum(["screenshot", "file", "reply"]);
 export type ReportFileRole = z.infer<typeof reportFileRole>;
 
 // Where a file stands. `pending`: the slot is reserved, the bytes may still
@@ -152,6 +211,8 @@ export const clientReportFiles = defineCollection({
     _id: id(),
     reportId: objectId(),
     role: reportFileRole,
+    // The reporter's message a `reply` file belongs to (clientReportMessages).
+    messageId: objectId().nullable().optional(),
     fileName: z.string().trim().min(1).max(200),
     mime: z.string().min(1).max(100),
     size: z.number().int().min(0),
@@ -168,6 +229,12 @@ export const clientReportFiles = defineCollection({
   timestamps: true,
   indexes: [
     { key: { reportId: 1, _id: 1 }, name: "clientReportFiles_reportIdId" },
+    // The files of a thread's messages.
+    {
+      key: { messageId: 1 },
+      partialFilterExpression: { messageId: { $type: "objectId" } },
+      name: "clientReportFiles_messageId",
+    },
     // The purge of pending slots.
     {
       key: { state: 1, expiresAt: 1 },
@@ -184,3 +251,10 @@ export const clientReportFiles = defineCollection({
   ],
 });
 export type ClientReportFileDocument = ReadDocumentOf<typeof clientReportFiles>;
+
+// The decline reason a reporter may read: only a reason the team wrote knowing
+// it is shown.
+export const declineReasonShown = (report: {
+  declineReason: string | null;
+  declineReasonPublic?: boolean | undefined;
+}) => (report.declineReasonPublic === true ? report.declineReason : null);

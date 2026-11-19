@@ -624,7 +624,7 @@ describe("the tracking page shows public replies only", () => {
     expect(text).not.toContain("authorId");
   });
 
-  test("a declined report shows its state, not the team's reason", async () => {
+  test("a declined report shows its state and the reason the team wrote for it (A15)", async () => {
     const kit = await intakeKit();
     await kit.submit(goodReport({ email: "reporter@client.test" }));
     await kit.intake.settled();
@@ -637,13 +637,16 @@ describe("the tracking page shows public replies only", () => {
     );
     await kit.asOwner.call(Decline, {
       id: list.clientReports.nodes[0]?.id,
-      reason: "Secret internal reason",
+      reason: "Not planned, sorry",
     });
     const tracked = await kit.track(token);
     expect(tracked.body?.data).toMatchObject({
-      clientReportStatus: { state: "declined" },
+      clientReportStatus: {
+        state: "declined",
+        publicState: "declined",
+        declineReason: "Not planned, sorry",
+      },
     });
-    expect(JSON.stringify(tracked.body)).not.toContain("Secret");
   });
 
   test("it is for the UI server: a browser origin, a missing client header, a bad or foreign token are refused", async () => {

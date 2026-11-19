@@ -5,6 +5,7 @@ import { exhausted, invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { projectNotFound } from "../projects/public";
 import { keyNotFound } from "./intake.errors";
+import { newIdentitySecret, sealIdentitySecret } from "./intake.identity";
 import type { WidgetKeyDocument } from "./intake.model";
 import { allowListOf } from "./intake.origins";
 import { newPublicKey } from "./intake.token";
@@ -133,6 +134,27 @@ export class WidgetKeysService {
         publicKey: newPublicKey(),
         version: current.version,
       });
+    } catch (error) {
+      if (error instanceof OptimisticLockError) throw exhausted();
+      throw error;
+    }
+  }
+
+  // A new identity secret for the key: answered once, in the clear, here; only
+  // its sealed form is stored. The old secret opens nothing from then on, so
+  // every token signed with it is refused at once.
+  async generateIdentitySecret(
+    id: string,
+  ): Promise<{ key: WidgetKeyDocument; secret: string }> {
+    const current = await this.own(id);
+    const secret = newIdentitySecret();
+    try {
+      const key = await this.core.db.widgetKeys.update(current._id, {
+        identitySecret: sealIdentitySecret(secret, current.id),
+        identitySecretSetAt: new Date(),
+        version: current.version,
+      });
+      return { key, secret };
     } catch (error) {
       if (error instanceof OptimisticLockError) throw exhausted();
       throw error;

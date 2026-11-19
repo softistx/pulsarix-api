@@ -15,6 +15,11 @@ export const activityVerb = z.enum([
   "commented",
   "commentEdited",
   "commentDeleted",
+  // A reporter wrote in the thread of one of the issue's client reports.
+  "clientReplied",
+  // A reporter marked a request resolved, or reopened it (A17).
+  "clientResolved",
+  "clientReopened",
 ]);
 export type ActivityVerb = z.infer<typeof activityVerb>;
 

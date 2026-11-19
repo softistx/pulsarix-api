@@ -49,8 +49,21 @@ limit. Unset in development, only `TRUSTED_PROXIES` decides.
 the key is derived from `API_PROXY_SECRET`, so a deployment needs nothing more; set it to rotate
 tickets apart from the proxy secret (tickets last 15 minutes, so a rotation costs at most the files
 in flight). The widget's `PUT /public/media/report-files/<slot>` goes through Traefik like the
-rest of `/public/`.
+rest of `/public/`. The unsubscribe links of the reporters' e-mails derive from the same secret:
+rotating it also voids the links already sent.
 The report-file reads (`GET /media/report-files/...`, `GET /public/tracking/files/...`) are for the UI server only: do not route them from the public proxy.
+
+## Queues
+
+The Redis queues (`src/config/queues.ts`) are worked by the API process; the schedules fire only
+while a worker runs, and every job is safe to repeat. The intake ones: `intake-retention` (nightly
+03:30 UTC, erases the e-mail of reports settled 90 days ago), `intake-files-retention` (every 5
+minutes, purges expired file slots and the files of declined or untriaged reports) and
+`intake-reporter-mail` (the reporters' e-mails: one delayed job per report, 10 minutes after the
+first change, so replies in a window are one mail; at least once, never lost). The mail job needs
+`MAIL_FROM` and `UI_ORIGIN`, the latter being the host of the unsubscribe links (the
+`List-Unsubscribe` header is sent only when it is https). With one API container only, the live
+stream's per-reporter cap is also exact (it counts per process).
 
 ## The API image
 

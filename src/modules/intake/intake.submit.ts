@@ -14,6 +14,8 @@ import {
   unknownKey,
 } from "./intake.errors";
 import { type CheckedFile, checkFiles } from "./intake.files.input";
+import { identifyCaller, sealTrackingToken } from "./intake.identity";
+import type { IntakeLimits, Limiter } from "./intake.limits.types";
 import { trackingMail } from "./intake.mail";
 import {
   attachmentsOn,
@@ -44,33 +46,10 @@ import {
   trackedThumbnail,
 } from "./intake.tracking";
 
+export type { IntakeLimits, Limiter } from "./intake.limits.types";
 export type { FileTicket } from "./intake.slots";
 export { MIN_FILL_MS, type SubmitInput } from "./intake.submit.input";
 export type { Tracked, TrackedFile } from "./intake.tracking";
-
-// What the public endpoint asks of a rate limit: `consume` is the bound limit
-// of @softistx/redis (src/modules/intake/intake.limits.ts).
-export interface Limiter<P> {
-  consume(
-    params: P,
-    cost?: number,
-    options?: { timeoutMs?: number },
-  ): Promise<{ allowed: boolean; retryAfter: number }>;
-}
-
-export interface IntakeLimits {
-  intakeKey: Limiter<{ publicKey: string }>;
-  intakeIpKey: Limiter<{ ip: string; publicKey: string }>;
-  intakeEmail: Limiter<{ digest: string }>;
-  intakeOrganisation: Limiter<{ organisationId: string }>;
-  intakeReadIp: Limiter<{ ip: string }>;
-  intakeTrackingIp: Limiter<{ ip: string }>;
-  // Bytes (the `cost` of a consume), per address and key, and per key.
-  intakeUploadIpKey: Limiter<{ ip: string; keyId: string }>;
-  intakeUploadKey: Limiter<{ keyId: string }>;
-  // One consume per decoy slot: a replayed decoy ticket is a 409 like a real one.
-  intakeDecoySlot: Limiter<{ slot: string }>;
-}
 
 export interface ReportReceived {
   organisationId: string;
@@ -89,6 +68,14 @@ export interface ReportFileReceived {
   at: string;
 }
 
+export interface MessagePosted {
+  organisationId: string;
+  projectId: string;
+  reportId: string;
+  messageId: string;
+  at: string;
+}
+
 export interface IntakeDeps {
   core: Pick<CoreMongo, "db" | "as">;
   tenancy: Pick<AppTenancy, "resolve" | "databaseOf">;
@@ -104,6 +91,8 @@ export interface IntakeDeps {
   publish: (event: ReportReceived) => Promise<void>;
   // The live event of a file that was stored (`clientReportFileReceived`).
   publishFile?: (event: ReportFileReceived) => Promise<void>;
+  // The live event of a reporter's message (`clientReportMessageReceived`).
+  publishMessage?: (event: MessagePosted) => Promise<void>;
   now?: () => Date;
   log?: (message: string, error: unknown) => void;
 }
@@ -115,6 +104,10 @@ export interface Caller {
   // The `Origin` header; null when there is none.
   origin: string | null;
   userAgent: string | null;
+  // The `x-pulsarix-identity` header, when the host sent one (intake.identity.ts).
+  identity?: string | null;
+  // The `x-pulsarix-tracking` header, on the tracking page's operations.
+  tracking?: string | null;
   language: Locale;
   // Set once the key's allow-list accepted `origin`: from then on the answer
   // carries the CORS headers, so the widget can read a 429 or a refusal too.
@@ -280,10 +273,20 @@ export class PublicIntake {
     await this.limit((l) => l.intakeKey, { publicKey });
     if (!key.active) throw keyDisabled();
 
+    const identity = await identifyCaller(this, key, caller.identity);
+
     const parsed = submitInput.safeParse(given);
     if (!parsed.success) refused(parsed.error);
     const report = parsed.data;
-    const email = report.email ? report.email : null;
+    // An identified report carries only the e-mail the host vouched for (none
+    // when its token has no email claim): the form's address is never trusted
+    // there, or a signed-in user could file with someone else's. An
+    // unidentified report uses the form's.
+    const email = identity
+      ? (identity.email ?? null)
+      : report.email
+        ? report.email
+        : null;
     if (email) {
       await this.limit((l) => l.intakeEmail, { digest: emailDigest(email) });
     }
@@ -337,10 +340,22 @@ export class PublicIntake {
       title: report.title,
       description: report.description,
       email,
+      reporterKey: identity?.reporterKey ?? null,
+      reporterName: identity?.reporterName ?? null,
+      impact: report.impact ?? null,
+      type: report.type ?? null,
       trackingTokenHash: tracking?.hash ?? null,
+      trackingTokenSealed: tracking
+        ? sealTrackingToken(tracking.token, key.id)
+        : null,
       state: "new",
       issueId: null,
       declineReason: null,
+      declineReasonPublic: false,
+      linkedAt: null,
+      resolvedByReporterAt: null,
+      reopenedAt: null,
+      reopenedFrom: null,
       pageUrl: pageUrlOf(report.pageUrl),
       userAgent: stripControl(caller.userAgent ?? "").slice(0, 512) || null,
       locale: report.locale ?? caller.language,

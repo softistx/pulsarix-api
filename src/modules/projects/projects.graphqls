@@ -38,12 +38,25 @@ enum StatusCategory {
   cancelled
 }
 
+"""
+What a reporter sees of a status: four fixed states, whatever the workflow
+calls its steps. The status's name never reaches a reporter.
+"""
+enum PublicState {
+  received
+  inProgress
+  resolved
+  declined
+}
+
 "A step of a project's workflow."
 type Status {
   id: ID!
   projectId: ID!
   name: String!
   category: StatusCategory!
+  "What the reporter sees for it; its category's default (triage, backlog, todo: received; inProgress: inProgress; done: resolved; cancelled: declined) until set."
+  publicState: PublicState!
   "Its place in the workflow, from 0, with no gap."
   order: Int!
   "`#rrggbb`."
@@ -79,6 +92,8 @@ input CreateStatusInput {
   name: String! @constraint(minLength: 1, maxLength: 100)
   category: StatusCategory!
   colour: String! @constraint(maxLength: 7)
+  "The category's default when left out."
+  publicState: PublicState
 }
 
 "A field left out stays as it is; null is refused."
@@ -86,6 +101,8 @@ input UpdateStatusInput {
   name: String @constraint(minLength: 1, maxLength: 100)
   category: StatusCategory
   colour: String @constraint(maxLength: 7)
+  "When only the category changes and the status still wears the old category's default, it follows the new category's."
+  publicState: PublicState
 }
 
 input CreateLabelInput {

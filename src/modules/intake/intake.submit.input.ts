@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { type FieldIssue, invalid } from "../../core/shared/errors";
-import { reportLocale } from "./intake.model";
+import { reportImpact, reportLocale, reportType } from "./intake.model";
 import { stripControl } from "./intake.text";
 
 // The fill time under which a form was not filled by a person (Q10).
@@ -23,6 +23,8 @@ export const submitInput = z.object({
     .nullish(),
   pageUrl: z.string().max(2_048).nullish(),
   locale: reportLocale.nullish(),
+  impact: reportImpact.nullish(),
+  type: reportType.nullish(),
   metadata: z
     .array(
       z.object({

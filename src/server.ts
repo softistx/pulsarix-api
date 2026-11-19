@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { serverMedia } from "./config/media";
 import {
   startFilesRetentionWorker,
+  startReporterMailWorker,
   startRetentionWorker,
 } from "./modules/intake/public";
 import { startDigestWorker } from "./modules/notifications/public";
@@ -14,6 +15,7 @@ await syncCoreAtBoot(coreMongo);
 
 startDigestWorker();
 startRetentionWorker(tenancy);
+startReporterMailWorker(tenancy);
 startFilesRetentionWorker(tenancy, serverMedia);
 app.listen({ port: env.PORT });
 console.log(`pulsarix-api listening on :${env.PORT}`);

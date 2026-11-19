@@ -5,29 +5,9 @@ import {
 } from "../../core/shared/after-commit";
 import { registerCommentChange } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
-import type { IssueEventPayload } from "./activity.channels";
-import type { ActivityDocument } from "./activity.model";
+import { eventOf, journalOnIssue } from "./activity.events";
 import { type ActivityMongo, recordActivity } from "./activity.service";
 import { activityRecorded } from "./activity.usage";
-
-// The issue events go out after the commit, from the row the journal wrote.
-const eventOf = (
-  organisationId: string,
-  activity: ActivityDocument,
-  issue: { statusId: string | null; rank: string | null },
-): IssueEventPayload => ({
-  organisationId,
-  activityId: activity.id,
-  verb: activity.verb,
-  projectId: activity.projectId.toHexString(),
-  issueId: activity.issueId?.toHexString() ?? "",
-  issueKey: activity.issueKey ?? "",
-  actorId: activity.actorId,
-  fields: activity.changes.map((change) => change.field),
-  statusId: issue.statusId,
-  rank: issue.rank,
-  at: activity.at.toISOString(),
-});
 
 // An issue's change is journalled inside the writing transaction and
 // published to the board and to the issue's topic once it has committed.
@@ -73,26 +53,12 @@ registerCommentChange(
     const issue = await mongo.db.issues.findById(comment.issueId);
     // The issue is going in the same transaction: its own deletion is journalled.
     if (!issue) return undefined;
-    const activity = await recordActivity(mongo as unknown as ActivityMongo, {
-      projectId: issue.projectId,
-      issueId: issue._id,
-      issueKey: issue.key,
+    return journalOnIssue(mongo as unknown as ActivityMongo, {
+      issue,
+      organisationId,
       actorId,
       verb,
-      changes: [],
+      comment,
     });
-    const event = eventOf(organisationId, activity, {
-      statusId: null,
-      rank: null,
-    });
-    const downstream = await activityRecorded(
-      mongo as unknown as ActivityMongo,
-      { activity, organisationId, issue, comment, changes: [] },
-    );
-    return () =>
-      runAfterCommit([
-        () => realtime.channels.issueChanged.publish(event).then(() => {}),
-        ...downstream,
-      ]);
   },
 );

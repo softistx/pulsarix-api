@@ -114,10 +114,15 @@ export class ReportUploads {
       revokedAt: null,
     });
     if (!key) throw unknownKey();
-    if (!originAllowed(caller.origin, key.allowedOrigins)) {
-      throw originNotAllowed();
+    if (claims.tracking) {
+      // The tracking page's ticket: the UI server's PUT, never a browser's.
+      if (caller.origin !== null) throw originNotAllowed();
+    } else {
+      if (!originAllowed(caller.origin, key.allowedOrigins)) {
+        throw originNotAllowed();
+      }
+      caller.originGranted = true;
     }
-    caller.originGranted = true;
     if (!key.active) throw keyDisabled();
     if (!attachmentsOn(key)) throw attachmentsDisabled();
     if (claims.expiresAt <= intake.now().getTime()) throw ticketExpired();
@@ -239,7 +244,8 @@ export class ReportUploads {
     const { intake } = this;
     intake.countUpload(new ObjectId(claims.keyId));
     const publish = intake.deps.publishFile;
-    if (publish && admission.role) {
+    // A reply's file reaches the team with its message, not as an inbox file.
+    if (publish && admission.role && admission.role !== "reply") {
       const role = admission.role;
       intake.background(async () => {
         await publish({

@@ -6,6 +6,26 @@ enum IssuePriority {
   urgent
 }
 
+enum ClientMarker {
+  "A reporter marked a request of the issue resolved."
+  resolved
+  "A reporter reopened a request of the issue."
+  reopened
+  "A reporter erased their data."
+  deleted
+}
+
+"""
+Where an issue's priority came from: `client` is the reporter's impact,
+prefilled when the report was accepted; `team` is what a member set or
+changed; `auto` is kept for a later automatic level.
+"""
+enum PriorityOrigin {
+  client
+  team
+  auto
+}
+
 """
 An issue of a project. Its `key` (`ABC-12`) is the project's key and its
 `number`, which counts from 1 with no gap.
@@ -20,6 +40,7 @@ type Issue {
   description: String!
   statusId: ID!
   priority: IssuePriority!
+  priorityOrigin: PriorityOrigin!
   assigneeId: ID
   labelIds: [ID!]!
   parentId: ID
@@ -34,6 +55,13 @@ type Issue {
   "The client report it was accepted from, if any."
   clientReportId: ID
   watcherIds: [ID!]!
+  """
+  A reporter wrote last on one of its client reports and no public reply has
+  answered since: the "client reply" indicator.
+  """
+  clientWaiting: Boolean!
+  "What reporters did to its requests: resolved or reopened (the latest), and deleted once one erased their data."
+  clientMarkers: [ClientMarker!]!
   "Whether the viewer watches it."
   watching: Boolean!
   createdAt: DateTime!
@@ -65,6 +93,8 @@ input IssueFilter {
   reporterId: ID
   "Only the issues the viewer watches."
   watching: Boolean
+  "Only the issues a reporter wrote last on and no public reply has answered."
+  clientWaiting: Boolean
   "Part of the title, any case."
   text: String @constraint(maxLength: 200)
   startAfter: DateTime

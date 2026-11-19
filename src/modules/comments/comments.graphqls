@@ -6,16 +6,32 @@ server.
 type Comment {
   id: ID!
   issueId: ID!
-  authorId: ID!
+  "The member who wrote it; null for a `CLIENT` entry."
+  authorId: ID
   body: String!
   "The members the body mentions, in order of appearance."
   mentionIds: [ID!]!
-  "A reply the tracking page of a client report shows."
+  "A reply the tracking page of a client report shows. Never true for a `CLIENT` entry."
   public: Boolean!
+  """
+  Where the entry comes from. `CLIENT` entries are what a reporter wrote in
+  their request thread, merged in read only (not stored as comments): no
+  mutation changes them, and they are never `public`.
+  """
+  source: CommentSource!
+  "The client report a `CLIENT` entry belongs to; null for a team comment."
+  reportId: ID
+  "The reporter's name, when they gave one; null for a team comment."
+  reporterName: String
   "When the body or the flag was last changed; null if never."
   editedAt: DateTime
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+enum CommentSource {
+  TEAM
+  CLIENT
 }
 
 type CommentConnection {
@@ -40,7 +56,8 @@ input EditCommentInput {
 type Query {
   """
   The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
-  default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
+  default 50), with the messages of the issue's client reports merged in as
+  `CLIENT` entries. Needs `comment:read`. 404 `issues.errors.not-found`.
   """
   comments(issueId: ID!, first: Int = 50, after: String): CommentConnection!
 }

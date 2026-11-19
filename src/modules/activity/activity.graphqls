@@ -6,6 +6,12 @@ enum ActivityVerb {
   commented
   commentEdited
   commentDeleted
+  "A reporter wrote in the thread of one of the issue's client reports."
+  clientReplied
+  "A reporter marked one of the issue's requests as resolved."
+  clientResolved
+  "A reporter reopened one of the issue's requests."
+  clientReopened
 }
 
 "One field a change touched. Values are text, `null` for none; a list is JSON text; a long text is cut."
@@ -78,6 +84,13 @@ type ClientReportFileEvent {
   at: DateTime!
 }
 
+"A reporter wrote in the thread of a client report."
+type ClientReportMessageEvent {
+  reportId: ID!
+  messageId: ID!
+  at: DateTime!
+}
+
 type Query {
   """
   The journal of a project or of one issue (exactly one of `projectId` and
@@ -112,4 +125,6 @@ type Subscription {
   clientReportReceived(projectId: ID!): ClientReportEvent!
   "A file of a client report of a project was stored. Needs `issue:write`; 404 `projects.errors.not-found`."
   clientReportFileReceived(projectId: ID!): ClientReportFileEvent!
+  "A reporter wrote in the thread of a client report of a project. Needs `issue:write`; 404 `projects.errors.not-found`."
+  clientReportMessageReceived(projectId: ID!): ClientReportMessageEvent!
 }

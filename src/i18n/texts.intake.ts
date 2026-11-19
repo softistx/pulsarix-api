@@ -44,6 +44,12 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.quarantine-full":
       "Files cannot be taken right now. Send the report without them.",
     "intake.errors.file-not-found": "This file does not exist.",
+    "intake.errors.identity-invalid":
+      "Your identity could not be confirmed. Sign in again and retry.",
+    "intake.errors.request-declined":
+      "This request was declined: it can no longer be answered.",
+    "intake.errors.reopen-expired":
+      "This request was resolved too long ago to be reopened. Send a new request.",
   },
   fr: {
     "intake.errors.unknown-key": "Cette clé de widget n'existe pas.",
@@ -88,5 +94,11 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.quarantine-full":
       "Les fichiers ne peuvent pas être pris pour le moment. Envoyez le signalement sans eux.",
     "intake.errors.file-not-found": "Ce fichier n'existe pas.",
+    "intake.errors.identity-invalid":
+      "Votre identité n'a pas pu être confirmée. Reconnectez-vous et réessayez.",
+    "intake.errors.request-declined":
+      "Cette demande a été refusée : on ne peut plus y répondre.",
+    "intake.errors.reopen-expired":
+      "Cette demande a été résolue il y a trop longtemps pour être rouverte. Envoyez une nouvelle demande.",
   },
 };

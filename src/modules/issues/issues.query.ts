@@ -16,6 +16,7 @@ export interface IssueFilter {
   rootsOnly?: boolean | null;
   reporterId?: string | null;
   watching?: boolean | null;
+  clientWaiting?: boolean | null;
   text?: string | null;
   startAfter?: Date | null;
   startBefore?: Date | null;
@@ -120,6 +121,7 @@ export async function listIssues(
     ...(f.rootsOnly && !f.parentId && { parentId: null }),
     ...(f.reporterId && { reporterId: f.reporterId }),
     ...(f.watching && { watcherIds: viewerId }),
+    ...(f.clientWaiting && { clientWaiting: true }),
     ...(text && { title: { $regex: escapeRegex(text), $options: "i" } }),
     ...(due && { dueDate: due }),
     ...(start && { startDate: start }),

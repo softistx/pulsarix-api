@@ -20,6 +20,9 @@ const claims = z.object({
   size: z.number().int().min(1),
   expiresAt: z.number().int(),
   decoy: z.boolean(),
+  // A ticket of the tracking page: its PUT comes from the UI server (no
+  // `Origin`, the client header), never from a browser.
+  tracking: z.boolean().optional(),
 });
 export type TicketClaims = z.infer<typeof claims>;
 

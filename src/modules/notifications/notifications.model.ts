@@ -8,12 +8,16 @@ import { z } from "zod";
 import { accountId, actors } from "../../core/shared/actors";
 
 // Why a member is told, strongest first: a mention beats an assignment, which
-// beats a change to an issue they watch (`reportReceived` joins with the
-// intake slice).
+// beats a change to an issue they watch; `clientReplied` (a reporter wrote in
+// the thread of a client report of the issue) is told to its assignee and
+// watchers.
 export const notificationKind = z.enum([
   "mention",
   "assigned",
   "watchedChange",
+  "clientReplied",
+  "clientResolved",
+  "clientReopened",
 ]);
 export type NotificationKind = z.infer<typeof notificationKind>;
 

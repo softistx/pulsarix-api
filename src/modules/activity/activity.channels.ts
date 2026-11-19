@@ -76,6 +76,21 @@ export const clientReportFileReceived = defineChannel({
   onNoLocalReader: "drop",
 });
 
+// `project.intake.message`: a reporter wrote in the thread of a request (A16).
+export const clientReportMessageReceived = defineChannel({
+  name: "project.intake.message",
+  schema: z.object({
+    organisationId: z.string(),
+    projectId: z.string(),
+    reportId: z.string(),
+    messageId: z.string(),
+    at: z.string(),
+  }),
+  key: (event) => `${event.organisationId}:${event.projectId}`,
+  fallback: "local",
+  onNoLocalReader: "drop",
+});
+
 // `project.intake`: a new client report (published by the intake slice).
 export const clientReportReceived = defineChannel({
   name: "project.intake",
@@ -87,6 +102,24 @@ export const clientReportReceived = defineChannel({
     at: z.string(),
   }),
   key: (event) => `${event.organisationId}:${event.projectId}`,
+  fallback: "local",
+  onNoLocalReader: "drop",
+});
+
+// `reporter.request`: a request of an identified reporter changed (a public
+// reply, a state change, a decision, their own mark from another tab). Keyed by
+// the key and the reporter, so a stream hears its own reporter's requests and
+// nobody else's; it names the report only, the stream reads the rest (A17).
+export const reporterRequestChanged = defineChannel({
+  name: "reporter.request",
+  schema: z.object({
+    organisationId: z.string(),
+    keyId: z.string(),
+    reporterKey: z.string(),
+    reportId: z.string(),
+    at: z.string(),
+  }),
+  key: (event) => `${event.keyId}:${event.reporterKey}`,
   fallback: "local",
   onNoLocalReader: "drop",
 });

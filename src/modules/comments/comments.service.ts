@@ -15,6 +15,7 @@ import {
   publicAuthorOnly,
 } from "./comments.errors";
 import type { CommentDocument } from "./comments.model";
+import { type CommentEntry, mergedEntries } from "./comments.sources";
 import { type CommentChange, commentChanged } from "./comments.usage";
 import { mentionedIds } from "./mentions";
 
@@ -39,7 +40,7 @@ export const MAX_PAGE = 100;
 export const MAX_MENTIONS = 50;
 
 export interface CommentPage {
-  nodes: CommentDocument[];
+  nodes: CommentEntry[];
   endCursor: string | null;
   hasNextPage: boolean;
 }
@@ -64,6 +65,7 @@ export class CommentsService {
       changed: (
         verb: CommentChange["verb"],
         comment: CommentDocument,
+        previous?: CommentDocument,
       ) => Promise<void>,
     ) => Promise<T>,
   ): Promise<T> {
@@ -72,11 +74,12 @@ export class CommentsService {
       () =>
         this.mongo.transaction(async (tx) => {
           later = [];
-          return work(tx as CommentsMongo, async (verb, comment) => {
+          return work(tx as CommentsMongo, async (verb, comment, previous) => {
             later.push(
               ...(await commentChanged(tx as CommentsMongo, {
                 verb,
                 comment,
+                ...(previous && { previous }),
                 actorId: this.viewerId,
                 organisationId: this.organisationId,
               })),
@@ -135,9 +138,10 @@ export class CommentsService {
     }
     const issue = await this.issue(issueId);
     const cursor = after ? idOrInvalid(after, "after") : null;
-    const found = await this.mongo.db.comments.findMany({
-      filter: { issueId: issue, ...(cursor && { _id: { $gt: cursor } }) },
-      sort: { _id: 1 },
+    // The reporters' messages are merged in, read only (comments.sources.ts).
+    const found = await mergedEntries(this.mongo, {
+      issueId: issue,
+      after: cursor,
       limit: limit + 1,
     });
     const nodes = found.slice(0, limit);
@@ -199,7 +203,7 @@ export class CommentsService {
           editedAt: new Date(),
         }),
       });
-      await changed("commentEdited", edited);
+      await changed("commentEdited", edited, current);
       return edited;
     });
   }

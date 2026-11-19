@@ -13,6 +13,7 @@ import {
 import { WidgetKeysService } from "./intake.keys";
 import { attachmentsOn } from "./intake.model";
 import { ReportsService } from "./intake.reports";
+import { publicStateLoaderOf } from "./intake.requests.state";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
 // recent proof of identity (plan §11, "step-up for key creation").
@@ -42,6 +43,7 @@ async function reportsOf(ctx: Context) {
       organisationId,
     ),
     viewerId,
+    { organisationId },
   );
 }
 
@@ -96,17 +98,22 @@ export const intakeResolvers: Resolvers = {
       (await keysOf(ctx)).update(id, input),
     rotateWidgetKey: async (_, { id }, ctx) =>
       (await keysOf(ctx, true)).rotate(id),
+    generateWidgetIdentitySecret: async (_, { keyId }, ctx) =>
+      (await keysOf(ctx, true)).generateIdentitySecret(keyId),
     revokeWidgetKey: async (_, { id }, ctx) => (await keysOf(ctx)).revoke(id),
     acceptClientReport: async (_, { id }, ctx) =>
       (await reportsOf(ctx)).accept(id),
     declineClientReport: async (_, { id, reason }, ctx) =>
       (await reportsOf(ctx)).decline(id, reason),
+    linkClientReport: async (_, { id, issueId }, ctx) =>
+      (await reportsOf(ctx)).link(id, issueId),
   },
   WidgetKey: {
     projectId: (key) => key.projectId.toHexString(),
     // Keys stored before v2 lack the counters (see attachmentsOn).
     attachmentsEnabled: (key) => attachmentsOn(key),
     uploads: (key) => key.uploads ?? 0,
+    identitySecretSetAt: (key) => key.identitySecretSetAt ?? null,
     refusals: (key) =>
       Object.entries(key.refusals ?? {})
         .map(([reason, count]) => ({ reason, count }))
@@ -115,6 +122,18 @@ export const intakeResolvers: Resolvers = {
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,
+    // Reports stored before widget v3 lack these (see declineReasonShown).
+    impact: (report) => report.impact ?? null,
+    type: (report) => report.type ?? null,
+    declineReasonPublic: (report) => report.declineReasonPublic === true,
+    linkedAt: (report) => report.linkedAt ?? null,
+    clientWaiting: (report) => report.clientWaiting === true,
+    publicState: async (report, _, ctx) => {
+      const { mongo } = await requirePermission(ctx, "issue:write");
+      // One read of the issues and statuses per request, whatever the
+      // number of reports the field is asked for.
+      return publicStateLoaderOf(ctx, mongo)(report);
+    },
     // Quarantined files are the inbox's: the field asks for the permission
     // the report's own queries ask for, whatever parent it comes from.
     files: async (report, _, ctx) => {

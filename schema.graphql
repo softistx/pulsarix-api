@@ -112,6 +112,12 @@ type ActivityConnection {
 }
 
 enum ActivityVerb {
+  """A reporter reopened one of the issue's requests."""
+  clientReopened
+  """A reporter wrote in the thread of one of the issue's client reports."""
+  clientReplied
+  """A reporter marked one of the issue's requests as resolved."""
+  clientResolved
   commentDeleted
   commentEdited
   commented
@@ -222,16 +228,34 @@ input ChangePasswordInput {
   newPassword: String! @constraint(maxLength: 1024)
 }
 
+enum ClientMarker {
+  """A reporter erased their data."""
+  deleted
+  """A reporter reopened a request of the issue."""
+  reopened
+  """A reporter marked a request of the issue resolved."""
+  resolved
+}
+
 """
 A report a reader sent through the widget. Everything in it is text from a
 stranger: show it as plain text, never as markup or links.
 """
 type ClientReport {
+  """
+  True while the reporter wrote last in the request thread and the team has not replied publicly since.
+  """
+  clientWaiting: Boolean!
   closedAt: DateTime
   createdAt: DateTime!
   decidedAt: DateTime
   decidedBy: ID
   declineReason: String
+  """
+  Whether the reporter reads `declineReason`: true for a decline made since
+  widget v3, false for the earlier ones, whose reason stays with the team.
+  """
+  declineReasonPublic: Boolean!
   description: String!
   """
   Null if none was given, or once erased (90 days after the report is closed or declined).
@@ -245,8 +269,16 @@ type ClientReport {
   """
   files: [ClientReportFile!]!
   id: ID!
-  """The issue an acceptance made."""
+  """What the reporter said about the impact, if anything."""
+  impact: ClientReportImpact
+  """
+  The issue an acceptance made, or the one the report was linked to. Several reports may share one.
+  """
   issueId: ID
+  """
+  When the report was linked to an existing issue; null if it made its own or none.
+  """
+  linkedAt: DateTime
   locale: String!
   metadata: [ClientReportMetadata!]!
   pageUrl: String
@@ -257,8 +289,18 @@ type ClientReport {
   """
   pendingFiles: Int!
   projectId: ID!
+  """
+  What the reporter sees: `declined` when the report was declined or its issue
+  sits in a status mapped to `declined`; `resolved` when the reporter resolved
+  it and has not reopened since; `inProgress` after a reopen until the issue's
+  mapped state next changes; otherwise the state of the issue's status
+  (`Status.publicState`), `received` before any issue.
+  """
+  publicState: PublicState!
   state: ClientReportState!
   title: String!
+  """What the reporter said it is, if anything."""
+  type: ClientReportType
   userAgent: String
 }
 
@@ -288,6 +330,8 @@ type ClientReportFile {
   fileName: String!
   height: Int
   id: ID!
+  """The reporter's message a `reply` file belongs to; null for the others."""
+  messageId: ID
   mime: String!
   """
   A 256 px square thumbnail (WebP); null for a PDF that could not be drawn.
@@ -316,6 +360,8 @@ type ClientReportFileEvent {
 
 enum ClientReportFileRole {
   file
+  """Sent by the reporter in a reply of their request thread."""
+  reply
   screenshot
 }
 
@@ -326,6 +372,22 @@ or `released` (its report was accepted: readable by readers of the issue).
 enum ClientReportFileState {
   quarantined
   released
+}
+
+"""
+How much the problem blocks the reporter. Prefills the priority at acceptance: blocking High, annoying Medium, minor Low.
+"""
+enum ClientReportImpact {
+  annoying
+  blocking
+  minor
+}
+
+"""A reporter wrote in the thread of a client report."""
+type ClientReportMessageEvent {
+  at: DateTime!
+  messageId: ID!
+  reportId: ID!
 }
 
 type ClientReportMetadata {
@@ -341,12 +403,22 @@ enum ClientReportState {
 }
 
 """
+What the reporter says it is. Becomes a label (Bug, Question, Suggestion, made on first use) at acceptance.
+"""
+enum ClientReportType {
+  bug
+  question
+  suggestion
+}
+
+"""
 A comment on an issue. `body` is rich text with the `@[Label](id)` markers of
 the mention input; `mentionIds` are the members they name, checked by the
 server.
 """
 type Comment {
-  authorId: ID!
+  """The member who wrote it; null for a `CLIENT` entry."""
+  authorId: ID
   body: String!
   createdAt: DateTime!
   """When the body or the flag was last changed; null if never."""
@@ -355,8 +427,22 @@ type Comment {
   issueId: ID!
   """The members the body mentions, in order of appearance."""
   mentionIds: [ID!]!
-  """A reply the tracking page of a client report shows."""
+  """
+  A reply the tracking page of a client report shows. Never true for a `CLIENT` entry.
+  """
   public: Boolean!
+  """
+  The client report a `CLIENT` entry belongs to; null for a team comment.
+  """
+  reportId: ID
+  """The reporter's name, when they gave one; null for a team comment."""
+  reporterName: String
+  """
+  Where the entry comes from. `CLIENT` entries are what a reporter wrote in
+  their request thread, merged in read only (not stored as comments): no
+  mutation changes them, and they are never `public`.
+  """
+  source: CommentSource!
   updatedAt: DateTime!
 }
 
@@ -365,6 +451,11 @@ type CommentConnection {
   endCursor: String
   hasNextPage: Boolean!
   nodes: [Comment!]!
+}
+
+enum CommentSource {
+  CLIENT
+  TEAM
 }
 
 """An ISO 3166-1 alpha-2 country code, such as FR."""
@@ -420,6 +511,8 @@ input CreateStatusInput {
   colour: String! @constraint(maxLength: 7)
   name: String! @constraint(minLength: 1, maxLength: 100)
   projectId: ID!
+  """The category's default when left out."""
+  publicState: PublicState
 }
 
 input CreateWidgetKeyInput {
@@ -529,8 +622,17 @@ An issue of a project. Its `key` (`ABC-12`) is the project's key and its
 """
 type Issue {
   assigneeId: ID
+  """
+  What reporters did to its requests: resolved or reopened (the latest), and deleted once one erased their data.
+  """
+  clientMarkers: [ClientMarker!]!
   """The client report it was accepted from, if any."""
   clientReportId: ID
+  """
+  A reporter wrote last on one of its client reports and no public reply has
+  answered since: the "client reply" indicator.
+  """
+  clientWaiting: Boolean!
   createdAt: DateTime!
   """Rich text, as the client wrote it."""
   description: String!
@@ -545,6 +647,7 @@ type Issue {
   number: Int!
   parentId: ID
   priority: IssuePriority!
+  priorityOrigin: PriorityOrigin!
   projectId: ID!
   """
   Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`.
@@ -596,6 +699,10 @@ input IssueFilter {
   assigneeId: ID
   """The issues whose status has one of these categories."""
   categories: [StatusCategory!]
+  """
+  Only the issues a reporter wrote last on and no public reply has answered.
+  """
+  clientWaiting: Boolean
   """Due on or after (for a calendar's range)."""
   dueAfter: DateTime
   dueBefore: DateTime
@@ -862,9 +969,10 @@ type Mutation {
   """
   createWidgetKey(input: CreateWidgetKeyInput!): WidgetKey!
   """
-  Declines a new report with a reason (kept for the team; the reporter sees
-  only the state). Its files stay quarantined until the purge (7 days after
-  the decision). Needs `issue:write`. 409 `intake.errors.report-decided`.
+  Declines a new report with a reason. The reporter reads the reason
+  (`declineReasonPublic` is true), so write it for them. Its files stay
+  quarantined until the purge (7 days after the decision). Needs
+  `issue:write`. 409 `intake.errors.report-decided`.
   """
   declineClientReport(id: ID!, reason: String! @constraint(minLength: 1, maxLength: 1000)): ClientReport!
   """
@@ -910,6 +1018,13 @@ type Mutation {
   """
   enrollSecondFactor: SecondFactorEnrolment!
   """
+  Makes a new identity secret for the key and shows it once; it is stored
+  sealed. The previous secret stops working at once: tokens signed with it are
+  refused. Needs `intake:manage` and a recent proof of identity (403
+  `auth.errors.step-up-required`); 404 `intake.errors.key-not-found`.
+  """
+  generateWidgetIdentitySecret(keyId: ID!): WidgetIdentitySecret!
+  """
   Invites an e-mail address to the request's organisation with a role, and
   mails the link (in the request's language). Inviting an address again
   replaces its pending invitation. Needs `member:manage`; only an owner invites
@@ -927,6 +1042,16 @@ type Mutation {
   organisation's); 503 `time.errors.unavailable`.
   """
   linkChronix(key: String! @constraint(minLength: 1, maxLength: 200)): TimeLink!
+  """
+  Accepts a new report into an issue of the same project that already exists
+  (a duplicate): no issue is made, the report follows the issue (its closing
+  and reopening) and its files are released to it. Several reports may share
+  one issue. Needs `issue:write`. 409 `intake.errors.report-decided`, 409
+  `issues.errors.project-archived`; 404 `intake.errors.not-found` (report) or
+  `issues.errors.not-found` (issue); 400 `validation.errors.invalid-input`
+  (`issueId`, an issue of another project).
+  """
+  linkClientReport(id: ID!, issueId: ID!): ClientReport!
   """
   Logs time by hand on the issue. Needs `time:write`. 403
   `time.errors.email-unverified`; 409
@@ -1189,6 +1314,18 @@ type NotificationEvent {
 enum NotificationKind {
   """An issue was assigned to the viewer."""
   assigned
+  """
+  A reporter reopened a client report of an issue the viewer is assigned or watches.
+  """
+  clientReopened
+  """
+  A reporter wrote in the thread of a client report of an issue the viewer is assigned or watches.
+  """
+  clientReplied
+  """
+  A reporter marked a client report of an issue the viewer is assigned or watches as resolved.
+  """
+  clientResolved
   """The viewer was mentioned in a comment."""
   mention
   """An issue the viewer watches changed or was commented."""
@@ -1253,6 +1390,17 @@ scalar PositiveFloat
 scalar PositiveInt
 
 """
+Where an issue's priority came from: `client` is the reporter's impact,
+prefilled when the report was accepted; `team` is what a member set or
+changed; `auto` is kept for a later automatic level.
+"""
+enum PriorityOrigin {
+  auto
+  client
+  team
+}
+
+"""
 A project of the organisation: a place where issues are tracked. Its `key`
 (`ABC`) prefixes its issues' keys and is unique in the organisation.
 """
@@ -1283,6 +1431,17 @@ enum ProjectVisibility {
   organisation
 }
 
+"""
+What a reporter sees of a status: four fixed states, whatever the workflow
+calls its steps. The status's name never reaches a reporter.
+"""
+enum PublicState {
+  declined
+  inProgress
+  received
+  resolved
+}
+
 type Query {
   """
   The journal of a project or of one issue (exactly one of `projectId` and
@@ -1307,7 +1466,8 @@ type Query {
   clientReports(after: String, first: Int = 50, projectId: ID!, state: ClientReportState): ClientReportConnection!
   """
   The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
-  default 50). Needs `comment:read`. 404 `issues.errors.not-found`.
+  default 50), with the messages of the issue's client reports merged in as
+  `CLIENT` entries. Needs `comment:read`. 404 `issues.errors.not-found`.
   """
   comments(after: String, first: Int = 50, issueId: ID!): CommentConnection!
   """
@@ -1533,6 +1693,10 @@ type Status {
   """Its place in the workflow, from 0, with no gap."""
   order: Int!
   projectId: ID!
+  """
+  What the reporter sees for it; its category's default (triage, backlog, todo: received; inProgress: inProgress; done: resolved; cancelled: declined) until set.
+  """
+  publicState: PublicState!
 }
 
 """
@@ -1575,6 +1739,10 @@ type Subscription {
   A file of a client report of a project was stored. Needs `issue:write`; 404 `projects.errors.not-found`.
   """
   clientReportFileReceived(projectId: ID!): ClientReportFileEvent!
+  """
+  A reporter wrote in the thread of a client report of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
+  """
+  clientReportMessageReceived(projectId: ID!): ClientReportMessageEvent!
   """
   New client reports of a project. Needs `issue:write`; 404 `projects.errors.not-found`.
   """
@@ -1709,6 +1877,10 @@ input UpdateStatusInput {
   category: StatusCategory
   colour: String @constraint(maxLength: 7)
   name: String @constraint(minLength: 1, maxLength: 100)
+  """
+  When only the category changes and the status still wears the old category's default, it follows the new category's.
+  """
+  publicState: PublicState
 }
 
 input UpdateViewerInput {
@@ -1764,6 +1936,15 @@ type Viewer {
 scalar Void
 
 """
+A freshly generated identity secret, the only time it is shown. The host signs
+its identity tokens with it on its own server, never in a browser.
+"""
+type WidgetIdentitySecret {
+  key: WidgetKey!
+  secret: String!
+}
+
+"""
 A key the widget of a project is embedded with. The key is public by design: it
 reads its own configuration and sends reports for its project, nothing else.
 """
@@ -1780,6 +1961,10 @@ type WidgetKey {
   attachmentsEnabled: Boolean!
   createdAt: DateTime!
   id: ID!
+  """
+  When the identity secret was last generated; null if the key has none (reports then cannot be identified). The secret itself is never readable.
+  """
+  identitySecretSetAt: DateTime
   label: String!
   """When it was last used, to the minute; null if never."""
   lastUsedAt: DateTime

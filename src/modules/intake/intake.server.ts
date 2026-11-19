@@ -1,14 +1,17 @@
 import { createHmac } from "node:crypto";
+import type { ObjectId } from "mongodb";
 import { type AppTenancy, coreMongo } from "../../config/db";
 import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
 import type { Media } from "../attachments/public";
 import { purgeAllReportFiles } from "./intake.files.retention";
+import { sendReporterMail, unsubscribeSecret } from "./intake.notify";
 import { eraseAll } from "./intake.retention";
 import {
   type IntakeDeps,
   type IntakeLimits,
+  type IntakeMongo,
   PublicIntake,
 } from "./intake.submit";
 
@@ -47,6 +50,9 @@ export function serverIntake(
     publishFile: async (event) => {
       await realtime.channels.clientReportFileReceived.publish(event);
     },
+    publishMessage: async (event) => {
+      await realtime.channels.clientReportMessageReceived.publish(event);
+    },
   });
 }
 
@@ -82,5 +88,34 @@ export function startFilesRetentionWorker(
     await purgeAllReportFiles(tenancy, media);
   });
   worker.on("error", (error) => log("report files retention worker", error));
+  return worker;
+}
+
+// Starts the worker that mails the reporters (the server calls it once).
+// Without Redis there is no queue and no e-mail: only in development.
+export function startReporterMailWorker(
+  tenancy: Pick<AppTenancy, "databaseOf">,
+  log = console.warn,
+) {
+  const queue = realtime.queues?.intakeReporterMail;
+  if (!queue) {
+    log("no REDIS_URL: the reporters' e-mails are not sent");
+    return null;
+  }
+  const deps = {
+    mongo: async (organisationId: string) =>
+      (await tenancy.databaseOf(organisationId)) as unknown as IntakeMongo,
+    mailer,
+    from: { name: "pulsarix", address: env.MAIL_FROM },
+    uiOrigin: env.UI_ORIGIN,
+    allowedOrigins: async (widgetKeyId: ObjectId) =>
+      (await coreMongo.db.widgetKeys.findById(widgetKeyId))?.allowedOrigins ??
+      [],
+    secret: unsubscribeSecret(serverTicketSecret()),
+  };
+  const worker = queue.work(({ data }) =>
+    sendReporterMail(deps, data).then(() => {}),
+  );
+  worker.on("error", (error) => log("reporter mail worker", error));
   return worker;
 }

@@ -2,7 +2,7 @@ import type { ObjectId } from "mongodb";
 import type { CheckedFile } from "./intake.files.input";
 import { newSlot } from "./intake.files.input";
 import { PENDING_SLOT_MINUTES } from "./intake.files.retention";
-import type { WidgetKeyDocument } from "./intake.model";
+import type { ReportFileRole, WidgetKeyDocument } from "./intake.model";
 import type { IntakeMongo } from "./intake.submit";
 import { signTicket } from "./intake.tickets";
 
@@ -32,6 +32,7 @@ export function ticketFor(
   file: CheckedFile,
   decoy: boolean,
   expiresAt: Date,
+  tracking = false,
 ): FileTicket {
   return {
     slot,
@@ -46,6 +47,7 @@ export function ticketFor(
       size: file.size,
       expiresAt: expiresAt.getTime(),
       decoy,
+      ...(tracking && { tracking }),
     }),
   };
 }
@@ -64,7 +66,9 @@ export function decoyTickets(
   );
 }
 
-// The pending slots of a created report, one per file, and their tickets.
+// The pending slots of a report, one per file, and their tickets. A reply's
+// files (A16) are stored with the role `reply` and the message they belong to;
+// the ticket still carries the declared role.
 export async function reserveSlots(
   secret: string,
   mongo: IntakeMongo,
@@ -72,12 +76,14 @@ export async function reserveSlots(
   report: { _id: ObjectId; id: string },
   files: CheckedFile[],
   expiresAt: Date,
+  reply?: { messageId: ObjectId; tracking?: boolean },
 ): Promise<FileTicket[]> {
   const tickets: FileTicket[] = [];
   for (const file of files) {
     const slot = await mongo.db.clientReportFiles.create({
       reportId: report._id,
-      role: file.role,
+      role: (reply ? "reply" : file.role) satisfies ReportFileRole,
+      messageId: reply?.messageId ?? null,
       fileName: file.name,
       mime: file.type,
       size: file.size,
@@ -90,7 +96,16 @@ export async function reserveSlots(
       claimedAt: null,
     });
     tickets.push(
-      ticketFor(secret, key, report.id, slot.id, file, false, expiresAt),
+      ticketFor(
+        secret,
+        key,
+        report.id,
+        slot.id,
+        file,
+        false,
+        expiresAt,
+        reply?.tracking === true,
+      ),
     );
   }
   return tickets;
