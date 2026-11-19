@@ -14,6 +14,11 @@ export interface IntakeLimits {
   intakeEmail: Limiter<{ digest: string }>;
   intakeOrganisation: Limiter<{ organisationId: string }>;
   intakeReporter: Limiter<{ keyId: string; reporterKey: string }>;
+  intakeReporterRead: Limiter<{ keyId: string; reporterKey: string }>;
+  intakeReporterReply: Limiter<{ keyId: string; reporterKey: string }>;
+  intakeKeyReply: Limiter<{ keyId: string }>;
+  intakeReporterSettle: Limiter<{ keyId: string; reporterKey: string }>;
+  intakeReporterErase: Limiter<{ keyId: string; reporterKey: string }>;
   intakeReadIp: Limiter<{ ip: string }>;
   intakeTrackingIp: Limiter<{ ip: string }>;
   // Bytes (the `cost` of a consume), per address and key, and per key.

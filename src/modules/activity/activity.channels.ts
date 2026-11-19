@@ -105,3 +105,21 @@ export const clientReportReceived = defineChannel({
   fallback: "local",
   onNoLocalReader: "drop",
 });
+
+// `reporter.request`: a request of an identified reporter changed (a public
+// reply, a state change, a decision, their own mark from another tab). Keyed by
+// the key and the reporter, so a stream hears its own reporter's requests and
+// nobody else's; it names the report only, the stream reads the rest (A17).
+export const reporterRequestChanged = defineChannel({
+  name: "reporter.request",
+  schema: z.object({
+    organisationId: z.string(),
+    keyId: z.string(),
+    reporterKey: z.string(),
+    reportId: z.string(),
+    at: z.string(),
+  }),
+  key: (event) => `${event.keyId}:${event.reporterKey}`,
+  fallback: "local",
+  onNoLocalReader: "drop",
+});

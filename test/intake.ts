@@ -7,9 +7,14 @@ import {
   intakeEmail,
   intakeIpKey,
   intakeKey,
+  intakeKeyReply,
   intakeOrganisation,
   intakeReadIp,
   intakeReporter,
+  intakeReporterErase,
+  intakeReporterRead,
+  intakeReporterReply,
+  intakeReporterSettle,
   intakeTrackingIp,
   intakeUploadIpKey,
   intakeUploadKey,
@@ -45,7 +50,7 @@ function counting<P>(
 
 export const TICKET_SECRET = "t".repeat(40);
 
-// The nine limits at their production values (src/modules/intake/intake.limits.ts).
+// The fourteen limits at their production values (src/modules/intake/intake.limits.ts).
 export function countingLimits() {
   return {
     intakeKey: counting(
@@ -66,6 +71,30 @@ export function countingLimits() {
     ),
     intakeReporter: counting(
       intakeReporter.limit,
+      (p: { keyId: string; reporterKey: string }) =>
+        `${p.keyId}/${p.reporterKey}`,
+    ),
+    intakeReporterRead: counting(
+      intakeReporterRead.limit,
+      (p: { keyId: string; reporterKey: string }) =>
+        `${p.keyId}/${p.reporterKey}`,
+    ),
+    intakeReporterReply: counting(
+      intakeReporterReply.limit,
+      (p: { keyId: string; reporterKey: string }) =>
+        `${p.keyId}/${p.reporterKey}`,
+    ),
+    intakeKeyReply: counting(
+      intakeKeyReply.limit,
+      (p: { keyId: string }) => p.keyId,
+    ),
+    intakeReporterSettle: counting(
+      intakeReporterSettle.limit,
+      (p: { keyId: string; reporterKey: string }) =>
+        `${p.keyId}/${p.reporterKey}`,
+    ),
+    intakeReporterErase: counting(
+      intakeReporterErase.limit,
       (p: { keyId: string; reporterKey: string }) =>
         `${p.keyId}/${p.reporterKey}`,
     ),

@@ -16,6 +16,8 @@ export const notificationKind = z.enum([
   "assigned",
   "watchedChange",
   "clientReplied",
+  "clientResolved",
+  "clientReopened",
 ]);
 export type NotificationKind = z.infer<typeof notificationKind>;
 

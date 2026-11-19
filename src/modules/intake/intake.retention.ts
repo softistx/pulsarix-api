@@ -1,5 +1,7 @@
 import type { AppTenancy, ModuleMongo } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
+import { markIssue } from "./intake.markers";
+import type { ClientReportDocument } from "./intake.model";
 import { refreshIssueWaiting } from "./intake.waiting";
 
 // How long a settled report keeps its personal data (plan Q15).
@@ -8,11 +10,68 @@ const DAY_MS = 86_400_000;
 
 type RetentionMongo = ModuleMongo<"intake">;
 
-// Erases, in one organisation, the e-mail, the user agent and the tracking
-// token of every report settled `RETENTION_DAYS` ago (declined: from its
-// decision; closed: from its closing), and stamps `erasedAt`. The report's text
-// stays: the team's record of what was asked. Safe to repeat. Answers how many
-// reports it erased.
+// The one eraser of a report's personal data (plan §19), shared by the
+// retention job below, the widget's "Delete my data" and the tracking page's:
+// e-mail, reporter name and key, user agent, page, metadata, tracking token,
+// the thread's messages and every file of the report (released ones too: they
+// get a removal date, and the files retention job removes them with their
+// objects). `erasedAt` is stamped and the issue is marked "client deleted";
+// the report's title and description stay, the team's record of what was asked.
+// Safe to repeat.
+export async function eraseReport(
+  mongo: RetentionMongo,
+  report: ClientReportDocument,
+  now = new Date(),
+  // The retention job keeps the files and the issue as they are; the
+  // reporter's own request ("Delete my data") also removes the files and marks
+  // the issue.
+  options: { files?: boolean; mark?: boolean } = {},
+): Promise<void> {
+  const { files = true, mark = true } = options;
+  const as = mongo.as(SYSTEM_ACTOR) as unknown as RetentionMongo;
+  // What the reporter wrote in the thread is personal data too: the messages
+  // leave both threads (A16).
+  await as.db.clientReportMessages.updateMany(
+    { reportId: report._id, erasedAt: null },
+    { body: "", erasedAt: now },
+  );
+  if (files) {
+    await as.db.clientReportFiles.updateMany(
+      {
+        reportId: report._id,
+        $or: [
+          { state: { $in: ["released", "quarantined"] }, expiresAt: null },
+          { state: "pending" },
+        ],
+      },
+      { expiresAt: now },
+    );
+  }
+  // The report itself goes last: its `reporterKey` is the reporter's handle, so
+  // a step that failed above leaves the report reachable and the erase can be
+  // asked again.
+  await as.db.clientReports.update(report._id, {
+    email: null,
+    reporterKey: null,
+    reporterName: null,
+    userAgent: null,
+    pageUrl: null,
+    metadata: [],
+    trackingTokenHash: null,
+    erasedAt: now,
+    clientWaiting: false,
+  });
+  if (report.issueId) {
+    const issues = as as unknown as Parameters<typeof refreshIssueWaiting>[0];
+    // An erased report no longer makes its issue wait.
+    await refreshIssueWaiting(issues, report.issueId);
+    if (mark) await markIssue(issues, report.issueId, "deleted");
+  }
+}
+
+// Erases, in one organisation, every report settled `RETENTION_DAYS` ago
+// (declined: from its decision; closed: from its closing) with `eraseReport`.
+// Safe to repeat. Answers how many reports it erased.
 export async function eraseSettled(
   mongo: RetentionMongo,
   now = new Date(),
@@ -28,31 +87,8 @@ export async function eraseSettled(
     },
     limit: 1_000,
   });
-  const as = mongo.as(SYSTEM_ACTOR) as unknown as RetentionMongo;
-  for (const report of due) {
-    await as.db.clientReports.update(report._id, {
-      email: null,
-      userAgent: null,
-      pageUrl: null,
-      metadata: [],
-      trackingTokenHash: null,
-      erasedAt: now,
-      clientWaiting: false,
-    });
-    // An erased report no longer makes its issue wait.
-    if (report.issueId) {
-      await refreshIssueWaiting(
-        as as unknown as Parameters<typeof refreshIssueWaiting>[0],
-        report.issueId,
-      );
-    }
-    // What the reporter wrote in the thread is personal data too: the messages
-    // leave both threads (A16).
-    await as.db.clientReportMessages.updateMany(
-      { reportId: report._id, erasedAt: null },
-      { body: "", erasedAt: now },
-    );
-  }
+  for (const report of due)
+    await eraseReport(mongo, report, now, { files: false, mark: false });
   return due.length;
 }
 
