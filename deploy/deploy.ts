@@ -7,10 +7,6 @@
  * the health wait does work. Migrations are not a step: the API creates each
  * database's validators and indexes on first use (MONGO_AUTO_SYNC).
  *
- * The images install the private @softistx/* packages (npm.softistx.com): the
- * build needs the read token, from $NPM_REGISTRY_TOKEN or
- * ~/.config/pulsarix/npm-registry-token, handed to BuildKit as a secret.
- *
  *   bun deploy/deploy.ts [--env deploy/.env] [--prefix staging]
  *                        [--no-pull] [--ui] [--widget] [--backup]
  *                        [--timeout 300] [--dry-run]
@@ -29,7 +25,7 @@
  *              and require its BACKUP_S3_* settings; without it the backup is
  *              off and nothing about it is required
  *   --dry-run  print the plan and what the env file lacks, then stop: no git,
- *              no docker, no network, no token lookup, nothing written. Exit 1
+ *              no docker, no network, nothing written. Exit 1
  *              when the env file has problems, so it doubles as a preflight
  *
  * The backup service (nightly dump, offsite copy) is opt-in: with --backup its
@@ -59,8 +55,6 @@ import {
   flagValue,
   loadStack,
   parseEnv,
-  REGISTRY_TOKEN_FILE,
-  registryToken,
   resolvePrefix,
   uiContext,
 } from "./lib";
@@ -174,10 +168,6 @@ if (!options.noPull) {
   step("skip", "git pull (--no-pull)");
 }
 
-if (registryToken(process.env) === undefined)
-  fail(
-    `no registry token: the image build installs the @softistx/* packages from npm.softistx.com. Export NPM_REGISTRY_TOKEN, or put the read token in ${REGISTRY_TOKEN_FILE} (mode 600)`,
-  );
 const profile = [
   ...(options.ui ? ["--profile", "ui"] : []),
   ...(options.backup ? ["--profile", "backup"] : []),

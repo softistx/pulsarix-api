@@ -1,13 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   composeEnv,
   DEPLOY_DIR,
   mongoRootUri,
   parseEnv,
-  registryToken,
   resolvePrefix,
 } from "./lib";
 
@@ -120,21 +118,6 @@ describe("the compose file", () => {
     expect(names.length).toBe(8);
     const prefix = `${v(`STACK_PREFIX:+${v("STACK_PREFIX")}-`)}pulsarix-`;
     for (const n of names) expect(n.startsWith(prefix)).toBe(true);
-  });
-});
-
-describe("registryToken", () => {
-  const file = join(mkdtempSync(join(tmpdir(), "ght-")), "npm-registry-token");
-  writeFileSync(file, "tok_file\nsecond line\n");
-  test("prefers the environment, then the file's first line", () => {
-    expect(registryToken({ NPM_REGISTRY_TOKEN: " tok_env " }, file)).toBe(
-      "tok_env",
-    );
-    expect(registryToken({}, file)).toBe("tok_file");
-  });
-  test("is undefined with neither", () => {
-    const none = join(tmpdir(), "no-such-token-file");
-    expect(registryToken({}, none)).toBeUndefined();
   });
 });
 
