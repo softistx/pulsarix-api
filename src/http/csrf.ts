@@ -1,4 +1,4 @@
-import type { Plugin } from "graphql-yoga";
+import { definePlugin } from "@graxia/core";
 import { fail } from "../core/shared/errors";
 
 // The header every /graphql request carries, any non-empty value (the
@@ -8,16 +8,20 @@ import { fail } from "../core/shared/errors";
 // request reaches a resolver, cookie or not.
 export const clientHeader = "x-pulsarix-client";
 
-// A Yoga plugin (src/app.ts): a request without the header is refused before
-// it is parsed, 403 `auth.errors.client-header-required`. Yoga's
-// `useCSRFPrevention` checks only the requests a browser does not preflight;
-// this one checks every request.
-export const requireClientHeader: Plugin = {
-  onRequestParse({ request }) {
+// A graxia plugin (src/app.ts): an operation without the header is refused
+// before it is parsed, 403 `auth.errors.client-header-required`. graxia's own
+// CSRF check (`CSRF_HEADER_REQUIRED`) lets a JSON POST through; this one checks
+// every operation. It runs in `onParams`, not `onRequest`, so the IDE's GET
+// page is not blocked, and refuses with `respond`, never a throw (a throw is a
+// 500).
+export const requireClientHeader = definePlugin({
+  name: "pulsarix-client-header",
+  onParams: ({ request, respond }) => {
     if (request.headers.get(clientHeader)?.trim()) return;
-    throw fail("auth.errors.client-header-required", {
+    const error = fail("auth.errors.client-header-required", {
       params: { header: clientHeader },
       status: 403,
     });
+    respond(Response.json({ errors: [error.toJSON()] }, { status: 403 }));
   },
-};
+});

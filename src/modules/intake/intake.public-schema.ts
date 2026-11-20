@@ -1,5 +1,5 @@
+import { createSchema } from "@graxia/core";
 import type { GraphQLSchema } from "graphql";
-import { createSchema } from "graphql-yoga";
 import type { PublicContext } from "./intake.public.context";
 import { reporterMutation, reporterQuery } from "./intake.public.reporter";
 import { trackingMutation, trackingQuery } from "./intake.public.tracking";
@@ -19,8 +19,11 @@ export { publicTypeDefs } from "./intake.public.typedefs";
 // the widget's reporter (intake.public.reporter.ts) and the tracking page
 // (intake.public.tracking.ts).
 export function publicSchema(): GraphQLSchema {
-  return createSchema<PublicContext>({
+  return createSchema<PublicContext>()({
     typeDefs: publicTypeDefs,
+    // The endpoint runs graphql-js's `graphql()`, which serves no @defer or
+    // @stream: the schema does not declare them.
+    incremental: false,
     resolvers: {
       Query: { ...reporterQuery, ...trackingQuery },
       Mutation: { ...reporterMutation, ...trackingMutation },

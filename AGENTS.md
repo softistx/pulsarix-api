@@ -1,7 +1,7 @@
 # pulsarix-api: rules for agents and contributors
 
 The GraphQL API of pulsarix. Conventions are those of operix-api (`~/workspace/dev/operix/operix-api/AGENTS.md`):
-Bun, alxia, GraphQL Yoga, `@softistx/*` infrastructure packages (plan Q1), a database per
+Bun, alxia, graxia (via @alxia/graphql), `@softistx/*` infrastructure packages (plan Q1), a database per
 organisation through `@alxia/tenancy` (A1), English as the default language (Q14). The
 owner's rules for every repository are in `~/.claude/CLAUDE.md`; the product's are in
 `~/workspace/dev/pulsarix/AGENTS.md`; the plan is `~/workspace/dev/pulsarix/docs/plan.md`.

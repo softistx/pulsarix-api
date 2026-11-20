@@ -76,7 +76,13 @@ function constraintIssues(error: GraphQLError): ConstraintIssue[] | undefined {
 // so the issue names the variable.)
 function coercedVariable(error: GraphQLError): string | undefined {
   const code = error.extensions["code"];
-  if (error.path?.length || (code !== undefined && code !== "INVALID_SCALAR")) {
+  // graxia stamps `BAD_USER_INPUT` on a coercion error that has no code of its
+  // own; a @constraint refusal has a path or its own `issues`.
+  const coerced =
+    code === undefined ||
+    code === "INVALID_SCALAR" ||
+    code === "BAD_USER_INPUT";
+  if (error.path?.length || !coerced || error.extensions["issues"]) {
     return undefined;
   }
   const node = error.nodes?.[0];

@@ -70,6 +70,32 @@ directive @constraint(
   startsWith: String
 ) on ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
 
+directive @cost(weight: Int!) on ARGUMENT_DEFINITION | ENUM | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | OBJECT | SCALAR
+
+"""
+Directs the executor to defer this fragment when the `if` argument is true or undefined.
+"""
+directive @defer(
+  """Deferred when true or undefined."""
+  if: Boolean! = true
+  """Unique name"""
+  label: String
+) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+directive @listSize(assumedSize: Int, requireOneSlicingArgument: Boolean = true, sizedFields: [String!], slicingArguments: [String!]) on FIELD_DEFINITION
+
+"""
+Directs the executor to stream plural fields when the `if` argument is true or undefined.
+"""
+directive @stream(
+  """Stream when true or undefined."""
+  if: Boolean! = true
+  """Number of items to return immediately"""
+  initialCount: Int! = 0
+  """Unique name"""
+  label: String
+) on FIELD
+
 """
 What accepting an invitation answers: the new session, or `linked` (no
 session) when the account already signs in with a password. A session is

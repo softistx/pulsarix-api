@@ -1,5 +1,5 @@
 import { health } from "@alxia/core";
-import { graphql } from "@alxia/graphql";
+import { graphql, type ServerContext } from "@alxia/graphql";
 import { viewerMemberships } from "@alxia/tenancy";
 import { serverAuth } from "./config/auth";
 import {
@@ -12,11 +12,11 @@ import { serverMedia } from "./config/media";
 import { realtime } from "./config/redis";
 import { type Access, accessOf, type Membership } from "./core/access";
 import type { Auth } from "./core/auth";
-import { janusViewer, type Viewer } from "./core/auth/viewer";
+import { janusViewer } from "./core/auth/viewer";
 import { services } from "./core/services";
 import type { KernelLimits } from "./core/shared/limits";
 import { requestScope } from "./core/tenancy";
-import { type BaseOptions, createBase } from "./http/context";
+import { type Base, type BaseOptions, createBase } from "./http/context";
 import { clientHeader } from "./http/csrf";
 import { graphqlPlugins } from "./http/graphql-plugins";
 import { schema } from "./http/schema";
@@ -188,12 +188,13 @@ export function graphqlContext({
   tenancy,
   limits,
 }: ContextDeps) {
+  // The app's own values (`viewer`…) live in graxia's `serverContext`.
   return ({
     request,
-    viewer,
+    serverContext: { viewer },
   }: {
     request: Request;
-    viewer: Viewer | null;
+    serverContext: ServerContext<Base["~context"]>;
   }) => ({
     services: services({ auth, core: coreMongo, tenancy, request, limits }),
     access,

@@ -76,7 +76,7 @@ export type Base = ReturnType<typeof createBase>;
 // database) and `member` (the viewer's role there).
 export type ScopedRequestScope = Awaited<ReturnType<AppTenancy["scope"]>>;
 
-// A resolver's context: Yoga's and the base's, plus what src/app.ts's
+// A resolver's context: graxia's and the base's, plus what src/app.ts's
 // `context` option adds per request: `services` (the kernel's), `access` (the
 // role -> permission catalogue the modules' manifests declare), `memberships`
 // (the viewer's role in any organisation) and `scope`, the organisation the
