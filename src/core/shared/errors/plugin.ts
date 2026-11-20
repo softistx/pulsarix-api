@@ -1,6 +1,6 @@
+import { definePlugin } from "@graxia/core";
 import { StoreFailure } from "@softistx/janus";
 import { GraphQLError } from "graphql";
-import type { Plugin } from "graphql-yoga";
 import { locationOf, reshaped } from "./constraints";
 import { unavailable } from "./fail";
 
@@ -12,19 +12,45 @@ function outage(error: GraphQLError): GraphQLError {
   return new GraphQLError(message, { ...locationOf(error), extensions });
 }
 
-// A Yoga plugin (src/app.ts): @constraint refusals (@nxgt/graphql-
+type Errored = { errors: readonly GraphQLError[] };
+
+// An execution's answer that carries errors (not a stream of results).
+function errored<T extends object>(
+  result: T | undefined,
+): (T & Errored) | undefined {
+  if (!result || Symbol.asyncIterator in result) return undefined;
+  const errors = (result as { errors?: unknown }).errors;
+  return Array.isArray(errors) ? (result as T & Errored) : undefined;
+}
+
+// The result with its errors reshaped, or undefined when nothing changed.
+function rewritten<T extends Errored>(result: T): T | undefined {
+  const changed = result.errors.map((error) => outage(reshaped(error)));
+  if (changed.every((error, i) => error === result.errors[i])) return undefined;
+  return { ...result, errors: changed };
+}
+
+// A graxia plugin (src/app.ts): @constraint refusals (@nxgt/graphql-
 // validation's BAD_USER_INPUT) and variables that cannot be coerced leave as
-// every other invalid input does, and a
-// janus outage as `auth.errors.unavailable` (503), not masked as a 500. It rewrites the
-// execution's result rather than masking, since Yoga logs as an error every
-// error a `maskError` replaces.
-export const apiErrors: Plugin = {
-  onExecute: () => ({
-    onExecuteDone: ({ result, setResult }) => {
-      if (!("errors" in result) || !result.errors) return;
-      const changed = result.errors.map((error) => outage(reshaped(error)));
-      if (changed.every((error, i) => error === result.errors?.[i])) return;
-      setResult({ ...result, errors: changed });
+// every other invalid input does, and a janus outage as
+// `auth.errors.unavailable` (503), not masked as a 500. It rewrites the
+// result rather than masking: graxia's `maskError` only sees the errors it
+// masks, never a coded GraphQLError. A subscription's stream is not rewritten,
+// only an answer given before it starts.
+export const apiErrors = definePlugin({
+  name: "pulsarix-api-errors",
+  onExecute:
+    () =>
+    ({ result, setResult }) => {
+      const found = errored(result);
+      const next = found && rewritten(found);
+      if (next) setResult(next);
     },
-  }),
-};
+  onSubscribe:
+    () =>
+    ({ result, setResult }) => {
+      const found = errored(result);
+      const next = found && rewritten(found);
+      if (next) setResult(next);
+    },
+});

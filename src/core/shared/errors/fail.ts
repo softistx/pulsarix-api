@@ -7,7 +7,7 @@ import type { Params } from "../../../i18n/params";
 // clients map to their own translation; `message` is that key translated in
 // the request's language, their fallback; `extensions.params`, when given, are
 // the values that message interpolates, so a client can word the refusal
-// itself; `extensions.http.status`, when given, is the HTTP status Yoga
+// itself; `extensions.http.status`, when given, is the HTTP status graxia
 // answers a top-level failure with. A refusal about an input field is an issue
 // of `invalidInput`, not a code of its own.
 export function fail(

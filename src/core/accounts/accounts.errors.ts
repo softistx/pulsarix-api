@@ -27,7 +27,7 @@ export const invalidCode = (attemptsLeft?: number) =>
   });
 
 // janus's error as the API answers it, or undefined for one it does not
-// answer (a wiring mistake, which Yoga masks as a 500). STORE_FAILED is left
+// answer (a wiring mistake, which graxia masks as a 500). STORE_FAILED is left
 // to the `apiErrors` plugin (src/core/shared/errors): 503.
 export function fromJanus(error: JanusError): GraphQLError | undefined {
   switch (error.code) {
