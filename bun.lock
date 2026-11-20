@@ -20,9 +20,9 @@
         "@nxgt/graphql-validation": "^0.8.1",
         "@softistx/chronix-react": "^0.3.4",
         "@softistx/image": "^0.6.1",
-        "@softistx/janus": "^0.78.0",
-        "@softistx/janus-mail": "^0.26.22",
-        "@softistx/janus-mongo": "^0.32.0",
+        "@softistx/janus": "^0.79.0",
+        "@softistx/janus-mail": "^0.26.23",
+        "@softistx/janus-mongo": "^0.32.1",
         "@softistx/mail": "^1.6.1",
         "@softistx/mail-smtp": "^1.1.1",
         "@softistx/mongo": "^0.30.1",
@@ -318,11 +318,11 @@
 
     "@softistx/image": ["@softistx/image@0.6.1", "", { "peerDependencies": { "@napi-rs/canvas": "^1.1.0", "@softistx/s3": "^0.13.1", "pdfjs-dist": "^6.5.0", "typescript": "^6.0.3 || ^7.0.0" }, "optionalPeers": ["@napi-rs/canvas", "@softistx/s3", "pdfjs-dist"] }, "sha512-FdNKEs6mlSU22b+ux+ImMyYwARZ0norTbY7ttlCN1YjXEENENyXQ+II7+dnuDhmR6XegRTCsNYAI4+z0E3f5DA=="],
 
-    "@softistx/janus": ["@softistx/janus@0.78.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-R3ker5iw51gQbJTQOnLcXiLt3icRKtUcm0mO0pCv5M2rP8oBTptGrFik1G9RN088IikNYmQXzePVfjOXl8REOA=="],
+    "@softistx/janus": ["@softistx/janus@0.79.0", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-ZcSfd0erRm8JgxnMDpAcU/d6VMacv1DXDzEoE9N9UFu4ZGDn/5UF98NpgRnzrN9YDgOQtGyO7imhUE4TVjnk6w=="],
 
-    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.22", "", { "peerDependencies": { "@softistx/janus": "^0.78.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-UEk14AShiJgXMEMz+Nv9k74zyAcJo7nqt9wxNutBVAwLMd1TMA4k8GyUOq7eRWLApLqL8OruGmzeUVIUs0fJRQ=="],
+    "@softistx/janus-mail": ["@softistx/janus-mail@0.26.23", "", { "peerDependencies": { "@softistx/janus": "^0.79.0", "@softistx/mail": ">=1.5.0 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-PIsS3GjV+diM7wRyFjAPsCfKv9b1HTyjsL8ZTrWTMJWZCcObU1i+/ZH4dVi1MWbDiCM4Bx8lG5v/D6KDE8WBkA=="],
 
-    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.32.0", "", { "peerDependencies": { "@softistx/janus": "^0.78.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-a3y4bujcUoFajNjzv6ZmBj90aXm5oDZgMqzT1dEUp26MvOSd+YUMxBU5YiUInF2x6hpCh1oMxpZzYWmVrMrfJw=="],
+    "@softistx/janus-mongo": ["@softistx/janus-mongo@0.32.1", "", { "peerDependencies": { "@softistx/janus": "^0.79.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-J74iK4ET0pjD8Na3yWlLvSrBl/qg+/Gmylwj3FIQsdv6vZR5b57jKdhQWzVeOTMCUmiq+XGEmfqaHNoq+fsfoQ=="],
 
     "@softistx/mail": ["@softistx/mail@1.6.1", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-Vqys7bLz6QZpbjiGNezTgpi5VEvPUSCQq4B0ehdrqoCnAxaYXy7ENPZjoUYWu9Lng9AOFDH4qAdJhzujDODPxQ=="],
 
