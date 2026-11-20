@@ -52,6 +52,7 @@ const config: CodegenConfig = {
           ClientReportFile:
             "@/modules/intake/intake.model#ClientReportFileDocument",
           ClientReportConnection: "@/modules/intake/intake.reports#ReportPage",
+          Dashboard: "@/modules/dashboard/dashboard.base#DashboardParent",
           TimeSpent: "@/modules/time/time.model#TimeSpentParent",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",

@@ -118,6 +118,9 @@ There is no migration script; the schema is synced in two places.
   only). `tenancy.sync()` (which also loops over every organisation) is not called at
   boot, as it would open every organisation database. A collection option MongoDB
   cannot change in place makes the boot sync throw: the API then exits 1 until it is fixed by hand.
+  The dashboard query adds two `issues` indexes (`issues_projectIdStatusIdPriorityDue`,
+  `issues_assigneeIdStatusId`): each organisation builds them on its first request after the
+  deploy, no step to run.
 
 ## First deploy
 

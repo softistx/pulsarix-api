@@ -134,6 +134,32 @@ input AddCommentInput {
 }
 
 """
+An issue assigned to the viewer, with what Home shows beside it: its status,
+its project's key, and whether it is late (due before the start of today in the
+organisation's time zone).
+"""
+type AssignedIssue {
+  issue: Issue!
+  late: Boolean!
+  projectKey: String!
+  status: Status!
+}
+
+"""
+A page of the viewer's open issues (not done, not cancelled; archived projects
+left out): late first, then the higher priority, then the most recently
+updated. The totals count every open assigned issue, whatever the page.
+"""
+type AssignedIssueConnection {
+  """Pass it as `after` for the next page; null on the last."""
+  endCursor: String
+  hasNextPage: Boolean!
+  lateCount: Int!
+  nodes: [AssignedIssue!]!
+  totalCount: Int!
+}
+
+"""
 A file on an issue or on one of its comments. The bytes are served by the
 media routes (`url`, `previewUrl`), to readers of the issue only.
 """
@@ -530,6 +556,40 @@ scalar Cuid2 @specifiedBy(url: "https://github.com/paralleldrive/cuid2")
 
 """An ISO 4217 currency code, such as EUR."""
 scalar Currency @specifiedBy(url: "https://www.iso.org/iso-4217-currency-codes.html")
+
+"""Everything Home shows, in one request."""
+type Dashboard {
+  """
+  The viewer's open assigned issues, `first` per page (1 to 100, default 8).
+  Needs `issue:read`. A cursor taken on another day is refused, since late
+  moves at midnight. 400 `validation.errors.invalid-input` on `first` or `after`.
+  """
+  assigned(after: String, first: Int = 8): AssignedIssueConnection!
+  """The viewer's inbox, `latest` notifications (1 to 20, default 5)."""
+  inbox(latest: Int = 5): DashboardInbox!
+  """
+  Every active project the viewer reads, by name, with its figures (zeros included). Needs `project:read` and `issue:read`.
+  """
+  projects: [ProjectFigures!]!
+  """The organisation's time zone, which decides what today and late mean."""
+  timeZone: String!
+  """Today in that time zone, `YYYY-MM-DD`."""
+  today: String!
+  """
+  The projects with something to triage, by name. Null when the viewer lacks
+  `issue:write`, since only those who write issues triage.
+  """
+  triage: [ProjectTriage!]
+}
+
+"""
+The viewer's notifications for Home: how many are unread, and the newest
+unread ones (the newest of all when none is unread).
+"""
+type DashboardInbox {
+  latest: [Notification!]!
+  unread: Int!
+}
 
 """A calendar date, YYYY-MM-DD, with no time and no time zone."""
 scalar Date @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc3339#section-5.6")
@@ -1427,6 +1487,26 @@ type Project {
   visibility: ProjectVisibility!
 }
 
+"""
+The open issues of a project (not done, not cancelled; triage counts), how many
+are urgent and how many are late. Exact counts, whatever their number.
+"""
+type ProjectFigures {
+  late: Int!
+  open: Int!
+  project: Project!
+  urgent: Int!
+}
+
+"""
+What waits for triage in a project: its issues in a triage status and its new client reports.
+"""
+type ProjectTriage {
+  issues: Int!
+  newReports: Int!
+  project: Project!
+}
+
 enum ProjectVisibility {
   organisation
 }
@@ -1470,6 +1550,12 @@ type Query {
   `CLIENT` entries. Needs `comment:read`. 404 `issues.errors.not-found`.
   """
   comments(after: String, first: Int = 50, issueId: ID!): CommentConnection!
+  """
+  What Home shows, in one request: the viewer's assigned issues, inbox,
+  the figures of every project and the triage backlog. Needs organisation
+  membership; each section needs its own permission.
+  """
+  dashboard: Dashboard!
   """
   The request's organisation's invitations, newest first, at most 100.
   Organisation admins and owners only (`member:manage`).
