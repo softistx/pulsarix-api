@@ -10,11 +10,7 @@ import {
 } from "./intake.http";
 import { verifyIdentity } from "./intake.identity";
 import { callerOf, keyOf, preflight, refusal } from "./intake.requests.http";
-import {
-  type RequestUpdate,
-  unreadTotal,
-  updateOf,
-} from "./intake.requests.live";
+import { openLedger, type RequestUpdate } from "./intake.requests.live";
 import { openSession, type Session } from "./intake.requests.session";
 import type { Caller, PublicIntake } from "./intake.submit";
 
@@ -128,10 +124,11 @@ function openLiveStream(live: LiveStream): Response {
       send(": open\n\n");
       try {
         await source.ready?.();
-        send(frame("unread", { count: await unreadTotal(session) }));
+        const ledger = await openLedger(session);
+        send(frame("unread", { count: ledger.total() }));
         for await (const event of source) {
           if (closed) break;
-          const changed = await updateOf(session, event.reportId);
+          const changed = await ledger.update(event.reportId);
           if (!changed) continue;
           send(
             frame("request.updated", changed.update satisfies RequestUpdate),

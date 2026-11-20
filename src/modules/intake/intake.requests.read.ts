@@ -74,6 +74,27 @@ export interface MyRequests {
   hasNextPage: boolean;
 }
 
+// A page cursor: the group the request was in (u unread, r read) and its id.
+// A bare id (an older cursor) is read in the group the request has now.
+const cursorOf = (id: string, unread: boolean) => `${unread ? "u" : "r"}:${id}`;
+
+function cursorKey(
+  after: string | null | undefined,
+  position: ReadonlyMap<string, number>,
+  size: number,
+  unreadNow: (id: string) => boolean,
+): { id: string | null; key: number } {
+  if (!after) return { id: null, key: -1 };
+  const match = /^([ur]):(.+)$/.exec(after);
+  const id = match?.[2] ?? after;
+  const index = position.get(id);
+  if (index === undefined) {
+    throw invalid([{ path: "after", code: "validation.errors.invalid" }]);
+  }
+  const read = match ? match[1] === "r" : !unreadNow(id);
+  return { id, key: (read ? size : 0) + index };
+}
+
 // The reporter's requests: unread ones first, then newest first, each page
 // starting after the request `after`; the counts are over all of them.
 export async function myRequests(
@@ -105,19 +126,28 @@ export async function myRequests(
   const wanted = reports.filter((report) =>
     matches(args.filter ?? "OPEN", stateOf(report)),
   );
-  const unreadFirst = [
-    ...wanted.filter((report) => (unread.get(report.id) ?? 0) > 0),
-    ...wanted.filter((report) => (unread.get(report.id) ?? 0) === 0),
-  ];
-  const after = args.after
-    ? unreadFirst.findIndex((report) => report.id === args.after)
-    : -1;
-  if (args.after && after < 0) {
-    throw invalid([{ path: "after", code: "validation.errors.invalid" }]);
-  }
-  const page = unreadFirst.slice(after + 1, after + 1 + first);
+  const isUnread = (report: ClientReportDocument) =>
+    (unread.get(report.id) ?? 0) > 0;
+  const position = new Map(reports.map((report, index) => [report.id, index]));
+  // Unread first, then the list's own order. A page ends at the position its
+  // last request had, kept in the cursor with its group: a request that is
+  // read (or gets a reply) between two pages moves group, and the cursor
+  // still points where it was.
+  const keyOf = (report: ClientReportDocument) =>
+    (isUnread(report) ? 0 : reports.length) + (position.get(report.id) ?? 0);
+  const ordered = wanted.toSorted((a, b) => keyOf(a) - keyOf(b));
+  const from = cursorKey(
+    args.after,
+    position,
+    reports.length,
+    (id) => (unread.get(id) ?? 0) > 0,
+  );
+  const rest = ordered.filter(
+    (report) => keyOf(report) > from.key && report.id !== from.id,
+  );
+  const page = rest.slice(0, first);
   const last = page.at(-1);
-  const hasNextPage = after + 1 + first < unreadFirst.length;
+  const hasNextPage = rest.length > first;
   return {
     nodes: page.map((report) =>
       summaryOf(report, stateOf(report), unread.get(report.id) ?? 0),
@@ -125,7 +155,7 @@ export async function myRequests(
     counts,
     unread: [...unread.values()].reduce((sum, n) => sum + n, 0),
     emailsOn: !reports.some((report) => report.emailsOff === true),
-    endCursor: hasNextPage && last ? last.id : null,
+    endCursor: hasNextPage && last ? cursorOf(last.id, isUnread(last)) : null,
     hasNextPage,
   };
 }
