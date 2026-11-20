@@ -39,9 +39,8 @@ async function settle(
   let later: AfterCommit[] = [];
   await retryWriteConflicts(
     () =>
-      session.mongo.transaction(async (raw) => {
+      session.mongo.transaction(async (tx) => {
         later = [];
-        const tx = raw;
         await tx.db.clientReports.update(report._id, patch);
         if (report.issueId) {
           const issue = await tx.db.issues.findById(report.issueId);

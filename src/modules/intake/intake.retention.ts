@@ -63,10 +63,9 @@ export async function eraseReport(
     clientWaiting: false,
   });
   if (report.issueId) {
-    const issues = as;
     // An erased report no longer makes its issue wait.
-    await refreshIssueWaiting(issues, report.issueId);
-    if (mark) await markIssue(issues, report.issueId, "deleted");
+    await refreshIssueWaiting(as, report.issueId);
+    if (mark) await markIssue(as, report.issueId, "deleted");
   }
 }
 

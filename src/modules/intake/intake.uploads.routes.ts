@@ -1,20 +1,21 @@
 import { alxia } from "@alxia/core";
 import type { MediaContext } from "@alxia/media";
-import { GraphQLError } from "graphql";
 import { ObjectId } from "mongodb";
 import { addressKey } from "../../core/shared/address";
-import { fail } from "../../core/shared/errors";
-import { clientHeader } from "../../http/csrf";
 import { localeOfRequest } from "../../i18n/locale";
 import type { Media } from "../attachments/public";
-import { originNotAllowed, unavailable } from "./intake.errors";
+import { unavailable } from "./intake.errors";
 import { maxFileBytes } from "./intake.files.kinds";
 import { reportFilesRoutes } from "./intake.files.routes";
-import { answerOf, corsHeaders, respond, secure } from "./intake.http";
-import { normaliseOrigin } from "./intake.origins";
+import { corsHeaders, respond, secure } from "./intake.http";
 import type { Caller, PublicIntake } from "./intake.submit";
 import { readTicket, TICKET_HEADER } from "./intake.tickets";
 import { type Admission, ReportUploads } from "./intake.uploads";
+import {
+  failure,
+  preflight,
+  requireClientHeader,
+} from "./intake.uploads.refusals";
 
 const UPLOAD_PATH = "/public/media/report-files";
 
@@ -128,35 +129,6 @@ async function handlePut(
   }
 }
 
-// What a failed PUT answers: a GraphQL error as its refusal (counted against
-// the key), a body past the limit 413, anything else a logged 500.
-function failure(
-  error: unknown,
-  {
-    count,
-    cors,
-    log,
-  }: {
-    count: (error: unknown) => void;
-    cors: Record<string, string>;
-    log: (message: string, error?: unknown) => void;
-  },
-) {
-  if (error instanceof GraphQLError) {
-    count(error);
-    return refusal(error, cors, log);
-  }
-  if ((error as { status?: number }).status === 413) {
-    return respond(413, { errors: [] }, { headers: secure });
-  }
-  log("report file upload failed", error);
-  return refusal(
-    new GraphQLError("Internal error", { originalError: error as Error }),
-    cors,
-    log,
-  );
-}
-
 // The `report-files` routes of @alxia/media behind the admissions: a write
 // only for a request `admit` passed, no read (the team's own routes read, A13).
 function mediaStore(
@@ -188,39 +160,6 @@ function mediaStore(
       },
     }),
   );
-}
-
-// A tracking page's upload comes from the UI server, which sends the client
-// header (a browser's cross-site form does not).
-function requireClientHeader(request: Request) {
-  if (!request.headers.get(clientHeader)?.trim()) {
-    throw fail("auth.errors.client-header-required", {
-      params: { header: clientHeader },
-      status: 403,
-    });
-  }
-}
-
-// The answer to the CORS preflight: the key's origins only, 403 otherwise.
-async function preflight(
-  intake: PublicIntake,
-  origin: string | null,
-  ip: string,
-) {
-  const known =
-    origin !== null &&
-    normaliseOrigin(origin) === origin &&
-    (await intake.originKnown(origin, ip));
-  if (!known || !origin) throw originNotAllowed();
-  return respond(204, undefined, {
-    headers: {
-      ...secure,
-      ...corsHeaders(origin),
-      "access-control-allow-methods": "PUT, OPTIONS",
-      "access-control-allow-headers": `content-type, ${TICKET_HEADER}`,
-      "access-control-max-age": "600",
-    },
-  });
 }
 
 // An admitted upload: the body goes on to the media route as it is, and a slot
@@ -273,26 +212,4 @@ async function forward(
       ...(retry && { "retry-after": retry }),
     },
   });
-}
-
-// A refusal as the endpoint answers it: the error's status and body, the wait
-// of a 429, the CORS headers once the key's origin check has passed.
-function refusal(
-  error: GraphQLError,
-  cors: Record<string, string>,
-  log: (message: string, error: unknown) => void,
-) {
-  const { body, status } = answerOf(error, log);
-  const retry = error.extensions["retryAfter"] as number | undefined;
-  return respond(
-    status,
-    { errors: [body] },
-    {
-      headers: {
-        ...secure,
-        ...(retry !== undefined && { "retry-after": String(retry) }),
-        ...cors,
-      },
-    },
-  );
 }
