@@ -29,12 +29,11 @@ export async function refreshIssueWaiting(
 // write after it (so a late edit of an old reply does not hide a newer
 // message). Runs inside the comment's transaction (registered in module.ts).
 export const clearClientWaiting: CommentChangeHandler = async (
-  commentsMongo,
+  mongo,
   change,
 ) => {
   const { comment, verb } = change;
   if (!comment.public || verb === "commentDeleted") return undefined;
-  const mongo = commentsMongo as unknown as WaitingMongo;
   const waiting = await mongo.db.clientReports.findMany({
     filter: { issueId: comment.issueId, clientWaiting: true },
     limit: 1_000,

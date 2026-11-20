@@ -10,8 +10,9 @@ import {
   type ReportState,
 } from "./intake.model";
 import { publicStateOf } from "./intake.publicstate";
-import { detailOf, type RequestDetail, type Scope } from "./intake.requests";
-import type { IntakeMongo, PublicIntake } from "./intake.submit";
+import { detailOf, type RequestDetail } from "./intake.requests.read";
+import type { Scope } from "./intake.requests.session";
+import type { PublicIntake } from "./intake.submit";
 import { publicFilter } from "./intake.thread";
 import { parseTrackingToken } from "./intake.token";
 
@@ -61,7 +62,7 @@ export async function reportOf(intake: PublicIntake, token: string) {
   const { tenancy } = intake.deps;
   const tenant = await tenancy.resolve(parsed.organisationId);
   if (!tenant) throw reportNotFound();
-  const mongo = (await tenancy.databaseOf(tenant.id)) as unknown as IntakeMongo;
+  const mongo = await tenancy.databaseOf(tenant.id);
   const report = await mongo.db.clientReports.findFirst({
     trackingTokenHash: parsed.hash,
   });

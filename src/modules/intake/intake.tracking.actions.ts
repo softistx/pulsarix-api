@@ -2,13 +2,9 @@ import { exhausted } from "../../core/shared/errors";
 import { retryWriteConflicts } from "../../core/shared/locked";
 import { keyDisabled } from "./intake.errors";
 import type { DeclaredFile } from "./intake.files.input";
-import {
-  type Reply,
-  type RequestSummary,
-  reopenReport,
-  replyToReport,
-  resolveReport,
-} from "./intake.requests";
+import { type Reply, replyToReport } from "./intake.requests.actions";
+import type { RequestSummary } from "./intake.requests.read";
+import { reopenReport, resolveReport } from "./intake.requests.settle";
 import { eraseReport } from "./intake.retention";
 import type { PublicIntake } from "./intake.submit";
 import { scopeOf } from "./intake.tracking";

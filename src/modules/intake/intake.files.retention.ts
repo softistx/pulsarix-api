@@ -110,12 +110,7 @@ export async function purgeAllReportFiles(
 ): Promise<number> {
   const results = await tenancy.eachTenant(
     async (tenant, mongo) =>
-      purgeReportFiles(
-        mongo as unknown as FilesMongo,
-        media,
-        tenant._id.toHexString(),
-        now,
-      ),
+      purgeReportFiles(mongo, media, tenant._id.toHexString(), now),
     { onError: "collect" },
   );
   let removed = 0;

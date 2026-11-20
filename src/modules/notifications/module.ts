@@ -6,12 +6,11 @@ import notificationsTypeDefs from "./notifications.graphqls" with {
 import { notifications } from "./notifications.model";
 import { recordNotifications } from "./notifications.record";
 import { notificationsResolvers } from "./notifications.resolver";
-import type { NotificationsMongo } from "./notifications.service";
 
 // Every journalled change is turned into notifications inside the transaction
 // that wrote it (notifications.rules.ts decides who is told).
 registerActivityRecorded((mongo, recorded) =>
-  recordNotifications(mongo as unknown as NotificationsMongo, recorded),
+  recordNotifications(mongo, recorded),
 );
 
 // The members' notifications: mentions, assignments and changes to the issues

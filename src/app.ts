@@ -26,11 +26,9 @@ import {
   useMedia,
 } from "./modules/attachments/attachments.storage";
 import { reportFilesReadRoutes } from "./modules/intake/intake.files.read";
+import { liveRequestRoutes } from "./modules/intake/intake.live.routes";
 import { unsubscribeSecret } from "./modules/intake/intake.notify";
-import {
-  liveRequestRoutes,
-  requestFileRoutes,
-} from "./modules/intake/intake.requests.routes";
+import { requestFileRoutes } from "./modules/intake/intake.requests.routes";
 import { publicRoutes } from "./modules/intake/intake.routes";
 import {
   serverIntake,
@@ -49,6 +47,36 @@ import {
 // The largest body /graphql reads.
 export const BODY_LIMIT = 100 * 1024;
 
+// What `createApp` takes: the base options and what a spec gives in place of
+// the server's own.
+export type AppOptions = BaseOptions & {
+  auth?: Auth;
+  // The membership reads (janus's by default): the roles the guards ask for.
+  // A spec gives its own.
+  membership?: Membership;
+  // The access catalogue (built from the registry by default); a spec gives
+  // the catalogue of a sample module list.
+  access?: Access;
+  // The tenancy store of the requests (`tenancyOf` over `membership` by
+  // default, src/config/db.ts); a spec that needs other collections gives its
+  // own. The app closes it with itself.
+  tenancy?: AppTenancy;
+  // The schema served (the registry's by default).
+  schema?: typeof schema;
+  // The file store of the attachments (src/config/media.ts by default, none
+  // without S3_*); a spec gives its own, or none.
+  media?: Media | undefined;
+  // The public intake behind /public/graphql (the server's by default: Redis
+  // rate limits, the server's mailer); a spec gives its own.
+  intake?: PublicIntake;
+  // The rate limits of the kernel (Redis's by default, none without Redis);
+  // a spec gives its own.
+  limits?: KernelLimits | undefined;
+  // The chronix link client (the HTTP one by default, src/modules/time/chronix.client.ts);
+  // a spec gives a fake.
+  chronix?: ChronixLinkFactory;
+};
+
 // The probes (GET /health, GET /ready), then POST and GET /graphql, the one
 // entry point, behind the base's middlewares. /graphql refuses a request
 // without `x-pulsarix-client` (src/http/csrf.ts), which Apollo Sandbox is
@@ -65,46 +93,13 @@ export const BODY_LIMIT = 100 * 1024;
 // `scope`, which resolves the organisation of `x-organization-id` (and the
 // viewer's role in it) only when a guard asks (src/core/access/guards.ts), so
 // no request pays for it that does not need it.
-export function createApp(
-  options: BaseOptions & {
-    auth?: Auth;
-    // The membership reads (janus's by default): the roles the guards ask for.
-    // A spec gives its own.
-    membership?: Membership;
-    // The access catalogue (built from the registry by default); a spec gives
-    // the catalogue of a sample module list.
-    access?: Access;
-    // The tenancy store of the requests (`tenancyOf` over `membership` by
-    // default, src/config/db.ts); a spec that needs other collections gives its
-    // own. The app closes it with itself.
-    tenancy?: AppTenancy;
-    // The schema served (the registry's by default).
-    schema?: typeof schema;
-    // The file store of the attachments (src/config/media.ts by default, none
-    // without S3_*); a spec gives its own, or none.
-    media?: Media | undefined;
-    // The public intake behind /public/graphql (the server's by default: Redis
-    // rate limits, the server's mailer); a spec gives its own.
-    intake?: PublicIntake;
-    // The rate limits of the kernel (Redis's by default, none without Redis);
-    // a spec gives its own.
-    limits?: KernelLimits | undefined;
-    // The chronix link client (the HTTP one by default, src/modules/time/chronix.client.ts);
-    // a spec gives a fake.
-    chronix?: ChronixLinkFactory;
-  } = {},
-) {
+export function createApp(options: AppOptions = {}) {
   const auth = options.auth ?? serverAuth();
   const membership = options.membership ?? auth.membership;
   const access = options.access ?? accessOf(modules);
   const tenancy = options.tenancy ?? tenancyOf(membership);
   const limits = "limits" in options ? options.limits : realtime.limits;
-  // Without Redis nothing rate-limits these three actions: said once.
-  if (!limits && Bun.env.NODE_ENV === "production") {
-    console.warn(
-      "no rate limits (no Redis): organisation creation, sign-up, acceptInvitation and requestEmailVerification are not limited",
-    );
-  }
+  warnWithoutLimits(limits);
   const media = "media" in options ? options.media : serverMedia;
   useMedia(media);
   useChronix(options.chronix);
@@ -227,3 +222,12 @@ function probes() {
 export const app = createApp();
 
 export type App = typeof app;
+
+// Without Redis nothing rate-limits these actions: said once, in production.
+function warnWithoutLimits(limits: KernelLimits | undefined) {
+  if (!limits && Bun.env.NODE_ENV === "production") {
+    console.warn(
+      "no rate limits (no Redis): organisation creation, sign-up, acceptInvitation and requestEmailVerification are not limited",
+    );
+  }
+}

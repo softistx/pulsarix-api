@@ -1,5 +1,5 @@
 import type { ObjectId } from "mongodb";
-import type { ModuleMongo } from "../../config/db";
+import type { AnyDb, ModuleMongo } from "../../config/db";
 import type { CommentDocument } from "./comments.model";
 
 // An entry of the team's comment list that is not a stored comment: what a
@@ -36,7 +36,7 @@ export interface SourceQuery {
 }
 
 export type CommentSource = (
-  mongo: ModuleMongo<"comments">,
+  mongo: AnyDb,
   query: SourceQuery,
 ) => Promise<ClientEntry[]>;
 
@@ -67,7 +67,7 @@ export async function mergedEntries(
     limit: query.limit,
   });
   const extra = await Promise.all(
-    [...sources].map((source) => source(mongo, query)),
+    [...sources].map((source) => source(mongo as AnyDb, query)),
   );
   return [...stored, ...extra.flat()]
     .sort((a, b) => a._id.toHexString().localeCompare(b._id.toHexString()))

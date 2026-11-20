@@ -7,7 +7,7 @@ import {
 } from "../../core/shared/after-commit";
 import { exhausted, invalid } from "../../core/shared/errors";
 import { retryWriteConflicts } from "../../core/shared/locked";
-import { type ActivityMongo, journalOnIssue } from "../activity/public";
+import { journalOnIssue } from "../activity/public";
 import {
   attachmentsDisabled,
   reportNotFound,
@@ -85,50 +85,17 @@ export async function postMessage(
   await retryWriteConflicts(
     () =>
       mongo.transaction(async (raw) => {
-        later = [];
-        const tx = raw as unknown as MessageMongo;
-        // The report as it is now: it may have got its issue, or been
-        // declined or erased, since the caller read it.
-        const current = await tx.db.clientReports.findById(report._id);
-        if (!current || current.erasedAt) throw reportNotFound();
-        if (current.state === "declined") throw requestDeclined();
-        const message = await tx.db.clientReportMessages.create({
-          reportId: report._id,
-          body,
-          fileIds: [],
-          erasedAt: null,
-        });
-        const tickets = await reserveSlots(
-          intake.deps.ticketSecret,
-          tx,
+        const written = await writeMessage(raw, {
+          intake,
           key,
           report,
+          body,
           files,
           expiresAt,
-          { messageId: message._id, tracking: options.tracking === true },
-        );
-        if (tickets.length > 0) {
-          await tx.db.clientReportMessages.update(message._id, {
-            fileIds: tickets.map((ticket) => new ObjectId(ticket.slot)),
-          });
-        }
-        await tx.db.clientReports.update(report._id, { clientWaiting: true });
-        if (current.issueId) {
-          await refreshIssueWaiting(tx, current.issueId);
-          const issue = await tx.db.issues.findById(current.issueId);
-          if (issue) {
-            later.push(
-              await journalOnIssue(tx as unknown as ActivityMongo, {
-                issue,
-                organisationId,
-                actorId: SYSTEM_ACTOR,
-                verb: "clientReplied",
-                comment: null,
-              }),
-            );
-          }
-        }
-        posted = { messageId: message.id, files: tickets };
+          tracking: options.tracking === true,
+        });
+        later = written.later;
+        posted = written.posted;
         return undefined;
       }),
     exhausted,
@@ -149,4 +116,64 @@ export async function postMessage(
   }
   if (!posted) throw new Error("the message was not posted");
   return posted;
+}
+
+// The transaction's writes: the message, its file slots, the report's flag, the
+// issue's flag and the journal entry. `later` is for after the commit.
+async function writeMessage(
+  tx: MessageMongo,
+  w: {
+    intake: PublicIntake;
+    key: WidgetKeyDocument;
+    report: ClientReportDocument;
+    body: string;
+    files: ReturnType<typeof checkFiles>;
+    expiresAt: Date;
+    tracking: boolean;
+  },
+): Promise<{ posted: Posted; later: AfterCommit[] }> {
+  const { intake, key, report, body, files, expiresAt, tracking } = w;
+  const later: AfterCommit[] = [];
+  // The report as it is now: it may have got its issue, or been declined or
+  // erased, since the caller read it.
+  const current = await tx.db.clientReports.findById(report._id);
+  if (!current || current.erasedAt) throw reportNotFound();
+  if (current.state === "declined") throw requestDeclined();
+  const message = await tx.db.clientReportMessages.create({
+    reportId: report._id,
+    body,
+    fileIds: [],
+    erasedAt: null,
+  });
+  const tickets = await reserveSlots(
+    intake.deps.ticketSecret,
+    tx,
+    key,
+    report,
+    files,
+    expiresAt,
+    { messageId: message._id, tracking },
+  );
+  if (tickets.length > 0) {
+    await tx.db.clientReportMessages.update(message._id, {
+      fileIds: tickets.map((ticket) => new ObjectId(ticket.slot)),
+    });
+  }
+  await tx.db.clientReports.update(report._id, { clientWaiting: true });
+  if (current.issueId) {
+    await refreshIssueWaiting(tx, current.issueId);
+    const issue = await tx.db.issues.findById(current.issueId);
+    if (issue) {
+      later.push(
+        await journalOnIssue(tx, {
+          issue,
+          organisationId: key.organisationId.toHexString(),
+          actorId: SYSTEM_ACTOR,
+          verb: "clientReplied",
+          comment: null,
+        }),
+      );
+    }
+  }
+  return { posted: { messageId: message.id, files: tickets }, later };
 }

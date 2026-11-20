@@ -6,8 +6,10 @@ import { tenancy } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { LIVE_REQUESTS_PATH } from "./intake.http";
 import { IDENTITY_HEADER } from "./intake.identity";
-import { eraseMyData } from "./intake.requests";
-import { streamTiming } from "./intake.requests.routes";
+import { streamTiming } from "./intake.live.routes";
+import { eraseMyData } from "./intake.requests.actions";
+import { openLedger } from "./intake.requests.live";
+import type { Session } from "./intake.requests.session";
 import type { IntakeMongo } from "./intake.submit";
 
 // A17: the public request endpoints and the live stream (plan §19).
@@ -702,5 +704,114 @@ describe("the live stream", () => {
     expect(again.response.status).toBe(200);
     await again.close();
     for (const stream of open) await stream.close();
+  });
+});
+
+type Page = {
+  nodes: { id: string }[];
+  endCursor: string | null;
+  hasNextPage: boolean;
+};
+
+describe("the request list cursor", () => {
+  test("a page boundary holds when the request it ended on is read meanwhile", async () => {
+    const w = await world();
+    // Listed newest first: c, b, a. A reply on a and on c puts them first.
+    const a = await w.file("ada");
+    const b = await w.file("ada");
+    const c = await w.file("ada");
+    const issues = { a: await w.accept(a), b: await w.accept(b) };
+    const issueC = await w.accept(c);
+    for (const issueId of [issues.a, issueC]) {
+      await w.kit.asOwner.call(AddComment, {
+        issueId,
+        input: { body: "Looking", public: true },
+      });
+    }
+    const page = async (after: string | null, first = 1) =>
+      (await w.data("ada", "myRequests", { first, after }))[
+        "myRequests"
+      ] as unknown as Page;
+
+    const one = await page(null);
+    expect(one.nodes.map((n) => n.id)).toEqual([c]);
+    // The reporter reads c: it leaves the unread group between the pages.
+    await w.data("ada", "markRequestRead", { id: c });
+    const two = await page(one.endCursor);
+    expect(two.nodes.map((n) => n.id)).toEqual([a]);
+    // Nothing after the boundary is skipped or repeated (c, read meanwhile,
+    // is the one request that may show again, in the read group).
+    const rest = await page(two.endCursor, 5);
+    expect(rest.nodes.map((n) => n.id)).toContain(b);
+    expect(rest.nodes.map((n) => n.id)).not.toContain(a);
+    expect(rest.hasNextPage).toBe(false);
+  });
+
+  test("still takes a bare id and refuses an unknown one", async () => {
+    const w = await world();
+    const a = await w.file("ada");
+    const b = await w.file("ada");
+    const bare = (await w.data("ada", "myRequests", { first: 5, after: b }))[
+      "myRequests"
+    ] as unknown as Page;
+    expect(bare.nodes.map((n) => n.id)).toEqual([a]);
+    const { body } = await w.as("ada", "myRequests", {
+      after: "u:000000000000000000000000",
+    });
+    expect(codeOfBody(body)).toBe("validation.errors.invalid-input");
+  });
+});
+
+describe("the live stream's unread ledger", () => {
+  test("recounts the changed request only and keeps the total", async () => {
+    const w = await world();
+    const ids = [await w.file("ada"), await w.file("ada"), await w.file("ada")];
+    const issues = [];
+    for (const id of ids) issues.push(await w.accept(id));
+    const comment = (issueId: string) =>
+      w.kit.asOwner.call(AddComment, {
+        issueId,
+        input: { body: "Looking", public: true },
+      });
+    await comment(issues[0] as string);
+    await comment(issues[0] as string);
+    await comment(issues[1] as string);
+    const first = await w.mongo.db.clientReports.findFirst({
+      _id: new ObjectId(ids[0]),
+    });
+    if (!first) throw new Error("report missing");
+    const session = {
+      mongo: w.mongo,
+      reporter: { keyId: first.widgetKeyId, reporterKey: first.reporterKey },
+    } as unknown as Session;
+
+    const seen: number[] = [];
+    const raw = w.mongo.db.comments.raw;
+    const aggregate = raw.aggregate.bind(raw);
+    raw.aggregate = ((
+      pipeline: { $match?: { issueId?: { $in: unknown[] } } }[],
+    ) => {
+      seen.push(pipeline[0]?.$match?.issueId?.$in.length ?? 0);
+      return aggregate(pipeline as never);
+    }) as typeof raw.aggregate;
+    try {
+      const ledger = await openLedger(session);
+      expect(ledger.total()).toBe(3);
+      expect(seen).toEqual([3]);
+
+      await comment(issues[2] as string);
+      seen.length = 0;
+      const changed = await ledger.update(ids[2] as string);
+      expect(changed).toMatchObject({
+        update: { id: ids[2], unread: 1 },
+        total: 4,
+      });
+      expect(seen).toEqual([1]);
+      expect(await ledger.update("0".repeat(24))).toBeNull();
+      expect(await ledger.update("not-an-id")).toBeNull();
+      expect(ledger.total()).toBe(4);
+    } finally {
+      raw.aggregate = aggregate;
+    }
   });
 });

@@ -1,4 +1,4 @@
-import type { ModuleMongo } from "../../config/db";
+import type { AnyDb, ModuleMongo } from "../../config/db";
 import type { AfterCommit } from "../../core/shared/after-commit";
 import type { FieldChange } from "../../core/shared/changes";
 import type { CommentDocument } from "../comments/public";
@@ -19,7 +19,7 @@ export interface ActivityRecorded {
 }
 
 export type ActivityRecordedHandler = (
-  mongo: ModuleMongo<"activity">,
+  mongo: AnyDb,
   recorded: ActivityRecorded,
 ) => Promise<AfterCommit | undefined>;
 
@@ -41,7 +41,7 @@ export async function activityRecorded(
 ): Promise<AfterCommit[]> {
   const later: AfterCommit[] = [];
   for (const handler of handlers) {
-    const afterCommit = await handler(mongo, recorded);
+    const afterCommit = await handler(mongo as AnyDb, recorded);
     if (afterCommit) later.push(afterCommit);
   }
   return later;

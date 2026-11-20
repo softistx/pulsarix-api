@@ -1,4 +1,4 @@
-import type { ModuleMongo } from "../../config/db";
+import type { AnyDb, ModuleMongo } from "../../config/db";
 import type { AfterCommit } from "../../core/shared/after-commit";
 import type { CommentDocument } from "./comments.model";
 
@@ -17,7 +17,7 @@ export interface CommentChange {
 // Runs inside the writing transaction; may answer work to run once it has
 // committed (see the issues module's `IssueChangeHandler`).
 export type CommentChangeHandler = (
-  mongo: ModuleMongo<"comments">,
+  mongo: AnyDb,
   change: CommentChange,
 ) => Promise<AfterCommit | undefined>;
 
@@ -39,7 +39,7 @@ export async function commentChanged(
 ): Promise<AfterCommit[]> {
   const later: AfterCommit[] = [];
   for (const handler of handlers) {
-    const afterCommit = await handler(mongo, change);
+    const afterCommit = await handler(mongo as AnyDb, change);
     if (afterCommit) later.push(afterCommit);
   }
   return later;

@@ -6,14 +6,14 @@ import {
 import { registerCommentChange } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
 import { eventOf, journalOnIssue } from "./activity.events";
-import { type ActivityMongo, recordActivity } from "./activity.service";
+import { recordActivity } from "./activity.service";
 import { activityRecorded } from "./activity.usage";
 
 // An issue's change is journalled inside the writing transaction and
 // published to the board and to the issue's topic once it has committed.
 registerIssueChange(async (mongo, change) => {
   const { issue, organisationId } = change;
-  const activity = await recordActivity(mongo as unknown as ActivityMongo, {
+  const activity = await recordActivity(mongo, {
     projectId: issue.projectId,
     issueId: issue._id,
     issueKey: issue.key,
@@ -25,7 +25,7 @@ registerIssueChange(async (mongo, change) => {
     statusId: issue.statusId.toHexString(),
     rank: issue.rank,
   });
-  const downstream = await activityRecorded(mongo as unknown as ActivityMongo, {
+  const downstream = await activityRecorded(mongo, {
     activity,
     organisationId,
     issue,
@@ -53,7 +53,7 @@ registerCommentChange(
     const issue = await mongo.db.issues.findById(comment.issueId);
     // The issue is going in the same transaction: its own deletion is journalled.
     if (!issue) return undefined;
-    return journalOnIssue(mongo as unknown as ActivityMongo, {
+    return journalOnIssue(mongo, {
       issue,
       organisationId,
       actorId,

@@ -28,7 +28,7 @@ export async function eraseReport(
   options: { files?: boolean; mark?: boolean } = {},
 ): Promise<void> {
   const { files = true, mark = true } = options;
-  const as = mongo.as(SYSTEM_ACTOR) as unknown as RetentionMongo;
+  const as = mongo.as(SYSTEM_ACTOR);
   // What the reporter wrote in the thread is personal data too: the messages
   // leave both threads (A16).
   await as.db.clientReportMessages.updateMany(
@@ -63,7 +63,7 @@ export async function eraseReport(
     clientWaiting: false,
   });
   if (report.issueId) {
-    const issues = as as unknown as Parameters<typeof refreshIssueWaiting>[0];
+    const issues = as;
     // An erased report no longer makes its issue wait.
     await refreshIssueWaiting(issues, report.issueId);
     if (mark) await markIssue(issues, report.issueId, "deleted");
@@ -101,8 +101,7 @@ export async function eraseAll(
   log: (message: string, error?: unknown) => void = console.warn,
 ): Promise<number> {
   const results = await tenancy.eachTenant(
-    async (_tenant, mongo) =>
-      eraseSettled(mongo as unknown as RetentionMongo, now),
+    async (_tenant, mongo) => eraseSettled(mongo, now),
     { onError: "collect" },
   );
   let erased = 0;
