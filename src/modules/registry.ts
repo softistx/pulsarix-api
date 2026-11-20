@@ -8,6 +8,7 @@ import { system } from "../core/system/module";
 import { activityModule } from "./activity/module";
 import { attachmentsModule } from "./attachments/module";
 import { commentsModule } from "./comments/module";
+import { dashboardModule } from "./dashboard/module";
 import { intakeModule } from "./intake/module";
 import { issuesModule } from "./issues/module";
 import { notificationsModule } from "./notifications/module";
@@ -31,6 +32,7 @@ const registered = [
   activityModule,
   notificationsModule,
   searchModule,
+  dashboardModule,
   intakeModule,
   timeModule,
 ] as const;

@@ -1,0 +1,84 @@
+"""
+An issue assigned to the viewer, with what Home shows beside it: its status,
+its project's key, and whether it is late (due before the start of today in the
+organisation's time zone).
+"""
+type AssignedIssue {
+  issue: Issue!
+  status: Status!
+  projectKey: String!
+  late: Boolean!
+}
+
+"""
+A page of the viewer's open issues (not done, not cancelled; archived projects
+left out): late first, then the higher priority, then the most recently
+updated. The totals count every open assigned issue, whatever the page.
+"""
+type AssignedIssueConnection {
+  nodes: [AssignedIssue!]!
+  totalCount: Int!
+  lateCount: Int!
+  "Pass it as `after` for the next page; null on the last."
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+"""
+The viewer's notifications for Home: how many are unread, and the newest
+unread ones (the newest of all when none is unread).
+"""
+type DashboardInbox {
+  unread: Int!
+  latest: [Notification!]!
+}
+
+"""
+The open issues of a project (not done, not cancelled; triage counts), how many
+are urgent and how many are late. Exact counts, whatever their number.
+"""
+type ProjectFigures {
+  project: Project!
+  open: Int!
+  urgent: Int!
+  late: Int!
+}
+
+"What waits for triage in a project: its issues in a triage status and its new client reports."
+type ProjectTriage {
+  project: Project!
+  issues: Int!
+  newReports: Int!
+}
+
+"Everything Home shows, in one request."
+type Dashboard {
+  "The organisation's time zone, which decides what today and late mean."
+  timeZone: String!
+  "Today in that time zone, `YYYY-MM-DD`."
+  today: String!
+  """
+  The viewer's open assigned issues, `first` per page (1 to 100, default 8).
+  Needs `issue:read`. A cursor taken on another day is refused, since late
+  moves at midnight. 400 `validation.errors.invalid-input` on `first` or `after`.
+  """
+  assigned(first: Int = 8, after: String): AssignedIssueConnection!
+  "The viewer's inbox, `latest` notifications (1 to 20, default 5)."
+  inbox(latest: Int = 5): DashboardInbox!
+  "Every active project the viewer reads, by name, with its figures (zeros included). Needs `project:read` and `issue:read`."
+  projects: [ProjectFigures!]!
+  """
+  The projects with something to triage, by name. Null when the viewer lacks
+  `issue:write`, since only those who write issues triage.
+  """
+  triage: [ProjectTriage!]
+}
+
+type Query {
+  """
+  What Home shows, in one request: the viewer's assigned issues, inbox,
+  the figures of every project and the triage backlog. Needs organisation
+  membership; each section needs its own permission.
+  """
+  dashboard: Dashboard!
+}

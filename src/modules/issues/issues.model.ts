@@ -95,6 +95,16 @@ export const issues = defineCollection({
     },
     { key: { labelIds: 1 }, name: "issues_labelIds" },
     { key: { projectId: 1, dueDate: 1 }, name: "issues_projectIdDueDate" },
+    // Home's figures per project, read from the index alone (no FETCH), and
+    // the viewer's open assigned issues (the dashboard module).
+    {
+      key: { projectId: 1, statusId: 1, priorityLevel: 1, dueDate: 1 },
+      name: "issues_projectIdStatusIdPriorityDue",
+    },
+    {
+      key: { assigneeId: 1, statusId: 1 },
+      name: "issues_assigneeIdStatusId",
+    },
     // Search (A8): no stemming nor stop words, so French and English alike.
     {
       key: { title: "text", key: "text", description: "text" },

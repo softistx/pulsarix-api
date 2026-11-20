@@ -13,7 +13,7 @@ import { startDigestWorker } from "./modules/notifications/public";
 // Janus and core validators/indexes reach production here, before any request.
 await syncCoreAtBoot(coreMongo);
 
-startDigestWorker();
+await startDigestWorker();
 startRetentionWorker(tenancy);
 startReporterMailWorker(tenancy);
 startFilesRetentionWorker(tenancy, serverMedia);
