@@ -1,17 +1,13 @@
-import type { ModuleMongo } from "../../config/db";
 import type { ClientEntry, CommentSource } from "../comments/public";
-
-type SourceMongo = ModuleMongo<"intake">;
 
 // What a reporter wrote, as the team reads it on the issue: one read-only
 // `source: CLIENT` entry per message, built here and never stored a second
 // time (registered in module.ts). The messages of every report on the issue
 // show, a linked duplicate's included; an erased one does not.
 export const clientMessages: CommentSource = async (
-  commentsMongo,
+  mongo,
   { issueId, after, limit },
 ) => {
-  const mongo = commentsMongo as unknown as SourceMongo;
   const reports = await mongo.db.clientReports.findMany({
     filter: { issueId },
     limit: 1_000,

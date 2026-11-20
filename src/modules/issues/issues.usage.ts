@@ -1,4 +1,4 @@
-import type { ModuleMongo } from "../../config/db";
+import type { AnyDb, ModuleMongo } from "../../config/db";
 import type { AfterCommit } from "../../core/shared/after-commit";
 import type { FieldChange } from "../../core/shared/changes";
 import type { IssueDocument } from "./issues.model";
@@ -43,7 +43,7 @@ export interface IssueChange {
 // with the change. It may answer a function to run once the transaction has
 // committed (a live event); that one never fails the write.
 export type IssueChangeHandler = (
-  mongo: ModuleMongo<"issues">,
+  mongo: AnyDb,
   change: IssueChange,
 ) => Promise<AfterCommit | undefined>;
 
@@ -63,7 +63,7 @@ export async function issueChanged(
 ): Promise<AfterCommit[]> {
   const later: AfterCommit[] = [];
   for (const handler of changeHandlers) {
-    const afterCommit = await handler(mongo, change);
+    const afterCommit = await handler(mongo as AnyDb, change);
     if (afterCommit) later.push(afterCommit);
   }
   return later;

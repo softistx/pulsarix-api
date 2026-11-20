@@ -236,7 +236,7 @@ export class PublicIntake {
     );
     if (!tenant) throw unknownKey();
     const mongo = await this.deps.tenancy.databaseOf(tenant.id);
-    return mongo.as(SYSTEM_ACTOR) as unknown as IntakeMongo;
+    return mongo.as(SYSTEM_ACTOR);
   }
 
   async config(publicKey: string, caller: Caller): Promise<WidgetConfig> {

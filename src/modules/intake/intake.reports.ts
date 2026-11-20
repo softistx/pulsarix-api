@@ -238,10 +238,7 @@ export class ReportsService {
     }
     // A reporter who is waiting makes the issue wait.
     if (report.clientWaiting === true) {
-      await refreshIssueWaiting(
-        this.mongo as unknown as Parameters<typeof refreshIssueWaiting>[0],
-        issue._id,
-      );
+      await refreshIssueWaiting(this.mongo, issue._id);
     }
     await (this.options.release ?? releaseFiles)(this.mongo, report._id).catch(
       (error) =>

@@ -131,6 +131,12 @@ export type ModuleMongo<Name extends ModuleName> = ModuleHandle<
   OrganisationMongo
 >;
 
+// The whole organisation handle, which a handler registered in a module that
+// `dependsOn` several others is given: the registries (comments, issues,
+// activity) run inside a transaction that holds every collection, and widen
+// their narrow handle to this once, where they call the handlers.
+export type AnyDb = OrganisationMongo;
+
 // The shutdown: the cached organisation handles, the core's, then the shared
 // client (its connection is the last holder).
 export async function closeDatabases() {

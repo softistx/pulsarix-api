@@ -111,11 +111,7 @@ export const mailPublicReply: CommentChangeHandler = async (
   { comment, verb, organisationId },
 ) => {
   if (!comment.public || verb !== "commented") return undefined;
-  return mailable(
-    mongo as unknown as IntakeMongo,
-    comment.issueId,
-    organisationId,
-  );
+  return mailable(mongo, comment.issueId, organisationId);
 };
 
 // A move of the issue to another status, which may change the request's public
@@ -126,7 +122,7 @@ export const mailStateChange: IssueChangeHandler = async (
 ) => {
   if (verb === "created" || verb === "deleted") return undefined;
   if (!changes.some((change) => change.field === "statusId")) return undefined;
-  return mailable(mongo as unknown as IntakeMongo, issue._id, organisationId);
+  return mailable(mongo, issue._id, organisationId);
 };
 
 // The secret the unsubscribe links are signed with, derived from the upload
@@ -181,9 +177,7 @@ export async function sendReporterMail(
   job: ReporterMailJob,
 ): Promise<ReporterMailOutcome> {
   if (!/^[0-9a-f]{24}$/.test(job.reportId)) return "skipped";
-  const mongo = (await deps.mongo(job.organisationId)).as(
-    SYSTEM_ACTOR,
-  ) as unknown as IntakeMongo;
+  const mongo = (await deps.mongo(job.organisationId)).as(SYSTEM_ACTOR);
   const report = await mongo.db.clientReports.findById(
     new ObjectId(job.reportId),
   );

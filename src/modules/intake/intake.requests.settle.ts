@@ -5,7 +5,7 @@ import {
 } from "../../core/shared/after-commit";
 import { exhausted } from "../../core/shared/errors";
 import { retryWriteConflicts } from "../../core/shared/locked";
-import { type ActivityMongo, journalOnIssue } from "../activity/public";
+import { journalOnIssue } from "../activity/public";
 import { reopenExpired, requestDeclined } from "./intake.errors";
 import { announceChanged } from "./intake.live";
 import { markIssue } from "./intake.markers";
@@ -26,10 +26,6 @@ import { refreshIssueWaiting } from "./intake.waiting";
 
 type ReportPatch = Parameters<IntakeMongo["db"]["clientReports"]["update"]>[1];
 
-type SettleMongo = IntakeMongo &
-  Parameters<typeof refreshIssueWaiting>[0] &
-  Parameters<typeof markIssue>[0];
-
 // Resolve or reopen, in one transaction: the report's marks, the issue's
 // marker, and the journal entry that tells its watchers and assignee. The
 // issue's status never moves.
@@ -45,7 +41,7 @@ async function settle(
     () =>
       session.mongo.transaction(async (raw) => {
         later = [];
-        const tx = raw as unknown as SettleMongo;
+        const tx = raw;
         await tx.db.clientReports.update(report._id, patch);
         if (report.issueId) {
           const issue = await tx.db.issues.findById(report.issueId);
@@ -57,7 +53,7 @@ async function settle(
             );
             await refreshIssueWaiting(tx, issue._id);
             later.push(
-              await journalOnIssue(tx as unknown as ActivityMongo, {
+              await journalOnIssue(tx, {
                 issue,
                 organisationId: session.organisationId,
                 actorId: SYSTEM_ACTOR,

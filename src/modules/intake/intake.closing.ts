@@ -21,10 +21,9 @@ export async function isSettled(
 // the issue's transaction (registered in module.ts). On creation it also sets
 // the report's `issueId`.
 export async function followIssue(
-  mongo: ModuleMongo<"issues">,
+  tx: ClosingMongo,
   change: IssueChange,
 ): Promise<undefined> {
-  const tx = mongo as unknown as ClosingMongo;
   // The issue and the report's pointer to it are written together: a created
   // issue always has its report's `issueId` set (accepting a report, intake.reports.ts).
   if (change.verb === "created") {
@@ -57,7 +56,7 @@ export async function followIssue(
       { expiresAt: new Date() },
     );
   }
-  const settled = deleted || (await isSettled(mongo, change.issue));
+  const settled = deleted || (await isSettled(tx, change.issue));
   for (const report of reports) {
     if (report.state === "new" || report.state === "declined") continue;
     if (settled && report.state === "accepted") {

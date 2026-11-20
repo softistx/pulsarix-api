@@ -33,11 +33,7 @@ export const announcePublicReply: CommentChangeHandler = async (
   // reply switched to internal) or is the public one just deleted (`comment`
   // is then as it was).
   if (!comment.public && !previous?.public) return undefined;
-  return announceIssue(
-    mongo as unknown as ModuleMongo<"intake">,
-    comment.issueId,
-    organisationId,
-  );
+  return announceIssue(mongo, comment.issueId, organisationId);
 };
 
 export const announceIssueChange: IssueChangeHandler = async (
@@ -45,9 +41,5 @@ export const announceIssueChange: IssueChangeHandler = async (
   { verb, issue, organisationId },
 ) => {
   if (verb === "created") return undefined;
-  return announceIssue(
-    mongo as unknown as ModuleMongo<"intake">,
-    issue._id,
-    organisationId,
-  );
+  return announceIssue(mongo, issue._id, organisationId);
 };

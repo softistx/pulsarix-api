@@ -11,7 +11,6 @@ import { eraseAll } from "./intake.retention";
 import {
   type IntakeDeps,
   type IntakeLimits,
-  type IntakeMongo,
   PublicIntake,
 } from "./intake.submit";
 
@@ -104,7 +103,7 @@ export function startReporterMailWorker(
   }
   const deps = {
     mongo: async (organisationId: string) =>
-      (await tenancy.databaseOf(organisationId)) as unknown as IntakeMongo,
+      await tenancy.databaseOf(organisationId),
     mailer,
     from: { name: "pulsarix", address: env.MAIL_FROM },
     uiOrigin: env.UI_ORIGIN,

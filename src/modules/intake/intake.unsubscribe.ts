@@ -54,7 +54,7 @@ export async function unsubscribeReport(
   mongo: IntakeMongo,
   reportId: string,
 ): Promise<boolean> {
-  const as = mongo.as(SYSTEM_ACTOR) as unknown as IntakeMongo;
+  const as = mongo.as(SYSTEM_ACTOR);
   const report = await as.db.clientReports.findById(new ObjectId(reportId));
   if (!report) return false;
   if (report.reporterKey && !report.erasedAt) {
@@ -134,9 +134,7 @@ export function unsubscribeRoutes(
         );
       }
       try {
-        const mongo = (await tenancy.databaseOf(
-          named.organisationId,
-        )) as unknown as IntakeMongo;
+        const mongo = await tenancy.databaseOf(named.organisationId);
         await unsubscribeReport(mongo, named.reportId);
       } catch (error) {
         log("reporter unsubscribe failed", error);

@@ -7,7 +7,7 @@ import {
 } from "../../core/shared/after-commit";
 import { exhausted, invalid } from "../../core/shared/errors";
 import { retryWriteConflicts } from "../../core/shared/locked";
-import { type ActivityMongo, journalOnIssue } from "../activity/public";
+import { journalOnIssue } from "../activity/public";
 import {
   attachmentsDisabled,
   reportNotFound,
@@ -85,7 +85,7 @@ export async function postMessage(
   await retryWriteConflicts(
     () =>
       mongo.transaction(async (raw) => {
-        const written = await writeMessage(raw as unknown as MessageMongo, {
+        const written = await writeMessage(raw, {
           intake,
           key,
           report,
@@ -165,7 +165,7 @@ async function writeMessage(
     const issue = await tx.db.issues.findById(current.issueId);
     if (issue) {
       later.push(
-        await journalOnIssue(tx as unknown as ActivityMongo, {
+        await journalOnIssue(tx, {
           issue,
           organisationId: key.organisationId.toHexString(),
           actorId: SYSTEM_ACTOR,
