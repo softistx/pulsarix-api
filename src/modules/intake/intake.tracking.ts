@@ -10,7 +10,8 @@ import {
   type ReportState,
 } from "./intake.model";
 import { publicStateOf } from "./intake.publicstate";
-import { detailOf, type RequestDetail, type Scope } from "./intake.requests";
+import { detailOf, type RequestDetail } from "./intake.requests.read";
+import type { Scope } from "./intake.requests.session";
 import type { IntakeMongo, PublicIntake } from "./intake.submit";
 import { publicFilter } from "./intake.thread";
 import { parseTrackingToken } from "./intake.token";

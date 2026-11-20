@@ -99,12 +99,7 @@ async function handlePut(
       );
     }
     if (!store) throw unavailable();
-    if (claims?.tracking && !request.headers.get(clientHeader)?.trim()) {
-      throw fail("auth.errors.client-header-required", {
-        params: { header: clientHeader },
-        status: 403,
-      });
-    }
+    if (claims?.tracking) requireClientHeader(request);
     const admission = await uploads.admit(
       params["slot"] ?? "",
       ticket,
@@ -129,22 +124,37 @@ async function handlePut(
       { cors: cors(), count },
     );
   } catch (error) {
-    if (error instanceof GraphQLError) {
-      count(error);
-      return refusal(error, { ...cors() }, log);
-    }
-    if ((error as { status?: number }).status === 413) {
-      return respond(413, { errors: [] }, { headers: secure });
-    }
-    log("report file upload failed", error);
-    return refusal(
-      new GraphQLError("Internal error", {
-        originalError: error as Error,
-      }),
-      cors(),
-      log,
-    );
+    return failure(error, { count, cors: cors(), log });
   }
+}
+
+// What a failed PUT answers: a GraphQL error as its refusal (counted against
+// the key), a body past the limit 413, anything else a logged 500.
+function failure(
+  error: unknown,
+  {
+    count,
+    cors,
+    log,
+  }: {
+    count: (error: unknown) => void;
+    cors: Record<string, string>;
+    log: (message: string, error?: unknown) => void;
+  },
+) {
+  if (error instanceof GraphQLError) {
+    count(error);
+    return refusal(error, cors, log);
+  }
+  if ((error as { status?: number }).status === 413) {
+    return respond(413, { errors: [] }, { headers: secure });
+  }
+  log("report file upload failed", error);
+  return refusal(
+    new GraphQLError("Internal error", { originalError: error as Error }),
+    cors,
+    log,
+  );
 }
 
 // The `report-files` routes of @alxia/media behind the admissions: a write
@@ -178,6 +188,17 @@ function mediaStore(
       },
     }),
   );
+}
+
+// A tracking page's upload comes from the UI server, which sends the client
+// header (a browser's cross-site form does not).
+function requireClientHeader(request: Request) {
+  if (!request.headers.get(clientHeader)?.trim()) {
+    throw fail("auth.errors.client-header-required", {
+      params: { header: clientHeader },
+      status: 403,
+    });
+  }
 }
 
 // The answer to the CORS preflight: the key's origins only, 403 otherwise.
