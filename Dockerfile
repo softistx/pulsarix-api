@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.10
 # Bun bundles the app and its dependencies into dist/server.js (the SDL files are
 # imported as text by the module manifests): the image holds dist/ and the one
 # two packages the bundle leaves out, @napi-rs/canvas and pdfjs-dist. No TypeScript, no other
@@ -9,7 +10,7 @@ WORKDIR /app
 # The in-memory Mongo and Redis are for the specs only: no binary download.
 ENV MONGOMS_DISABLE_POSTINSTALL=1 REDISMS_DISABLE_POSTINSTALL=1
 COPY package.json bun.lock* bunfig.toml* ./
-RUN bun install --frozen-lockfile
+RUN --mount=type=secret,id=npm_read,env=NPM_SOFTISTX_READ_TOKEN bun install --frozen-lockfile
 COPY . .
 # dist/server.js, dist/scripts/pdf-preview-check.js (run below) and
 # dist/scripts/bootstrap.js (the operator command, docs/deployment.md).

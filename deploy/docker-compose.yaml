@@ -71,6 +71,12 @@ volumes:
   minio-data:
   backup-data:
 
+# The read-only npm token for @softistx, from the host's environment (never
+# written to an image): the `api` and `ui` builds mount it as `npm_read`.
+secrets:
+  npm_read:
+    environment: NPM_SOFTISTX_READ_TOKEN
+
 x-common: &common
   restart: unless-stopped
   networks:
@@ -435,6 +441,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      secrets: [npm_read]
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-api
     # bun spawns children (and runc leaves its own): tini (init) reaps them, else
     # they pile up as zombies.
@@ -486,6 +493,7 @@ services:
     build:
       context: ${UI_CONTEXT:-../../pulsarix-ui}
       dockerfile: Dockerfile
+      secrets: [npm_read]
     container_name: ${STACK_PREFIX:+${STACK_PREFIX}-}pulsarix-ui
     depends_on:
       api:
