@@ -2,11 +2,11 @@ import {
   type ChronixLinkClient,
   isChronixLinkError,
 } from "@softistx/chronix-react/server";
-import type { ModuleMongo } from "../../config/db";
-import { env } from "../../config/env";
-import { chronixClient } from "./chronix.client";
-import { chronixFailure, invalidKey, keyMismatch } from "./time.errors";
-import { openLinkKey, sealLinkKey } from "./time.seal";
+import type { ModuleMongo } from "../../../config/db";
+import { env } from "../../../config/env";
+import { chronixClient } from "../chronix.client";
+import { chronixFailure, invalidKey, keyMismatch } from "../time.errors";
+import { openLinkKey, sealLinkKey } from "../utils/seal.utils";
 
 export type TimeMongo = ModuleMongo<"time">;
 

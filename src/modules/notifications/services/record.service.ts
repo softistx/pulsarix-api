@@ -1,12 +1,12 @@
-import { realtime } from "../../config/redis";
+import { realtime } from "../../../config/redis";
 import {
   type AfterCommit,
   runAfterCommit,
-} from "../../core/shared/after-commit";
-import type { ActivityRecorded } from "../activity/public";
-import { scheduleDigest } from "./notifications.digest";
-import type { NotificationKind } from "./notifications.model";
-import { recipientsOf } from "./notifications.rules";
+} from "../../../core/shared/after-commit";
+import type { ActivityRecorded } from "../../activity/public";
+import type { NotificationKind } from "../notifications.model";
+import { recipientsOf } from "../notifications.rules";
+import { scheduleDigest } from "./digest.service";
 import type { NotificationsMongo } from "./notifications.service";
 
 const TITLE_CLIP = 200;
@@ -74,7 +74,7 @@ function publisher(created: Created, organisationId: string): AfterCommit {
       created.map((row) => async () => {
         // The transaction's handle is closed by now: a fresh one.
         // (Imported here: loading the schema must not open MongoDB.)
-        const { tenancy } = await import("../../config/db");
+        const { tenancy } = await import("../../../config/db");
         const after = (await tenancy.databaseOf(
           organisationId,
         )) as unknown as NotificationsMongo;

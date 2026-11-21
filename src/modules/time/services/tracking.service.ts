@@ -3,17 +3,17 @@ import type {
   LinkEntry,
   LinkTimer,
 } from "@softistx/chronix-react/server";
-import { idOrInvalid } from "../../core/shared/ids";
-import { issueNotFound } from "../issues/public";
-import { isProjectArchived } from "../projects/public";
+import { idOrInvalid } from "../../../core/shared/ids";
+import { issueNotFound } from "../../issues/public";
+import { isProjectArchived } from "../../projects/public";
 import {
   chronixFailure,
   emailUnverified,
   notLinked,
   pulsarixProjectArchived,
-} from "./time.errors";
-import type { TimeLink, TimeMongo } from "./time.link";
-import { isOnIssue, refOf } from "./time.ref";
+} from "../time.errors";
+import { isOnIssue, refOf } from "../utils/ref.utils";
+import type { TimeLink, TimeMongo } from "./link.service";
 
 const loggedOf = (entry: LinkEntry) => ({
   id: entry.id,

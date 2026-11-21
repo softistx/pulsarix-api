@@ -4,8 +4,8 @@ import {
   isChronixUnavailable,
   type RefTotal,
 } from "@softistx/chronix-react/server";
-import type { TimeLink } from "./time.link";
-import { ISSUE } from "./time.ref";
+import { ISSUE } from "../utils/ref.utils";
+import type { TimeLink } from "./link.service";
 
 // What the issue page shows of the time, never an error (see `TimeSpent`).
 export type TimeSpentView =
