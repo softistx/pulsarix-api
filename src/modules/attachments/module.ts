@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { toObjectId } from "@softistx/mongo";
 import { defineCodes } from "../../i18n/define-codes";
 import { registerCommentChange } from "../comments/public";
@@ -45,7 +45,7 @@ registerCommentChange(async (mongo, change) =>
 );
 
 // The files on issues and comments, stored in a private bucket through
-// @alxia/media, with a thumbnail for pictures.
+// @softistx/alxia-media, with a thumbnail for pictures.
 export const attachmentsModule = defineModule({
   name: "attachments",
   dependsOn: ["access", "organisations", "issues", "comments"],

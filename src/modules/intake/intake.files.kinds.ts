@@ -4,8 +4,8 @@ import {
   type MediaFile,
   type MediaRendition,
   type MediaVerdict,
-} from "@alxia/media";
-import { withImageRendition } from "@alxia/media/image";
+} from "@softistx/alxia-media";
+import { withImageRendition } from "@softistx/alxia-media/image";
 import { ImageError } from "@softistx/image";
 import { renderPdfFirstPage } from "@softistx/image/pdf";
 import {
@@ -34,7 +34,7 @@ export const maxFilePixels = 25_000_000;
 export const fullSide = 2560;
 export const thumbnailSide = 256;
 export const previewSize = String(thumbnailSide);
-// The name a PDF's own bytes go by in this API's URLs (`/file`). @alxia/media
+// The name a PDF's own bytes go by in this API's URLs (`/file`). @softistx/alxia-media
 // stores them as the kind's original (`<kind>/<key>`, no size): the readers map
 // this name to it.
 export const pdfSize = "file";
@@ -104,7 +104,7 @@ export const defineReportFilesKind = <Requires extends object>(
     renditionTypes: acceptedFileTypes,
     // A stored object is never an HTML or SVG document: nothing but the four
     // types above is accepted, and every file is served with `nosniff` and
-    // `sandbox` (@alxia/media). A PDF is always a download.
+    // `sandbox` (@softistx/alxia-media). A PDF is always a download.
     attachment: ["application/pdf"],
     authorizeWrite: access.authorizeWrite,
     authorizeRead: access.authorizeRead,
@@ -115,7 +115,7 @@ export const defineReportFilesKind = <Requires extends object>(
     },
   });
 
-// What a refusal of @alxia/media is, as the API's error (415, 422, 413). The
+// What a refusal of @softistx/alxia-media is, as the API's error (415, 422, 413). The
 // package's transport refusals (`stalled`, `interrupted`...) are left to it.
 export function fileRefusal(code: string, reason?: string) {
   switch (code) {

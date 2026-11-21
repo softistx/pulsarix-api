@@ -1,4 +1,4 @@
-import { createSchema } from "@graxia/core";
+import { createSchema } from "@softistx/graxia";
 import type { GraphQLSchema } from "graphql";
 import type { PublicContext } from "./intake.public.context";
 import { reporterMutation, reporterQuery } from "./intake.public.reporter";

@@ -35,7 +35,7 @@ export const timeZone = z.string().refine((name) => {
 
 // The organisation registry, in the core database: the tenant itself. Its
 // `_id` names its own database (`<prefix><id>`, the `perOrganization` store of
-// @alxia/tenancy, `tenancyOf` in src/config/db.ts); `slug` names it in URLs and
+// @softistx/alxia-tenancy, `tenancyOf` in src/config/db.ts); `slug` names it in URLs and
 // is retired with it.
 export const organisations = defineCollection({
   name: "organisations",

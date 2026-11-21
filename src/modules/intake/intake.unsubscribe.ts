@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { alxia } from "@alxia/core";
+import { alxia } from "@softistx/alxia";
 import { ObjectId } from "mongodb";
 import type { AppTenancy } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";

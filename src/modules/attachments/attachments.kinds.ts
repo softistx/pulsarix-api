@@ -1,5 +1,5 @@
-import { defineMediaKind } from "@alxia/media";
-import { withImageRendition } from "@alxia/media/image";
+import { defineMediaKind } from "@softistx/alxia-media";
+import { withImageRendition } from "@softistx/alxia-media/image";
 import { ImageError } from "@softistx/image";
 import { renderPdfFirstPage } from "@softistx/image/pdf";
 import type { ScopedRequestScope } from "../../http/context";

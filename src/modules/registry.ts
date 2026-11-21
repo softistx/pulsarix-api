@@ -1,10 +1,12 @@
-import { type Module, resolveModules } from "@alxia/modules";
+import { type Module, resolveModules } from "@softistx/alxia-modules";
+import type { Resolvers } from "@softistx/graxia";
 import { access } from "../core/access/module";
 import { accountsModule } from "../core/accounts/module";
 import { invitationsModule } from "../core/invitations/module";
 import { membersModule } from "../core/members/module";
 import { organisationsModule } from "../core/organisations/module";
 import { system } from "../core/system/module";
+import type { Context } from "../http/context";
 import { activityModule } from "./activity/module";
 import { attachmentsModule } from "./attachments/module";
 import { commentsModule } from "./comments/module";
@@ -41,8 +43,9 @@ export const modules: readonly Module[] = resolveModules(registered);
 
 // The registered manifests with their own types, for the typed handles of the
 // databases (`CollectionsOf`, `ModuleHandle`; src/config/db.ts).
-declare module "@alxia/modules" {
+declare module "@softistx/alxia-modules" {
   interface Register {
     modules: typeof registered;
+    resolvers: Resolvers<Context>;
   }
 }

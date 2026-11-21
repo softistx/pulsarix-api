@@ -4,7 +4,7 @@ import {
   assertBoundaries,
   boundaryViolations,
   importsOf,
-} from "@alxia/modules";
+} from "@softistx/alxia-modules";
 import { Glob } from "bun";
 import { modules } from "../src/modules/registry";
 
@@ -12,7 +12,7 @@ import { modules } from "../src/modules/registry";
 // (`src/core/<name>`, surface `index.ts`) and business (`src/modules/<name>`,
 // surface `public.ts`): a module reaches another only through its public
 // surface, and only when its manifest's `dependsOn` names it. The check is
-// `assertBoundaries` of @alxia/modules; a folder that is not a registered
+// `assertBoundaries` of @softistx/alxia-modules; a folder that is not a registered
 // module (`core/shared`, `core/auth`, ...) is plain infrastructure.
 const root = resolve(import.meta.dir, "..");
 
@@ -72,7 +72,7 @@ describe("the module boundaries", () => {
   });
 });
 
-// Kept here: @alxia/modules 0.3.0 checks only files inside a registered module,
+// Kept here: @softistx/alxia-modules 0.3.0 checks only files inside a registered module,
 // so kernel infrastructure (`core/shared`, `core/auth`...) reaching a kernel
 // module's internals is not flagged by `assertBoundaries`. It must go through
 // the module's `index.ts`.

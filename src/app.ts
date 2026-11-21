@@ -1,6 +1,6 @@
-import { health } from "@alxia/core";
-import { graphql, type ServerContext } from "@alxia/graphql";
-import { viewerMemberships } from "@alxia/tenancy";
+import { health } from "@softistx/alxia";
+import { graphql, type ServerContext } from "@softistx/alxia-graphql";
+import { viewerMemberships } from "@softistx/alxia-tenancy";
 import { serverAuth } from "./config/auth";
 import {
   type AppTenancy,

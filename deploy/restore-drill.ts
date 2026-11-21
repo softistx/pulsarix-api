@@ -18,7 +18,7 @@
  * organisation (src/modules/registry.ts, the one list).
  */
 
-import { collectionsOf, coreCollectionsOf } from "@alxia/modules";
+import { collectionsOf, coreCollectionsOf } from "@softistx/alxia-modules";
 import { janusCollections } from "@softistx/janus-mongo";
 import { modules } from "../src/modules/registry";
 import {

@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import dashboardTypeDefs from "./dashboard.graphqls" with { type: "text" };
 import { dashboardResolvers } from "./dashboard.resolver";
 

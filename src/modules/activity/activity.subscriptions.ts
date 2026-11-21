@@ -1,4 +1,4 @@
-import { boundedStream } from "@alxia/graphql";
+import { boundedStream } from "@softistx/alxia-graphql";
 import { realtime } from "../../config/redis";
 import {
   enforceSecondFactor,

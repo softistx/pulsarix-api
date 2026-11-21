@@ -1,11 +1,11 @@
-import { type Access, createAccess } from "@alxia/access";
-import type { Module } from "@alxia/modules";
+import { type Access, createAccess } from "@softistx/alxia-access";
+import type { Module } from "@softistx/alxia-modules";
 import { type Role, roles } from "./roles";
 
-export type { Access } from "@alxia/access";
-export { AccessCatalogueError } from "@alxia/access";
+export type { Access } from "@softistx/alxia-access";
+export { AccessCatalogueError } from "@softistx/alxia-access";
 
-// The access catalogue of this API (@alxia/access): the role -> permission
+// The access catalogue of this API (@softistx/alxia-access): the role -> permission
 // matrix every guard reads, built from the manifests (plan Q13). `permissions`
 // declares what a module guards, `defaultGrants` says which built-in roles hold
 // which of them by default. The owner holds every declared permission. It

@@ -1,4 +1,4 @@
-import { slugTaken } from "@alxia/tenancy";
+import { slugTaken } from "@softistx/alxia-tenancy";
 import { isObjectIdString, toObjectId } from "@softistx/mongo";
 import type {
   CreateOrganisationInput,

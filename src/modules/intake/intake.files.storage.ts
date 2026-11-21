@@ -1,8 +1,8 @@
-import { mediaPlace } from "@alxia/media";
+import { mediaPlace } from "@softistx/alxia-media";
 import type { Media } from "../attachments/public";
 import { fileKindName, previewSize } from "./intake.files.kinds";
 
-// The layout of a report file's objects (@alxia/media's, given the tenant
+// The layout of a report file's objects (@softistx/alxia-media's, given the tenant
 // prefix): `organisations/<id>/report-files/<key>/<size>`. A picture has `full`
 // and `256`; a PDF is the kind's original, at `<key>` itself (served as
 // `/file`), beside its `256` preview.

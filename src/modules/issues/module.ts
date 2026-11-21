@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { toObjectId } from "@softistx/mongo";
 import { defineCodes } from "../../i18n/define-codes";
 import { registerLabelRemoval, registerStatusUsage } from "../projects/public";

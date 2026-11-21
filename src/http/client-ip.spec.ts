@@ -77,7 +77,7 @@ describe("clientIp", () => {
     expect(ip(request(), server("::ffff:172.18.0.2"))).toBe("172.18.0.2");
   });
 
-  test("the function is marked so @alxia/proxy strips the header", () => {
+  test("the function is marked so @softistx/alxia-proxy strips the header", () => {
     const ip = clientIp({ trusted, secret: SECRET }) as unknown as Record<
       symbol,
       unknown

@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import typeDefs from "./access.graphqls" with { type: "text" };
 
 // The built-in roles' GraphQL enum. The roles live in code (roles.ts) and the

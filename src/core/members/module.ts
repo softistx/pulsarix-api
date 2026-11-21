@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { defineCodes } from "../../i18n/define-codes";
 import membersTypeDefs from "./members.graphqls" with { type: "text" };
 import { memberLocks } from "./members.model";
@@ -11,7 +11,7 @@ export const membersModule = defineModule({
   dependsOn: ["access", "organisations"],
   coreCollections: { memberLocks },
   typeDefs: [membersTypeDefs],
-  resolvers: membersResolvers as never,
+  resolvers: membersResolvers,
   // `member:assign_owner` is declarative: the owner alone holds it so clients can
   // gate the owner option; the server rule stays `members.errors.owner-required`.
   permissions: ["member:read", "member:manage", "member:assign_owner"],

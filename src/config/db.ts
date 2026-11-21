@@ -6,8 +6,12 @@ import {
   type Module,
   type ModuleHandle,
   type ModuleName,
-} from "@alxia/modules";
-import { createTenantDatabases, dbOf, perOrganization } from "@alxia/tenancy";
+} from "@softistx/alxia-modules";
+import {
+  createTenantDatabases,
+  dbOf,
+  perOrganization,
+} from "@softistx/alxia-tenancy";
 import { syncMongoAdapter } from "@softistx/janus-mongo";
 import {
   connectMongo,
@@ -72,7 +76,7 @@ function databasesOf(list: readonly Module[]) {
 
 export const databases = databasesOf(modules);
 
-// The tenancy store (@alxia/tenancy `perOrganization`): the core database
+// The tenancy store (@softistx/alxia-tenancy `perOrganization`): the core database
 // above plus one database per organisation, `<prefix><id>`, with the
 // collections the modules declare as `collections`. A resolver reaches a
 // database through the request's scope, never by building a name. The store

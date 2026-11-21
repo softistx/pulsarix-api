@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import pkg from "../../../package.json" with { type: "json" };
 import typeDefs from "./system.graphqls" with { type: "text" };

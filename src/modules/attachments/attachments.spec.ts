@@ -7,7 +7,7 @@ import { maxBytes, maxPerOwner } from "./attachments.kinds";
 import type { Media } from "./attachments.storage";
 
 // The file routes (CSRF header, janus Bearer token, x-organization-id, the
-// permissions, @alxia/media's checks) over a real S3 API
+// permissions, @softistx/alxia-media's checks) over a real S3 API
 // (@softistx/s3/testing), no mock of the store.
 let s3: TestS3;
 let media: Media;

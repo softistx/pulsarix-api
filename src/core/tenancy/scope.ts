@@ -1,12 +1,12 @@
-import { refusalMapper } from "@alxia/access";
-import { lazyScope, type TenantStore } from "@alxia/tenancy";
+import { refusalMapper } from "@softistx/alxia-access";
+import { lazyScope, type TenantStore } from "@softistx/alxia-tenancy";
 import { refuse } from "../access";
 import type { Viewer } from "../auth/viewer";
 import type { Organisation } from "./registry";
 
 // A refusal of the tenancy layer as the API answers it: the same coded error
 // (`tenancy.errors.*`, CONTEXT.md) with the status the store gave, mapped by the
-// guards' own `refuse` (@alxia/access `refusalOf` recognises a `TenancyError`).
+// guards' own `refuse` (@softistx/alxia-access `refusalOf` recognises a `TenancyError`).
 // Anything else is rethrown as it is.
 export const tenancyFailure: (error: unknown) => unknown =
   refusalMapper(refuse);

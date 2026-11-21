@@ -1,8 +1,8 @@
-import * as access from "@alxia/access";
+import * as access from "@softistx/alxia-access";
 import type { Viewer } from "../auth/viewer";
 import { fail } from "../shared/errors";
 
-// The guards of @alxia/access, each refusal thrown as this API's coded error
+// The guards of @softistx/alxia-access, each refusal thrown as this API's coded error
 // (`fail`): 401 `auth.errors.unauthenticated`, 403 `auth.errors.forbidden`
 // (with the permission as param), and the scope's own 400
 // `tenancy.errors.organization-required` and 404
@@ -16,7 +16,7 @@ export const refuse = (refusal: access.Refusal) =>
     status: refusal.status,
   });
 
-export type { GuardContext } from "@alxia/access";
+export type { GuardContext } from "@softistx/alxia-access";
 
 export const requireViewer: typeof access.requireViewer = (ctx) => {
   try {

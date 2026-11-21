@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { defineCodes } from "../../i18n/define-codes";
 import organisationsTypeDefs from "./organisations.graphqls" with {
   type: "text",
@@ -15,7 +15,7 @@ export const organisationsModule = defineModule({
   coreCollections: { organisations },
   collections: { settings },
   typeDefs: [organisationsTypeDefs],
-  resolvers: resolvers as never,
+  resolvers: resolvers,
   codes: defineCodes("organisations", ["too-many"]),
   permissions: ["organisation:read", "organisation:manage"],
   defaultGrants: {
