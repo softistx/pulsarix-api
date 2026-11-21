@@ -4,16 +4,16 @@ import {
   type FieldIssue,
   invalid,
   required,
-} from "../../core/shared/errors";
-import { retryWriteConflicts } from "../../core/shared/locked";
-import { keyTaken, projectNotFound } from "./projects.errors";
+} from "../../../core/shared/errors";
+import { retryWriteConflicts } from "../../../core/shared/locked";
+import { keyTaken, projectNotFound } from "../projects.errors";
 import {
   defaultPublicState,
   type ProjectDocument,
   projectKey,
-} from "./projects.model";
-import type { ProjectsMongo } from "./projects.usage";
-import { defaultWorkflow } from "./workflow";
+} from "../projects.model";
+import { defaultWorkflow } from "../projects.rules";
+import type { ProjectsMongo } from "../projects.usage";
 
 export interface CreateProjectInput {
   key: string;
