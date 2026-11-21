@@ -20,21 +20,20 @@ This file states only what is pulsarix-api's own.
 A module is a folder `src/modules/<name>/`, its files named `<name>.<role>.ts` (the alxia layout of
 schoolz-api's AGENTS.md "Modules"). `src/core/` follows it too.
 
-| File | Holds |
-| --- | --- |
-| `<name>.graphqls` | the module's SDL |
-| `<name>.model.ts` | the `@softistx/mongo` collection: Zod schema, indexes, stamps |
-| `<name>.service.ts` (`services/` when several) | the business rules; with the data-loaders, the only code that reads or writes a model |
-| `<name>.resolver.ts` (`resolvers/` when several) | thin: guard, then call the service |
-| `<name>.data-loader.ts` (`data-loaders/` when several) | the module's DataLoaders (A8 adds them), each with its spec |
-| `<name>.errors.ts` | its refusals and its codes |
-| `<name>.utils.ts` (`utils/` when several, with a barrel) | its helper functions: not a business rule, no collection access |
-| `<name>.rules.ts` | its pure rules: input checks and computations, no storage |
+| File                                                                                      | Holds                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<name>.graphqls`                                                                         | the module's SDL                                                                                                                                       |
+| `<name>.model.ts`                                                                         | the `@softistx/mongo` collection: Zod schema, indexes, stamps                                                                                          |
+| `<name>.service.ts` (`services/` when several)                                            | the business rules; with the data-loaders, the only code that reads or writes a model                                                                  |
+| `<name>.resolver.ts` (`resolvers/` when several)                                          | thin: guard, then call the service                                                                                                                     |
+| `<name>.data-loader.ts` (`data-loaders/` when several)                                    | the module's DataLoaders (A8 adds them), each with its spec                                                                                            |
+| `<name>.errors.ts`                                                                        | its refusals and its codes                                                                                                                             |
+| `<name>.utils.ts` (`utils/` when several, with a barrel)                                  | its helper functions: not a business rule, no collection access                                                                                        |
+| `<name>.rules.ts`                                                                         | its pure rules: input checks and computations, no storage                                                                                              |
 | `<name>.archived.ts`, `.usage.ts`, `.lock.ts`, `.query.ts`, `.validation.ts`, `.kinds.ts` | pulsarix's own roles: what an archive refuses, the usage counts, the lock documents, the query builders, the input checks, the kinds a module declares |
-| `<name>.routes.ts` (`routes/` when several), `<name>.http.ts` | the REST routes of the transport below, and their paths and shared HTTP pieces |
-| `module.ts` | the `defineModule` declaration the registry lists |
-| `public.ts` | what other modules may import from this one (the only entry point across modules) |
-
+| `<name>.routes.ts` (`routes/` when several), `<name>.http.ts`                             | the REST routes of the transport below, and their paths and shared HTTP pieces                                                                         |
+| `module.ts`                                                                               | the `defineModule` declaration the registry lists                                                                                                      |
+| `public.ts`                                                                               | what other modules may import from this one (the only entry point across modules)                                                                      |
 - **Flat or folders**: a role with one file stays flat at the module's root; once it has several
   files they go in a folder named after the role, with an `index.ts` barrel.
   Inside a module imports are relative; `@/…` is for other modules.
