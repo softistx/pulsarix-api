@@ -6,9 +6,9 @@ import { idOrInvalid } from "../../core/shared/ids";
 import { projectNotFound } from "../projects/public";
 import { keyNotFound } from "./intake.errors";
 import { newIdentitySecret, sealIdentitySecret } from "./intake.identity";
-import type { WidgetKeyDocument } from "./intake.model";
 import { allowListOf } from "./intake.origins";
 import { newPublicKey } from "./intake.token";
+import type { WidgetKeyDocument } from "./models";
 
 export type IntakeMongo = ModuleMongo<"intake">;
 

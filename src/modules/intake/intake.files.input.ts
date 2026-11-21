@@ -8,8 +8,8 @@ import {
   tooManyFiles,
 } from "./intake.errors";
 import { acceptedFileTypes, maxFileBytes } from "./intake.files.kinds";
-import { declaredFileRole } from "./intake.model";
 import { stripControl } from "./intake.text";
+import { declaredFileRole } from "./models";
 
 // What one report may carry (plan §17, A12): one screenshot and three files,
 // 5 MB each and 12 MB together. All of it is checked from what the widget

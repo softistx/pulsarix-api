@@ -1,21 +1,21 @@
 import { alxia } from "@softistx/alxia";
 import { GraphQLError } from "graphql";
-import { addressKey } from "../../core/shared/address";
-import { fail } from "../../core/shared/errors";
-import { clientHeader } from "../../http/csrf";
-import { localeOfRequest } from "../../i18n/locale";
-import type { Media } from "../attachments/public";
-import { fileNotFound, originNotAllowed, unavailable } from "./intake.errors";
-import { previewSize } from "./intake.files.kinds";
-import { reportFileReader } from "./intake.files.read";
+import { addressKey } from "../../../core/shared/address";
+import { fail } from "../../../core/shared/errors";
+import { clientHeader } from "../../../http/csrf";
+import { localeOfRequest } from "../../../i18n/locale";
+import type { Media } from "../../attachments/public";
+import { fileNotFound, originNotAllowed, unavailable } from "../intake.errors";
+import { previewSize } from "../intake.files.kinds";
+import { reportFileReader } from "../intake.files.read";
 import {
   answerOf,
   respond,
   secure,
   TRACKING_FILES_PATH,
   TRACKING_HEADER,
-} from "./intake.http";
-import type { PublicIntake } from "./intake.submit";
+} from "../intake.http";
+import type { PublicIntake } from "../intake.submit";
 
 // GET /public/tracking/files/<fileId>: the thumbnail of one of the reporter's
 // own pictures, for the tracking page (`clientReportStatus` lists them). For

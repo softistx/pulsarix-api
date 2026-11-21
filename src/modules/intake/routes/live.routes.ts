@@ -1,18 +1,18 @@
 import { alxia } from "@softistx/alxia";
 import { GraphQLError } from "graphql";
-import { realtime } from "../../config/redis";
-import { keyDisabled, tooManyRequests } from "./intake.errors";
+import { realtime } from "../../../config/redis";
+import { keyDisabled, tooManyRequests } from "../intake.errors";
 import {
   corsHeaders,
   LIVE_REQUESTS_PATH,
   respond,
   secure,
-} from "./intake.http";
-import { verifyIdentity } from "./intake.identity";
-import { callerOf, keyOf, preflight, refusal } from "./intake.requests.http";
-import { openLedger, type RequestUpdate } from "./intake.requests.live";
-import { openSession, type Session } from "./intake.requests.session";
-import type { Caller, PublicIntake } from "./intake.submit";
+} from "../intake.http";
+import { verifyIdentity } from "../intake.identity";
+import { callerOf, keyOf, preflight, refusal } from "../intake.requests.http";
+import { openLedger, type RequestUpdate } from "../intake.requests.live";
+import { openSession, type Session } from "../intake.requests.session";
+import type { Caller, PublicIntake } from "../intake.submit";
 
 // Open streams per reporter: more would be a script, not a person's tabs.
 export const MAX_STREAMS = 3;

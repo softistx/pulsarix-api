@@ -13,10 +13,10 @@ import {
 } from "./intake.errors";
 import { maxFileBytes } from "./intake.files.kinds";
 import { releaseFiles } from "./intake.files.team";
-import { attachmentsOn, type ReportFileRole } from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import type { Caller, IntakeMongo, PublicIntake } from "./intake.submit";
 import { readTicket, type TicketClaims } from "./intake.tickets";
+import { attachmentsOn, type ReportFileRole } from "./models";
 
 // How much an organisation's quarantine holds, pending slots included: the
 // bytes strangers can leave in one organisation's bucket before the team looks.

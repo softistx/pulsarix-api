@@ -65,10 +65,10 @@ export function answerOf(
 }
 
 // The tracking page's thumbnail route and the header its token travels in
-// (intake.tracking.routes.ts); the token stays out of the URL, which logs keep.
+// (routes/tracking.routes.ts); the token stays out of the URL, which logs keep.
 export const TRACKING_HEADER = "x-pulsarix-tracking";
 export const TRACKING_FILES_PATH = "/public/tracking/files";
-// The identified reporter's thumbnails (intake.requests.routes.ts), read with
+// The identified reporter's thumbnails (routes/requests.routes.ts), read with
 // the identity token and the key, as the live stream is.
 export const REQUEST_FILES_PATH = "/public/requests/files";
 export const LIVE_REQUESTS_PATH = "/public/live/requests";

@@ -17,12 +17,6 @@ import { type CheckedFile, checkFiles } from "./intake.files.input";
 import { identifyCaller, sealTrackingToken } from "./intake.identity";
 import type { IntakeLimits, Limiter } from "./intake.limits.types";
 import { trackingMail } from "./intake.mail";
-import {
-  attachmentsOn,
-  type ClientReportDocument,
-  PUBLIC_KEY,
-  type WidgetKeyDocument,
-} from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import {
   decoyTickets,
@@ -45,6 +39,12 @@ import {
   trackedStatus,
   trackedThumbnail,
 } from "./intake.tracking";
+import {
+  attachmentsOn,
+  type ClientReportDocument,
+  PUBLIC_KEY,
+  type WidgetKeyDocument,
+} from "./models";
 
 export type { IntakeLimits, Limiter } from "./intake.limits.types";
 export type { FileTicket } from "./intake.slots";

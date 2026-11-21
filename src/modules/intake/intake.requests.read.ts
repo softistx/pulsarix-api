@@ -1,11 +1,11 @@
 import type { ObjectId } from "mongodb";
 import type { PublicState } from "../projects/public";
 import { REQUEST_FILES_PATH } from "./intake.http";
-import { type ClientReportDocument, declineReasonShown } from "./intake.model";
 import type { Scope } from "./intake.requests.session";
 import { publicStatesOf, unreadOf } from "./intake.requests.state";
 import type { PublicIntake } from "./intake.submit";
 import { ownedReport, readThread } from "./intake.thread";
+import { type ClientReportDocument, declineReasonShown } from "./models";
 
 // What the reporter reads: one request with its thread (the list of their
 // requests is in intake.requests.list.ts).

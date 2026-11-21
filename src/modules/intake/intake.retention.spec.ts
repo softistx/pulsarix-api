@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { ObjectId } from "mongodb";
 import { goodReport, intakeKit } from "~/intake";
 import { tenancy } from "../../config/db";
-import type { ClientReportDocument } from "./intake.model";
 import { eraseAll, eraseSettled, RETENTION_DAYS } from "./intake.retention";
+import type { ClientReportDocument } from "./models";
 
 const DAY = 86_400_000;
 

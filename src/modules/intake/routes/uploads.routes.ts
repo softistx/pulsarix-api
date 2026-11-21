@@ -1,21 +1,21 @@
 import { alxia } from "@softistx/alxia";
 import type { MediaContext } from "@softistx/alxia-media";
 import { ObjectId } from "mongodb";
-import { addressKey } from "../../core/shared/address";
-import { localeOfRequest } from "../../i18n/locale";
-import type { Media } from "../attachments/public";
-import { unavailable } from "./intake.errors";
-import { maxFileBytes } from "./intake.files.kinds";
-import { reportFilesRoutes } from "./intake.files.routes";
-import { corsHeaders, respond, secure } from "./intake.http";
-import type { Caller, PublicIntake } from "./intake.submit";
-import { readTicket, TICKET_HEADER } from "./intake.tickets";
-import { type Admission, ReportUploads } from "./intake.uploads";
+import { addressKey } from "../../../core/shared/address";
+import { localeOfRequest } from "../../../i18n/locale";
+import type { Media } from "../../attachments/public";
+import { unavailable } from "../intake.errors";
+import { maxFileBytes } from "../intake.files.kinds";
+import { corsHeaders, respond, secure } from "../intake.http";
+import type { Caller, PublicIntake } from "../intake.submit";
+import { readTicket, TICKET_HEADER } from "../intake.tickets";
+import { type Admission, ReportUploads } from "../intake.uploads";
 import {
   failure,
   preflight,
   requireClientHeader,
-} from "./intake.uploads.refusals";
+} from "../intake.uploads.refusals";
+import { reportFilesRoutes } from "./files.routes";
 
 const UPLOAD_PATH = "/public/media/report-files";
 

@@ -14,16 +14,16 @@ import {
   requestDeclined,
 } from "./intake.errors";
 import { checkFiles, type DeclaredFile } from "./intake.files.input";
-import { MAX_MESSAGE } from "./intake.messages.model";
-import {
-  attachmentsOn,
-  type ClientReportDocument,
-  type WidgetKeyDocument,
-} from "./intake.model";
 import { type FileTicket, reserveSlots, ticketExpiry } from "./intake.slots";
 import type { IntakeMongo, PublicIntake } from "./intake.submit";
 import { stripControl } from "./intake.text";
 import { refreshIssueWaiting } from "./intake.waiting";
+import {
+  attachmentsOn,
+  type ClientReportDocument,
+  MAX_MESSAGE,
+  type WidgetKeyDocument,
+} from "./models";
 
 type MessageMongo = IntakeMongo & ModuleMongo<"issues">;
 

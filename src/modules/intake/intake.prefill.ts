@@ -1,11 +1,7 @@
 import { ConflictError } from "@softistx/mongo";
 import type { ModuleMongo } from "../../config/db";
 import type { IssuesService } from "../issues/public";
-import type {
-  ClientReportDocument,
-  ReportImpact,
-  ReportType,
-} from "./intake.model";
+import type { ClientReportDocument, ReportImpact, ReportType } from "./models";
 
 type PrefillMongo = ModuleMongo<"intake">;
 type IssueInput = Parameters<IssuesService["create"]>[0];

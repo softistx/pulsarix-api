@@ -9,7 +9,6 @@ import { journalOnIssue } from "../activity/public";
 import { reopenExpired, requestDeclined } from "./intake.errors";
 import { announceChanged } from "./intake.live";
 import { markIssue } from "./intake.markers";
-import type { ClientReportDocument } from "./intake.model";
 import { derivePublicState, mappedStateOf } from "./intake.publicstate";
 import {
   canReopenAt,
@@ -21,6 +20,7 @@ import type { Scope } from "./intake.requests.session";
 import type { IntakeMongo, PublicIntake } from "./intake.submit";
 import { ownedReport } from "./intake.thread";
 import { refreshIssueWaiting } from "./intake.waiting";
+import type { ClientReportDocument } from "./models";
 
 // "Mark as resolved" and "Reopen": the reporter settles their request.
 

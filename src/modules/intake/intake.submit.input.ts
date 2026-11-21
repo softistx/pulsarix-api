@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { type FieldIssue, invalid } from "../../core/shared/errors";
-import { reportImpact, reportLocale, reportType } from "./intake.model";
 import { stripControl } from "./intake.text";
+import { reportImpact, reportLocale, reportType } from "./models";
 
 // The fill time under which a form was not filled by a person (Q10).
 export const MIN_FILL_MS = 3_000;

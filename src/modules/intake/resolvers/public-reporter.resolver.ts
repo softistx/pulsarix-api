@@ -1,15 +1,15 @@
-import { type PublicContext, withIsoTickets } from "./intake.public.context";
 import {
   eraseMyData,
   markRequestRead,
   replyToRequest,
   setRequestEmails,
-} from "./intake.requests.actions";
-import { myRequests, type RequestFilter } from "./intake.requests.list";
-import { requestOf } from "./intake.requests.read";
-import { openSession } from "./intake.requests.session";
-import { reopenRequest, resolveRequest } from "./intake.requests.settle";
-import type { PublicIntake, Submitted } from "./intake.submit";
+} from "../intake.requests.actions";
+import { myRequests, type RequestFilter } from "../intake.requests.list";
+import { requestOf } from "../intake.requests.read";
+import { openSession } from "../intake.requests.session";
+import { reopenRequest, resolveRequest } from "../intake.requests.settle";
+import type { PublicIntake, Submitted } from "../intake.submit";
+import { type PublicContext, withIsoTickets } from "./support";
 
 // The resolvers of the widget's calls: the key in the arguments, the reporter
 // by their identity token (`openSession`).

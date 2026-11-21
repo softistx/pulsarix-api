@@ -46,10 +46,9 @@ const config: CodegenConfig = {
             "@/modules/notifications/notifications.model#NotificationDocument",
           NotificationConnection:
             "@/modules/notifications/services/notifications.service#NotificationPage",
-          WidgetKey: "@/modules/intake/intake.model#WidgetKeyDocument",
-          ClientReport: "@/modules/intake/intake.model#ClientReportDocument",
-          ClientReportFile:
-            "@/modules/intake/intake.model#ClientReportFileDocument",
+          WidgetKey: "@/modules/intake/models#WidgetKeyDocument",
+          ClientReport: "@/modules/intake/models#ClientReportDocument",
+          ClientReportFile: "@/modules/intake/models#ClientReportFileDocument",
           ClientReportConnection: "@/modules/intake/intake.reports#ReportPage",
           Dashboard: "@/modules/dashboard/services#DashboardParent",
           TimeSpent: "@/modules/time/time.model#TimeSpentParent",
