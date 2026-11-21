@@ -13,7 +13,7 @@
     "build:scripts": "bun build src/scripts/pdf-preview-check.ts src/scripts/bootstrap.ts --target=bun --root src/scripts --outdir=dist/scripts --minify --external @napi-rs/canvas --external pdfjs-dist",
     "start": "NODE_ENV=production bun dist/server.js",
     "schema:print": "bun src/scripts/schema-print.ts",
-    "schema:print:public": "bun src/scripts/public-schema-print.ts",
+    "schema:print:public": "bun scripts/public-schema-print.ts",
     "test": "bun test --timeout=15000",
     "test:affected": "bun src/scripts/affected-tests.ts",
     "typecheck": "bun check",

@@ -17,7 +17,7 @@ import { publicTypeDefs } from "@/modules/intake/intake.public.typedefs";
 // not depend on the formatting of the source, and the operations are written
 // in id order. With --check, writes nothing and exits 1 when a file is stale,
 // missing or left over, which `bun run verify` runs.
-const root = `${import.meta.dir}/../..`;
+const root = `${import.meta.dir}/..`;
 const schemaPath = `${root}/schema.public.graphql`;
 const operationsDir = `${root}/operations/public`;
 
