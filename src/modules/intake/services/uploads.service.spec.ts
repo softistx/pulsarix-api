@@ -18,8 +18,9 @@ import {
   startMediaS3,
 } from "~/media";
 import { tenancy } from "../../../config/db";
+import { QUARANTINE_BYTES } from "../rules/uploads.rules";
 import { signTicket, TICKET_HEADER } from "../utils/tickets.utils";
-import { QUARANTINE_BYTES, ReportUploads } from "./uploads.service";
+import { ReportUploads } from "./uploads.service";
 
 // The PUT route of the report files (A12), over a real S3 API: a ticket from
 // `submitClientReport`, the raw file as the body, and the quarantine behind it.

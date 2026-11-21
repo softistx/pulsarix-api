@@ -6,14 +6,11 @@ import {
 } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
 import intakeTypeDefs from "./graphql/intake.graphqls" with { type: "text" };
-import { followIssue } from "./services/closing.service";
 import { clientMessages } from "./intake.comments";
 import {
   announceIssueChange,
   announcePublicReply,
 } from "./intake.live.handlers";
-import { mailPublicReply, mailStateChange } from "./services/notify.service";
-import { clearClientWaiting } from "./services/waiting.service";
 import {
   clientReportFiles,
   clientReportMessages,
@@ -21,15 +18,18 @@ import {
   widgetKeys,
 } from "./models";
 import { intakeResolvers } from "./resolvers";
+import { followIssue } from "./services/closing.service";
+import { mailPublicReply, mailStateChange } from "./services/notify.service";
+import { clearClientWaiting } from "./services/waiting.service";
 
-// A report follows its issue to its end (intake.closing.ts).
+// A report follows its issue to its end (services/closing.service.ts).
 registerIssueChange(followIssue);
-// A public reply clears "the client is waiting" (intake.waiting.ts), and the
+// A public reply clears "the client is waiting" (services/waiting.service.ts), and the
 // reporters' messages read as `source: CLIENT` entries of the issue's comments
 // (intake.comments.ts).
 registerCommentChange(clearClientWaiting);
 registerCommentSource(clientMessages);
-// The reporters' e-mails (intake.notify.ts): a public reply or a move of the
+// The reporters' e-mails (services/notify.service.ts): a public reply or a move of the
 // issue schedules one batched e-mail. The reporters' live streams hear the team's replies and issue moves
 // (intake.live.handlers.ts).
 registerCommentChange(announcePublicReply);

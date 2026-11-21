@@ -14,9 +14,9 @@ import {
 } from "~/media";
 import { coreMongo, tenancy } from "../../../config/db";
 import { clientHeader } from "../../../http/csrf";
-import { purgeReportFiles } from "./files-retention.service";
 import { TRACKING_HEADER } from "../intake.http";
 import { TICKET_HEADER } from "../utils/tickets.utils";
+import { purgeReportFiles } from "./files-retention.service";
 
 // A13: the team reads a report's files (quarantined, then released), accept
 // and decline decide where they go, the reporter reads thumbnails of their own

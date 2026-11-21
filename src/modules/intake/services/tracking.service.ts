@@ -3,20 +3,20 @@ import { withoutMarkers } from "../../comments/public";
 import type { PublicState } from "../../projects/public";
 import { fileNotFound, reportNotFound } from "../intake.errors";
 import { TRACKING_FILES_PATH } from "../intake.http";
+import type {
+  ClientReportDocument,
+  ReportFileRole,
+  ReportState,
+} from "../models";
+import { declineReasonShown } from "../utils/reports.utils";
+import { parseTrackingToken } from "../utils/token.utils";
 import { publicStateOf } from "./public-state.service";
 import { detailOf, type RequestDetail } from "./requests-read.service";
 import type { Scope } from "./requests-session.service";
 import type { PublicIntake } from "./submit.service";
 import { publicFilter } from "./thread.service";
-import { parseTrackingToken } from "../utils/token.utils";
-import {
-  type ClientReportDocument,
-  declineReasonShown,
-  type ReportFileRole,
-  type ReportState,
-} from "../models";
 
-// The tracking page's reads (the public side of the intake, intake.submit.ts):
+// The tracking page's reads (the public side of the intake, services/submit.service.ts):
 // a report by its token, and the thumbnails of the reporter's own pictures.
 
 // A file the reporter attached, as the tracking page shows it: its name and
@@ -71,7 +71,7 @@ export async function reportOf(intake: PublicIntake, token: string) {
 }
 
 // The report a token opens, as the services of the reporter's side take it
-// (intake.requests.ts): the key it came in by and the organisation's database
+// (services/requests-*.service.ts): the key it came in by and the organisation's database
 // as the system. The reporter's handle is the report's own key, or, for a
 // report filed without identity, the report itself: it only keys the limits.
 // 404 for a token that is malformed, unknown or erased (one answer for all).

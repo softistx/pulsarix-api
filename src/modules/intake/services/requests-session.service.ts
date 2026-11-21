@@ -3,11 +3,11 @@ import {
   keyDisabled,
   originNotAllowed,
 } from "../intake.errors";
-import { type Identity, verifyIdentity } from "./identity.service";
+import type { WidgetKeyDocument } from "../models";
 import { originAllowed } from "../rules/origins.rules";
+import { type Identity, verifyIdentity } from "./identity.service";
 import type { Caller, IntakeMongo, PublicIntake } from "./submit.service";
 import type { Reporter } from "./thread.service";
-import type { WidgetKeyDocument } from "../models";
 
 // The reporter's side of the public endpoint (plan §19, A17): "My requests",
 // one request with its thread, a reply, "resolved", "reopen", the read mark,
@@ -18,7 +18,7 @@ import type { WidgetKeyDocument } from "../models";
 
 // What the services below need to know of who asks: the key the report came
 // in by, the organisation's database and the reporter's handle (the limits'
-// key). The tracking page's is made from its token (intake.tracking.actions.ts).
+// key). The tracking page's is made from its token (services/requests-session.service.ts).
 export interface Scope {
   key: WidgetKeyDocument;
   mongo: IntakeMongo;

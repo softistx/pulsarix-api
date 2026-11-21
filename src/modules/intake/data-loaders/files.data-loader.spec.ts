@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ObjectId } from "mongodb";
-import { intakeLoaders } from "./files.data-loader";
-import type { IntakeMongo } from "../services/reports.service";
+import type { IntakeMongo } from "../intake.types";
+import { filesLoader } from "./files.data-loader";
 
 function fake(rows: object[]) {
   const calls: Array<{ filter: Record<string, unknown> }> = [];
@@ -18,7 +18,7 @@ function fake(rows: object[]) {
   return { mongoOf: () => Promise.resolve(mongo), calls };
 }
 
-describe("intakeLoaders.files", () => {
+describe("filesLoader", () => {
   test("the files of N reports are one read, grouped per report", async () => {
     const [a, b, c] = [new ObjectId(), new ObjectId(), new ObjectId()];
     const rows = [
@@ -27,7 +27,7 @@ describe("intakeLoaders.files", () => {
       { reportId: a, name: "3" },
     ];
     const { mongoOf, calls } = fake(rows);
-    const { files } = intakeLoaders(mongoOf);
+    const files = filesLoader(mongoOf);
     const [first, second, third] = await Promise.all(
       [a, b, c].map((id) => files.load(id.toHexString())),
     );
@@ -41,7 +41,7 @@ describe("intakeLoaders.files", () => {
   });
 
   test("a rejected guard rejects every report of the batch", async () => {
-    const { files } = intakeLoaders(() => Promise.reject(new Error("no")));
+    const files = filesLoader(() => Promise.reject(new Error("no")));
     const results = await Promise.allSettled([
       files.load(new ObjectId().toHexString()),
       files.load(new ObjectId().toHexString()),

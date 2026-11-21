@@ -4,19 +4,15 @@ import { ObjectId } from "mongodb";
 import { codeOfBody, goodReport, type IntakeKit, intakeKit } from "~/intake";
 import { tenancy } from "../../../config/db";
 import { SYSTEM_ACTOR } from "../../../core/shared/actors";
-import { IDENTITY_HEADER } from "./identity.service";
-import {
-  MAIL_DELAY_MS,
-  type ReporterMailDeps,
-  type ReporterMailJob,
-  sendReporterMail,
-  unsubscribeSecret,
-  useReporterMailQueue,
-} from "./notify.service";
-import { eraseReport } from "./retention.service";
 import { serverTicketSecret } from "../intake.server";
-import type { IntakeMongo } from "./submit.service";
+import type { ReporterMailDeps, ReporterMailJob } from "../intake.types";
 import { UNSUBSCRIBE_PATH } from "../intake.unsubscribe";
+import { unsubscribeSecret } from "../utils/mail.utils";
+import { IDENTITY_HEADER } from "./identity.service";
+import { MAIL_DELAY_MS, useReporterMailQueue } from "./notify.service";
+import { sendReporterMail } from "./reporter-mail.service";
+import { eraseReport } from "./retention.service";
+import type { IntakeMongo } from "./submit.service";
 
 // A19: the reporter's e-mails, batched and one-click unsubscribable (plan §19).
 

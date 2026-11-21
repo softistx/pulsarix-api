@@ -95,7 +95,7 @@ async function secretWith(vars: Record<string, string | undefined>) {
     [
       process.execPath,
       "-e",
-      'import { serverTicketSecret } from "../src/modules/intake/intake.server"; console.log(serverTicketSecret()); process.exit(0)',
+      'import { serverTicketSecret } from "./src/modules/intake/intake.server"; console.log(serverTicketSecret()); process.exit(0)',
     ],
     { cwd: process.cwd(), env, stdout: "pipe", stderr: "ignore" },
   );

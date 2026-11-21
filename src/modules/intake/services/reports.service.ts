@@ -1,5 +1,5 @@
 import { OptimisticLockError } from "@softistx/mongo";
-import type { ModuleMongo } from "../../../config/db";
+import type { ObjectId } from "mongodb";
 import { runAfterCommit } from "../../../core/shared/after-commit";
 import { invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
@@ -9,24 +9,18 @@ import {
   issueNotFound,
 } from "../../issues/public";
 import { projectNotFound } from "../../projects/public";
-import { isSettled } from "./closing.service";
 import { reportDecided, reportNotFound } from "../intake.errors";
-import { releaseFiles } from "./files-team.service";
 import { announceChanged } from "../intake.live";
+import type { IntakeMongo, ReportPage } from "../intake.types";
+import type { ClientReportDocument, ReportState } from "../models";
+import { pageOf } from "../utils/reports.utils";
+import { isSettled } from "./closing.service";
+import { releaseFiles } from "./files-team.service";
 import { scheduleReporterMails } from "./notify.service";
 import { prefillOf } from "./prefill.service";
 import { refreshIssueWaiting } from "./waiting.service";
-import type { ClientReportDocument, ReportState } from "../models";
-
-export type IntakeMongo = ModuleMongo<"intake">;
 
 export const MAX_PAGE = 100;
-
-export interface ReportPage {
-  nodes: ClientReportDocument[];
-  endCursor: string | null;
-  hasNextPage: boolean;
-}
 
 // The inbox: the client reports of the organisation, for those who triage.
 // `issues` makes the issue an acceptance asks for, as the viewer.
@@ -70,14 +64,7 @@ export class ReportsService {
       sort: { _id: -1 },
       limit: limit + 1,
     });
-    const nodes = found.slice(0, limit);
-    const last = nodes.at(-1);
-    const hasNextPage = found.length > limit;
-    return {
-      nodes,
-      endCursor: hasNextPage && last ? last.id : null,
-      hasNextPage,
-    };
+    return pageOf(found, limit);
   }
 
   // The reporter's stream hears that their request was decided.
@@ -87,7 +74,7 @@ export class ReportsService {
     await runAfterCommit([
       announceChanged(this.options.organisationId ?? "", [report]),
       // A decline, an acceptance or a link may change the public state: the
-      // reporter's e-mail follows (intake.notify.ts).
+      // reporter's e-mail follows (services/notify.service.ts).
       scheduleReporterMails(this.options.organisationId ?? "", [report]),
     ]);
     return report;
@@ -154,19 +141,11 @@ export class ReportsService {
         ...(await prefillOf(this.mongo, report)),
       });
       created = true;
-      // The files go to the issue in place (intake.files.team.ts). The report
+      // The files go to the issue in place (services/files-team.service.ts). The report
       // is accepted whatever happens here: a release that fails is retried by
       // the files retention job (`releaseStranded`), not by the triager.
-      await (this.options.release ?? releaseFiles)(
-        this.mongo,
-        report._id,
-      ).catch((error) =>
-        (this.options.log ?? ((m, e) => console.warn(m, e)))(
-          "intake: releasing the files of an accepted report failed",
-          error,
-        ),
-      );
-      // `issueId` was set in the issue's own transaction (intake.closing.ts).
+      await this.release(report, "an accepted report");
+      // `issueId` was set in the issue's own transaction (services/closing.service.ts).
       return await this.byId(claimed._id.toHexString());
     } catch (error) {
       // Only a failed creation puts the report back to new.
@@ -204,7 +183,7 @@ export class ReportsService {
 
   // Accepts a new report into an issue that already exists (a duplicate): no
   // issue is made, the report points at the issue and follows it from then on
-  // (intake.closing.ts), and its files are released to it.
+  // (services/closing.service.ts), and its files are released to it.
   async link(id: string, issueId: string): Promise<ClientReportDocument> {
     return this.told(await this.linkReport(id, issueId));
   }
@@ -226,27 +205,37 @@ export class ReportsService {
       issueId: issue._id,
       linkedAt: new Date(),
     });
-    // The issue may already be settled: the report is then closed at once.
-    // Read again after the claim, so a change that committed meanwhile (which
-    // could not see the report yet) is not missed; a vanished issue is settled.
-    const fresh = await this.mongo.db.issues.findById(issue._id);
+    await this.settleLinked(report, issue._id);
+    await this.release(report, "a linked report");
+    return this.byId(id);
+  }
+
+  // The issue may already be settled: the report is then closed at once. Read
+  // again after the claim, so a change that committed meanwhile (which could
+  // not see the report yet) is not missed; a vanished issue is settled. A
+  // reporter who is waiting makes the issue wait.
+  private async settleLinked(report: ClientReportDocument, issueId: ObjectId) {
+    const fresh = await this.mongo.db.issues.findById(issueId);
     if (!fresh || (await isSettled(this.mongo, fresh))) {
       await this.mongo.db.clientReports.update(report._id, {
         state: "closed",
         closedAt: new Date(),
       });
     }
-    // A reporter who is waiting makes the issue wait.
     if (report.clientWaiting === true) {
-      await refreshIssueWaiting(this.mongo, issue._id);
+      await refreshIssueWaiting(this.mongo, issueId);
     }
+  }
+
+  // The report's files go to its issue; a release that fails is logged, never
+  // thrown (the files retention job retries it).
+  private async release(report: ClientReportDocument, what: string) {
     await (this.options.release ?? releaseFiles)(this.mongo, report._id).catch(
       (error) =>
         (this.options.log ?? ((m, e) => console.warn(m, e)))(
-          "intake: releasing the files of a linked report failed",
+          `intake: releasing the files of ${what} failed`,
           error,
         ),
     );
-    return this.byId(id);
   }
 }

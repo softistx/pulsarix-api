@@ -6,6 +6,7 @@ import { bucketKeys, startMediaS3 } from "~/media";
 import { tenancy } from "../../../config/db";
 import type { Media } from "../../attachments/public";
 import { IssuesService } from "../../issues/public";
+import type { ClientReportDocument } from "../models";
 import {
   DECLINED_FILES_DAYS,
   PENDING_SLOT_MINUTES,
@@ -13,9 +14,11 @@ import {
   purgeReportFiles,
   UNTRIAGED_FILES_DAYS,
 } from "./files-retention.service";
-import { fileObjectKeys, purgeOrganisationFiles } from "./files-storage.service";
+import {
+  fileObjectKeys,
+  purgeOrganisationFiles,
+} from "./files-storage.service";
 import { ReportsService } from "./reports.service";
-import type { ClientReportDocument } from "../models";
 
 const DAY = 86_400_000;
 const MINUTE = 60_000;

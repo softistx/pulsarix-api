@@ -13,17 +13,17 @@ import {
   reportNotFound,
   requestDeclined,
 } from "../intake.errors";
-import { checkFiles, type DeclaredFile } from "../rules/files-input.rules";
-import { type FileTicket, reserveSlots, ticketExpiry } from "./slots.service";
-import type { IntakeMongo, PublicIntake } from "./submit.service";
-import { stripControl } from "../utils/text.utils";
-import { refreshIssueWaiting } from "./waiting.service";
 import {
-  attachmentsOn,
   type ClientReportDocument,
   MAX_MESSAGE,
   type WidgetKeyDocument,
 } from "../models";
+import { checkFiles, type DeclaredFile } from "../rules/files-input.rules";
+import { attachmentsOn } from "../utils/attachments.utils";
+import { stripControl } from "../utils/text.utils";
+import { type FileTicket, reserveSlots, ticketExpiry } from "./slots.service";
+import type { IntakeMongo, PublicIntake } from "./submit.service";
+import { refreshIssueWaiting } from "./waiting.service";
 
 type MessageMongo = IntakeMongo & ModuleMongo<"issues">;
 

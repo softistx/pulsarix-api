@@ -5,10 +5,10 @@ import { exhausted, invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
 import { projectNotFound } from "../../projects/public";
 import { keyNotFound } from "../intake.errors";
-import { newIdentitySecret, sealIdentitySecret } from "./identity.service";
+import type { WidgetKeyDocument } from "../models";
 import { allowListOf } from "../rules/origins.rules";
 import { newPublicKey } from "../utils/token.utils";
-import type { WidgetKeyDocument } from "../models";
+import { newIdentitySecret, sealIdentitySecret } from "./identity.service";
 
 export type IntakeMongo = ModuleMongo<"intake">;
 

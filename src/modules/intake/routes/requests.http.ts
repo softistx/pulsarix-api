@@ -3,8 +3,8 @@ import { addressKey } from "../../../core/shared/address";
 import { localeOfRequest } from "../../../i18n/locale";
 import { originNotAllowed } from "../intake.errors";
 import { answerOf, corsHeaders, respond, secure } from "../intake.http";
-import { IDENTITY_HEADER } from "../services/identity.service";
 import { normaliseOrigin } from "../rules/origins.rules";
+import { IDENTITY_HEADER } from "../services/identity.service";
 import type { Caller, PublicIntake } from "../services/submit.service";
 
 // What the identified reporter's two GET routes share (plan §19, A17): the

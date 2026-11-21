@@ -1,5 +1,6 @@
 import { invalid } from "../../../core/shared/errors";
 import type { PublicState } from "../../projects/public";
+import type { ClientReportDocument } from "../models";
 import {
   type RequestSummary,
   reportsOf,
@@ -7,7 +8,6 @@ import {
 } from "./requests-read.service";
 import type { Session } from "./requests-session.service";
 import { publicStatesOf, unreadOf } from "./requests-state.service";
-import type { ClientReportDocument } from "../models";
 
 // What the reporter reads: the list of their requests, a page at a time.
 const DEFAULT_PAGE = 20;

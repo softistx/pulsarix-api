@@ -3,8 +3,9 @@ import { runAfterCommit } from "../../../core/shared/after-commit";
 import { exhausted } from "../../../core/shared/errors";
 import { retryWriteConflicts } from "../../../core/shared/locked";
 import { fileNotFound } from "../intake.errors";
-import type { DeclaredFile } from "../rules/files-input.rules";
 import { announceChanged } from "../intake.live";
+import type { ClientReportDocument } from "../models";
+import type { DeclaredFile } from "../rules/files-input.rules";
 import { postMessage } from "./messages.service";
 import { reportsOf } from "./requests-read.service";
 import type { Scope, Session } from "./requests-session.service";
@@ -13,7 +14,6 @@ import { eraseReport } from "./retention.service";
 import type { FileTicket } from "./slots.service";
 import type { PublicIntake } from "./submit.service";
 import { markRead, ownedReport } from "./thread.service";
-import type { ClientReportDocument } from "../models";
 
 // What the reporter does besides settling: reply, the read mark, the e-mail
 // switch, "delete my data" and the thumbnail read.
@@ -99,7 +99,7 @@ export async function setRequestEmails(
 }
 
 // "Delete my data": every request of the reporter under this key goes through
-// the shared eraser (intake.retention.ts). Once an hour: the hour is spent
+// the shared eraser (services/retention.service.ts). Once an hour: the hour is spent
 // after the erasure succeeded, so a failed one (a 5xx) can be retried at once.
 export async function eraseMyData(
   intake: PublicIntake,

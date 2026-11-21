@@ -8,6 +8,7 @@ import { retryWriteConflicts } from "../../../core/shared/locked";
 import { journalOnIssue } from "../../activity/public";
 import { reopenExpired, requestDeclined } from "../intake.errors";
 import { announceChanged } from "../intake.live";
+import type { ClientReportDocument } from "../models";
 import { markIssue } from "./markers.service";
 import { derivePublicState, mappedStateOf } from "./public-state.service";
 import {
@@ -20,7 +21,6 @@ import type { Scope } from "./requests-session.service";
 import type { IntakeMongo, PublicIntake } from "./submit.service";
 import { ownedReport } from "./thread.service";
 import { refreshIssueWaiting } from "./waiting.service";
-import type { ClientReportDocument } from "../models";
 
 // "Mark as resolved" and "Reopen": the reporter settles their request.
 

@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
 import {
   attachmentsDisabled,
-  fileTooLarge,
   keyDisabled,
   originNotAllowed,
   quarantineFull,
@@ -9,63 +8,17 @@ import {
   ticketInvalid,
   ticketUsed,
   unknownKey,
-  uploadMismatch,
 } from "../intake.errors";
-import { maxFileBytes } from "../intake.files.kinds";
-import { releaseFiles } from "./files-team.service";
+import type { Admission, Caller, IntakeMongo } from "../intake.types";
 import { originAllowed } from "../rules/origins.rules";
-import type { Caller, IntakeMongo, PublicIntake } from "./submit.service";
+import { checkAnnounced, QUARANTINE_BYTES } from "../rules/uploads.rules";
+import { attachmentsOn } from "../utils/attachments.utils";
 import { readTicket, type TicketClaims } from "../utils/tickets.utils";
-import { attachmentsOn, type ReportFileRole } from "../models";
+import { releaseFiles } from "./files-team.service";
+import type { PublicIntake } from "./submit.service";
 
-// How much an organisation's quarantine holds, pending slots included: the
-// bytes strangers can leave in one organisation's bucket before the team looks.
-export const QUARANTINE_BYTES = 512 * 1024 * 1024;
 // An upload takes its slot for this long; a failed one gives it back at once.
 const CLAIM_MS = 60_000;
-
-// The content type without its parameters, in lower case.
-const essenceOf = (type: string | null) =>
-  (type ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-
-// The bytes an organisation's quarantine holds now, pending slots included: a
-// sum over the `state, size` index (clientReportFiles_stateSize), which covers
-// the query without reading the documents.
-async function quarantineHeld(
-  files: IntakeMongo["db"]["clientReportFiles"],
-): Promise<number> {
-  const held = (await files.raw
-    .aggregate([
-      { $match: { state: { $in: ["pending", "quarantined"] } } },
-      { $group: { _id: null, bytes: { $sum: "$size" } } },
-    ])
-    .toArray()) as Array<{ bytes: number }>;
-  return held[0]?.bytes ?? 0;
-}
-
-// The announced type and length are the ticket's, exactly.
-function checkAnnounced(
-  claims: TicketClaims,
-  upload: { contentType: string | null; length: string | null },
-) {
-  if (essenceOf(upload.contentType) !== claims.type) throw uploadMismatch();
-  const declared = /^\d{1,10}$/.test(upload.length ?? "")
-    ? Number(upload.length)
-    : null;
-  if (declared === null) throw uploadMismatch();
-  if (declared > claims.size) throw fileTooLarge(maxFileBytes);
-  if (declared !== claims.size) throw uploadMismatch();
-}
-
-// What the PUT route knows once every check that needs no byte of the body
-// has passed.
-export interface Admission {
-  claims: TicketClaims;
-  decoy: boolean;
-  mongo: IntakeMongo | null;
-  projectId: string;
-  role: ReportFileRole | null;
-}
 
 // What one upload to a slot is allowed (plan §17, A12), in order: the address
 // (read limit), the ticket and its key (`authorise`), the announced type and
@@ -167,7 +120,7 @@ export class ReportUploads {
     // counted once. The sum and the claim below are two steps: concurrent PUTs
     // of different slots can each pass the check and overshoot the cap by the
     // files in flight; the cap is a bound on what is admitted, not a lock.
-    if ((await quarantineHeld(files)) > QUARANTINE_BYTES) {
+    if ((await this.quarantineHeld(files)) > QUARANTINE_BYTES) {
       throw quarantineFull();
     }
     const taken = await files.raw.findOneAndUpdate(
@@ -183,6 +136,21 @@ export class ReportUploads {
     );
     if (!taken) throw ticketUsed();
     return file.role;
+  }
+
+  // The bytes an organisation's quarantine holds now, pending slots included: a
+  // sum over the `state, size` index (clientReportFiles_stateSize), which covers
+  // the query without reading the documents.
+  private async quarantineHeld(
+    files: IntakeMongo["db"]["clientReportFiles"],
+  ): Promise<number> {
+    const held = (await files.raw
+      .aggregate([
+        { $match: { state: { $in: ["pending", "quarantined"] } } },
+        { $group: { _id: null, bytes: { $sum: "$size" } } },
+      ])
+      .toArray()) as Array<{ bytes: number }>;
+    return held[0]?.bytes ?? 0;
   }
 
   // The upload failed: the slot is free again until its deadline.
@@ -204,8 +172,26 @@ export class ReportUploads {
   ) {
     const { mongo, claims } = admission;
     if (!mongo) throw new Error("a decoy stores nothing");
-    // A file that arrives after its report was accepted is released at once
-    // (the report's files are on its issue).
+    await this.keep(mongo, claims, stored, dimensions);
+    // The report may have been accepted between the read in `keep` and the
+    // write: look again, so a file never stays quarantined on an accepted report.
+    const now = await mongo.db.clientReports.findById(
+      new ObjectId(claims.reportId),
+    );
+    if (now?.state === "accepted" || now?.state === "closed")
+      await releaseFiles(mongo, new ObjectId(claims.reportId));
+    this.intake.countUpload(new ObjectId(claims.keyId));
+    this.announce(admission);
+  }
+
+  // The slot becomes a quarantined file (released at once when its report was
+  // accepted meanwhile: the report's files are on its issue).
+  private async keep(
+    mongo: IntakeMongo,
+    claims: TicketClaims,
+    stored: { key: string; contentType: string; sizes: readonly string[] },
+    dimensions: { width: number; height: number } | undefined,
+  ) {
     const report = await mongo.db.clientReports.findById(
       new ObjectId(claims.reportId),
     );
@@ -234,29 +220,24 @@ export class ReportUploads {
       },
     );
     if (done.matchedCount === 0) throw ticketExpired();
-    // The report may have been accepted between the read above and the write:
-    // look again, so a file never stays quarantined on an accepted report.
-    const now = await mongo.db.clientReports.findById(
-      new ObjectId(claims.reportId),
-    );
-    if (now?.state === "accepted" || now?.state === "closed")
-      await releaseFiles(mongo, new ObjectId(claims.reportId));
+  }
+
+  // The inbox hears of the file. A reply's file reaches the team with its
+  // message, not as an inbox file.
+  private announce(admission: Admission) {
     const { intake } = this;
-    intake.countUpload(new ObjectId(claims.keyId));
+    const { claims, role } = admission;
     const publish = intake.deps.publishFile;
-    // A reply's file reaches the team with its message, not as an inbox file.
-    if (publish && admission.role && admission.role !== "reply") {
-      const role = admission.role;
-      intake.background(async () => {
-        await publish({
-          organisationId: claims.organisationId,
-          projectId: admission.projectId,
-          reportId: claims.reportId,
-          fileId: claims.slot,
-          role,
-          at: intake.now().toISOString(),
-        });
+    if (!publish || !role || role === "reply") return;
+    intake.background(async () => {
+      await publish({
+        organisationId: claims.organisationId,
+        projectId: admission.projectId,
+        reportId: claims.reportId,
+        fileId: claims.slot,
+        role,
+        at: intake.now().toISOString(),
       });
-    }
+    });
   }
 }

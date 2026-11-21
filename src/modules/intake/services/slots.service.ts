@@ -1,13 +1,13 @@
 import type { ObjectId } from "mongodb";
+import type { ReportFileRole, WidgetKeyDocument } from "../models";
 import type { CheckedFile } from "../rules/files-input.rules";
 import { newSlot } from "../rules/files-input.rules";
+import { signTicket } from "../utils/tickets.utils";
 import { PENDING_SLOT_MINUTES } from "./files-retention.service";
 import type { IntakeMongo } from "./submit.service";
-import { signTicket } from "../utils/tickets.utils";
-import type { ReportFileRole, WidgetKeyDocument } from "../models";
 
 // The upload tickets a report hands out (plan §17, A12): one per declared
-// file, signed (intake.tickets.ts), and, for a real report, one pending slot
+// file, signed (utils/tickets.utils.ts), and, for a real report, one pending slot
 // per file in the organisation's database.
 
 // One ticket per declared file, in the order declared: the widget PUTs the
@@ -53,7 +53,7 @@ export function ticketFor(
 }
 
 // A bot's tickets: signed like the others, naming slots nobody made; their
-// PUT stores nothing (intake.uploads.ts).
+// PUT stores nothing (services/uploads.service.ts).
 export function decoyTickets(
   secret: string,
   key: WidgetKeyDocument,

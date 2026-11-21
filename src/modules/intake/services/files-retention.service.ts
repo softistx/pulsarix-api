@@ -67,7 +67,7 @@ export async function purgeReportFiles(
     "pending",
   );
   // The files of a deleted issue: marked with a removal date by the issue's
-  // deletion (intake.closing.ts), removed with their objects once it passes.
+  // deletion (services/closing.service.ts), removed with their objects once it passes.
   await sweepFiles(
     run,
     {

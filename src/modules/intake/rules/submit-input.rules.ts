@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { type FieldIssue, invalid } from "../../../core/shared/errors";
-import { stripControl } from "../utils/text.utils";
 import { reportImpact, reportLocale, reportType } from "../models";
+import { stripControl } from "../utils/text.utils";
 
 // The fill time under which a form was not filled by a person (Q10).
 export const MIN_FILL_MS = 3_000;
@@ -49,6 +49,8 @@ export const submitInput = z.object({
 });
 
 export type SubmitInput = z.input<typeof submitInput>;
+// What the input parses to.
+export type SubmittedReport = z.output<typeof submitInput>;
 
 // The zod issues as the API's field refusals.
 export function refused(error: z.ZodError): never {

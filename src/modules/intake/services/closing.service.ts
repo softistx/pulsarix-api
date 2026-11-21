@@ -25,7 +25,7 @@ export async function followIssue(
   change: IssueChange,
 ): Promise<undefined> {
   // The issue and the report's pointer to it are written together: a created
-  // issue always has its report's `issueId` set (accepting a report, intake.reports.ts).
+  // issue always has its report's `issueId` set (accepting a report, services/reports.service.ts).
   if (change.verb === "created") {
     const reportId = change.issue.clientReportId;
     if (reportId) {

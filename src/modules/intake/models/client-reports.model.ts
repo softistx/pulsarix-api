@@ -68,7 +68,7 @@ export const clientReports = defineCollection({
     // the tracking page's toggle; the e-mails are A19). Reports stored before
     // A17 lack it: read `emailsOff === true`.
     emailsOff: z.boolean().default(false),
-    // The reporter's e-mails (A19, intake.notify.ts): the tracking token,
+    // The reporter's e-mails (A19, services/notify.service.ts): the tracking token,
     // sealed (the later mails link to the tracking page; null for a report
     // made before A19, whose mails carry no link), the moment up to which the
     // team's public replies were mailed, and the public state the last mail
@@ -121,10 +121,3 @@ export const clientReports = defineCollection({
   ],
 });
 export type ClientReportDocument = ReadDocumentOf<typeof clientReports>;
-
-// The decline reason a reporter may read: only a reason the team wrote knowing
-// it is shown.
-export const declineReasonShown = (report: {
-  declineReason: string | null;
-  declineReasonPublic?: boolean | undefined;
-}) => (report.declineReasonPublic === true ? report.declineReason : null);

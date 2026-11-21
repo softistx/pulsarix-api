@@ -6,7 +6,6 @@ import { tenancy } from "../../../config/db";
 import { SYSTEM_ACTOR } from "../../../core/shared/actors";
 import { derivePublicState } from "./public-state.service";
 import { ReportsService } from "./reports.service";
-import { publicStateLoaderOf } from "./requests-state.service";
 import type { IntakeMongo } from "./submit.service";
 
 // A15: public states, links, impact and type (plan §19).
@@ -557,50 +556,5 @@ describe("type labels", () => {
       input: { projectId: kit.project.id, name: "BUG", colour: "#112233" },
     });
     expect(codeOf(taken)).toBe("projects.errors.label-name-taken");
-  });
-});
-
-describe("public state loader", () => {
-  test("reads the issues and the statuses once for every report asked in a tick", async () => {
-    const kit = await intakeKit();
-    const ids = [await send(kit), await send(kit), await send(kit)];
-    for (const id of ids) await accept(kit, id);
-    const real = (await tenancy.databaseOf(kit.organisation.id)).as(
-      SYSTEM_ACTOR,
-    ) as unknown as IntakeMongo;
-    const reads = { issues: 0, statuses: 0 };
-    const counted = (name: "issues" | "statuses") =>
-      new Proxy(real.db[name], {
-        get(target, property) {
-          const value = Reflect.get(target, property, target);
-          if (typeof value !== "function") return value;
-          return (...given: unknown[]) => {
-            if (property === "findMany" || property === "findById") {
-              reads[name]++;
-            }
-            return value.apply(target, given);
-          };
-        },
-      });
-    const mongo = new Proxy(real, {
-      get(target, property) {
-        if (property === "db") {
-          return new Proxy(target.db, {
-            get: (db, name) =>
-              name === "issues" || name === "statuses"
-                ? counted(name)
-                : Reflect.get(db, name, db),
-          });
-        }
-        const value = Reflect.get(target, property, target);
-        return typeof value === "function" ? value.bind(target) : value;
-      },
-    });
-    const docs = await real.db.clientReports.findMany({ limit: 10 });
-    expect(docs).toHaveLength(3);
-    const load = publicStateLoaderOf({}, mongo);
-    const states = await Promise.all(docs.map((doc) => load(doc)));
-    expect(states).toEqual(["received", "received", "received"]);
-    expect(reads).toEqual({ issues: 1, statuses: 1 });
   });
 });

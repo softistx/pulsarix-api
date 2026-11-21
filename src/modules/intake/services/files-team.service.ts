@@ -3,13 +3,13 @@ import type { ModuleMongo } from "../../../config/db";
 import { idOrInvalid } from "../../../core/shared/ids";
 import { issueNotFound } from "../../issues/public";
 import { fileKindName, pdfSize, previewSize } from "../intake.files.kinds";
-import type { IntakeMongo } from "./reports.service";
+import type { IntakeMongo } from "../intake.types";
 import type { ClientReportFileDocument } from "../models";
 
 // What the team reads of a report's files (A13). A file is listed once its
 // bytes are stored: `quarantined` until its report is decided, `released` once
 // the report is accepted. A declined report's files stay quarantined until the
-// purge (intake.files.retention.ts).
+// purge (services/files-retention.service.ts).
 const STORED = ["quarantined", "released"] as const;
 
 // The routes of the bytes (intake.files.read.ts), relative to the API. The

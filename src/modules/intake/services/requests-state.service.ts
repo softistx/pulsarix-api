@@ -1,8 +1,8 @@
 import type { ObjectId } from "mongodb";
 import { type PublicState, publicStateOfStatus } from "../../projects/public";
+import type { ClientReportDocument } from "../models";
 import { derivePublicState } from "./public-state.service";
 import type { IntakeMongo } from "./submit.service";
-import type { ClientReportDocument } from "../models";
 
 // The public state and the unread count of many reports at once (plan §19):
 // the lists of "My requests" and the live stream read them for a whole
@@ -53,46 +53,6 @@ export async function publicStatesOf(
       ),
     ]),
   );
-}
-
-// A per-request loader for one report's public state: the calls made in the
-// same tick (one per report of a list) share one batched read.
-type StateLoader = (report: ClientReportDocument) => Promise<PublicState>;
-const loaders = new WeakMap<object, StateLoader>();
-
-export function publicStateLoaderOf(
-  key: object,
-  mongo: IntakeMongo,
-): StateLoader {
-  const known = loaders.get(key);
-  if (known) return known;
-  let queue: {
-    report: ClientReportDocument;
-    resolve: (state: PublicState) => void;
-    reject: (error: unknown) => void;
-  }[] = [];
-  const flush = async () => {
-    const batch = queue;
-    queue = [];
-    try {
-      const states = await publicStatesOf(
-        mongo,
-        batch.map((entry) => entry.report),
-      );
-      for (const { report, resolve } of batch) {
-        resolve(states.get(report.id) ?? "received");
-      }
-    } catch (error) {
-      for (const { reject } of batch) reject(error);
-    }
-  };
-  const load: StateLoader = (report) =>
-    new Promise((resolve, reject) => {
-      if (queue.length === 0) setTimeout(flush, 0);
-      queue.push({ report, resolve, reject });
-    });
-  loaders.set(key, load);
-  return load;
 }
 
 // The team's public replies each report has not read: those after its read

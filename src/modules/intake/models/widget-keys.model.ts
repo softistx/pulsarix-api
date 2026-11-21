@@ -22,11 +22,6 @@ export const origin = z.string().min(8).max(200);
 // `active` is the admin's "disable key" switch (the key answers `enabled:
 // false`); `revokedAt` retires the key for good (it answers like an unknown
 // one). `lastUsedAt` is kept to the minute.
-// Keys stored before the file fields existed lack them: the mongo layer applies
-// no schema default on read, so every reader goes through these.
-export const attachmentsOn = (key: { attachmentsEnabled?: boolean }) =>
-  key.attachmentsEnabled !== false;
-
 export const widgetKeys = defineCollection({
   name: "widgetKeys",
   schema: z.object({
@@ -41,11 +36,11 @@ export const widgetKeys = defineCollection({
     attachmentsEnabled: z.boolean().default(true),
     // Counters of the key's file traffic (A13), shown on the key's page:
     // files stored, and refusals by reason (the code's slug, from a closed list:
-    // intake.counters.ts). Raw `$inc`s: they do not touch `version`.
+    // services/submit.service.ts). Raw `$inc`s: they do not touch `version`.
     uploads: z.number().int().min(0).default(0),
     refusals: z.record(z.string(), z.number().int().min(0)).default({}),
     // The secret the host signs identity tokens with (plan §19): sealed with
-    // the application's sealing keys, bound to the key's id (intake.identity.ts),
+    // the application's sealing keys, bound to the key's id (services/identity.service.ts),
     // never returned after it was shown once. Null until generated; keys stored
     // before widget v3 lack both fields.
     identitySecret: z.string().min(1).nullable().default(null),

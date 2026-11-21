@@ -1,14 +1,15 @@
 import type { ObjectId } from "mongodb";
 import type { PublicState } from "../../projects/public";
 import { REQUEST_FILES_PATH } from "../intake.http";
+import type { ClientReportDocument } from "../models";
+import { declineReasonShown } from "../utils/reports.utils";
 import type { Scope } from "./requests-session.service";
 import { publicStatesOf, unreadOf } from "./requests-state.service";
 import type { PublicIntake } from "./submit.service";
 import { ownedReport, readThread } from "./thread.service";
-import { type ClientReportDocument, declineReasonShown } from "../models";
 
 // What the reporter reads: one request with its thread (the list of their
-// requests is in intake.requests.list.ts).
+// requests is in services/requests-list.service.ts).
 
 // Reopening a resolved request is possible for 30 days after it was resolved.
 export const REOPEN_DAYS = 30;

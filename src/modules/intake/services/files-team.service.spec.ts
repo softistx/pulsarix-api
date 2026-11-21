@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ObjectId } from "mongodb";
+import type { IntakeMongo } from "../intake.types";
 import { pendingCountsOf } from "./files-team.service";
-import type { IntakeMongo } from "./reports.service";
 
 // `pendingCountsOf` over a fake collection whose `aggregate` is a spy.
 function fake(rows: Array<{ _id: ObjectId; count: number }>, fail?: Error) {

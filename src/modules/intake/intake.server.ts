@@ -6,13 +6,14 @@ import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
 import type { Media } from "../attachments/public";
 import { purgeAllReportFiles } from "./services/files-retention.service";
-import { sendReporterMail, unsubscribeSecret } from "./services/notify.service";
+import { sendReporterMail } from "./services/reporter-mail.service";
 import { eraseAll } from "./services/retention.service";
 import {
   type IntakeDeps,
   type IntakeLimits,
   PublicIntake,
 } from "./services/submit.service";
+import { unsubscribeSecret } from "./utils/mail.utils";
 
 // The key the upload tickets are signed with: INTAKE_TICKET_SECRET, else a
 // key derived from API_PROXY_SECRET (always set in production), else a fixed
