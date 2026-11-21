@@ -23,7 +23,7 @@ export const kindName = "attachments";
 export const thumbnailSide = 256;
 export const previewSize = String(thumbnailSide);
 
-// What the guard of attachments.routes.ts adds to the context of a /media
+// What the guard of routes/guard.routes.ts adds to the context of a /media
 // request, after the CSRF header, the Bearer token and the permission: the
 // organisation's scope, and for an upload the owner it names.
 export interface MediaAccess {

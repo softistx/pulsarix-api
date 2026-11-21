@@ -1,5 +1,5 @@
 import { defineMiddleware } from "@softistx/alxia";
-import { type Access, can, requirePermission } from "../../../core/access";
+import { can, requirePermission } from "../../../core/access";
 import { fail, invalid } from "../../../core/shared/errors";
 import type { Viewer } from "../../../http/context";
 import { clientHeader } from "../../../http/csrf";
@@ -68,7 +68,7 @@ export function mediaGuard(deps: MediaDeps) {
         const call = {
           request,
           viewer,
-          access: deps.access as Access,
+          access: deps.access,
           scope: deps.scopeOf(request, viewer),
         };
         const writing = request.method === "PUT";
