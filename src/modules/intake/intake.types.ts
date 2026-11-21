@@ -4,7 +4,7 @@ import type { AppTenancy, CoreMongo, ModuleMongo } from "../../config/db";
 import type { Locale } from "../../i18n/locale";
 import type { IntakeLimits, Limiter } from "./intake.limits.types";
 import type { ClientReportDocument, ReportFileRole } from "./models";
-import type { FileTicket } from "./services/slots.service";
+import type { FileTicket } from "./services";
 import type { TicketClaims } from "./utils/tickets.utils";
 
 export interface ReportReceived {

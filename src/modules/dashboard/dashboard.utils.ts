@@ -1,5 +1,7 @@
 import { ObjectId } from "mongodb";
 import { invalid } from "../../core/shared/errors";
+import type { ProjectDocument, StatusDocument } from "../projects/public";
+import type { Base, FigureRow } from "./dashboard.types";
 
 // 1 when the issue has a due date before `start` (the start of today), else 0.
 // A missing or null date is never late.
@@ -87,3 +89,28 @@ export const after = ([late, level, updated, id]: Cursor) => {
     ],
   };
 };
+
+// The projects by name.
+export const byName = (projects: ProjectDocument[]) =>
+  [...projects].sort((a, b) => a.name.localeCompare(b.name));
+
+// The base of a dashboard from its projects and their statuses: the open
+// statuses are the ones not done and not cancelled, the triage ones among them.
+export function baseOf(
+  projects: ProjectDocument[],
+  list: StatusDocument[],
+): Base {
+  const open = list.filter(
+    (s) => s.category !== "done" && s.category !== "cancelled",
+  );
+  return {
+    projects,
+    statuses: new Map(list.map((s) => [s.id, s])),
+    openIds: open.map((s) => s._id),
+    triageIds: open.filter((s) => s.category === "triage").map((s) => s._id),
+  };
+}
+
+// The figure rows by project id.
+export const rowsById = (rows: FigureRow[]) =>
+  new Map(rows.map((row) => [row._id.toHexString(), row]));

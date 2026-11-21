@@ -1,24 +1,9 @@
-import { requirePermission } from "../../core/access";
-import type { Context } from "../../http/context";
-import { LabelsService, ProjectsService, StatusesService } from "./services";
+// The order a project's statuses and labels are listed in: statuses by their
+// `order`, labels by name, case-insensitively. The services' `list` and the
+// per-request loaders share it, so both give the same sequence.
+export const STATUSES_ORDER = { sort: { order: 1 } } as const;
 
-// The services of the request's organisation, once the guard let the viewer in.
-async function scoped(
-  ctx: Context,
-  permission: "project:read" | "project:manage",
-) {
-  const { mongo, tenant } = await requirePermission(ctx, permission);
-  return {
-    projects: new ProjectsService(
-      mongo,
-      async (accountId) =>
-        (await ctx.services.roleOf(tenant._id.toHexString(), accountId)) !==
-        null,
-    ),
-    statuses: new StatusesService(mongo),
-    labels: new LabelsService(mongo),
-  };
-}
-
-export const reader = (ctx: Context) => scoped(ctx, "project:read");
-export const manager = (ctx: Context) => scoped(ctx, "project:manage");
+export const LABELS_ORDER = {
+  sort: { name: 1 },
+  collation: { locale: "en", strength: 2 },
+} as const;

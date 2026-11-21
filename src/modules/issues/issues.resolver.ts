@@ -1,7 +1,7 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requireViewer } from "../../core/access";
 import { listIssues } from "./issues.query";
-import { scoped } from "./utils";
+import { scoped } from "./issues.resolver-support";
 
 export const issuesResolvers: Resolvers = {
   Query: {

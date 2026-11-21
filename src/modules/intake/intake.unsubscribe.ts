@@ -6,7 +6,7 @@ import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { localeOfRequest } from "../../i18n/locale";
 import { escapeHtml } from "../../mail/escape";
 import { secure } from "./intake.http";
-import type { IntakeMongo } from "./services/submit.service";
+import type { IntakeMongo } from "./services";
 
 // The one-click unsubscribe of the reporter's e-mails (plan §19, A19). The
 // link in each e-mail is `<UI origin>/public/unsubscribe/<org>.<report>.<mac>`:

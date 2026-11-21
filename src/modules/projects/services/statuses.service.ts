@@ -22,8 +22,8 @@ import {
   defaultPublicState,
   publicStateOfStatus,
 } from "../projects.model";
-import { STATUSES_ORDER } from "../projects.search";
 import { type ProjectsMongo, statusIsUsed } from "../projects.usage";
+import { STATUSES_ORDER } from "../projects.utils";
 
 export interface CreateStatusInput {
   projectId: string;

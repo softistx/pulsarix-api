@@ -46,13 +46,16 @@ describe("pendingLoader", () => {
     expect(counts).toEqual([2, 1, 0]);
   });
 
-  test("a report asked twice in a request is read once", async () => {
+  test("a report asked twice in a tick is read once, and again later", async () => {
     const id = new ObjectId().toHexString();
     const { mongoOf, calls } = fake(new Map([[id, 3]]));
     const loader = pendingLoader(mongoOf);
     const counts = await Promise.all([loader.load(id), loader.load(id)]);
     expect(counts).toEqual([3, 3]);
     expect(calls).toHaveLength(1);
+    expect(calls[0]?.[0]?.$match.reportId.$in).toHaveLength(1);
+    await loader.load(id);
+    expect(calls).toHaveLength(2);
   });
 
   test("a rejected guard rejects every report of the batch", async () => {

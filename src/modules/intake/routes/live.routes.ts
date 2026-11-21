@@ -8,16 +8,14 @@ import {
   respond,
   secure,
 } from "../intake.http";
-import { verifyIdentity } from "../services/identity.service";
+import type { Caller, PublicIntake } from "../services";
 import {
   openLedger,
-  type RequestUpdate,
-} from "../services/requests-live.service";
-import {
   openSession,
+  type RequestUpdate,
   type Session,
-} from "../services/requests-session.service";
-import type { Caller, PublicIntake } from "../services/submit.service";
+  verifyIdentity,
+} from "../services";
 import { callerOf, keyOf, preflight, refusal } from "./requests.http";
 
 // Open streams per reporter: more would be a script, not a person's tabs.

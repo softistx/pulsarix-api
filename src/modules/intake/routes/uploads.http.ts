@@ -4,7 +4,7 @@ import { clientHeader } from "../../../http/csrf";
 import { originNotAllowed } from "../intake.errors";
 import { answerOf, corsHeaders, respond, secure } from "../intake.http";
 import { normaliseOrigin } from "../rules/origins.rules";
-import type { PublicIntake } from "../services/submit.service";
+import type { PublicIntake } from "../services";
 import { TICKET_HEADER } from "../utils/tickets.utils";
 
 // What the upload route answers when it refuses: the failure of a PUT, the

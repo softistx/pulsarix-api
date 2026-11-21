@@ -9,9 +9,8 @@ import {
   respond,
   secure,
 } from "../intake.http";
-import { thumbnailOf } from "../services/requests-actions.service";
-import { openSession } from "../services/requests-session.service";
-import type { PublicIntake } from "../services/submit.service";
+import type { PublicIntake } from "../services";
+import { openSession, thumbnailOf } from "../services";
 import { callerOf, keyOf, preflight, refusal } from "./requests.http";
 
 // GET /public/requests/files/<fileId>?key=...: the 256 px thumbnail of one of

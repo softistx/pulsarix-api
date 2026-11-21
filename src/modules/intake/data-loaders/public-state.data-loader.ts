@@ -2,7 +2,7 @@ import DataLoader from "dataloader";
 import type { PublicState } from "../../projects/public";
 import type { IntakeMongo } from "../intake.types";
 import type { ClientReportDocument } from "../models";
-import { publicStatesOf } from "../services/requests-state.service";
+import { publicStatesOf } from "../services";
 
 // The public state of each report, per request: the reports resolved in the
 // same tick (one per report of a list) share one read of the issues and one of

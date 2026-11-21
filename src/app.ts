@@ -33,7 +33,7 @@ import { publicRoutes } from "./modules/intake/routes/public-graphql.routes";
 import { requestFileRoutes } from "./modules/intake/routes/requests.routes";
 import { trackingFileRoutes } from "./modules/intake/routes/tracking.routes";
 import { uploadRoutes } from "./modules/intake/routes/uploads.routes";
-import type { PublicIntake } from "./modules/intake/services/submit.service";
+import type { PublicIntake } from "./modules/intake/services";
 import { unsubscribeSecret } from "./modules/intake/utils/mail.utils";
 import { modules } from "./modules/registry";
 import {

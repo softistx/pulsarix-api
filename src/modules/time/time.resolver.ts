@@ -2,7 +2,8 @@ import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requireViewer } from "../../core/access";
 import { dataLoaders } from "../data-loaders";
 import type { TimeSpentView } from "./services";
-import { isOnIssue, scoped } from "./utils";
+import { scoped } from "./time.resolver-support";
+import { isOnIssue } from "./utils";
 
 export const timeResolvers: Resolvers = {
   Query: {
