@@ -5,8 +5,9 @@
  * caller: nothing else in the repository drives the stack.
  */
 
-import { existsSync, statSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { $ } from "bun";
 
 export const DEPLOY_DIR = dirname(new URL(import.meta.url).pathname);
@@ -25,6 +26,24 @@ export function flagValue(args: string[], name: string): string | undefined {
 export function fail(message: string): never {
   console.error(`error: ${message}`);
   process.exit(1);
+}
+
+/**
+ * Makes the npm read token (`NPM_SOFTISTX_READ_TOKEN`, it reads @softistx on npmjs)
+ * available to the builds: the environment's value, else the host's secrets file.
+ * Never fails and never prints the token: unset only warns, since installs work
+ * while the packages are public (softistx/plugins#233). Call it before loadStack
+ * (which copies the environment) and before any install.
+ */
+export function ensureReadToken(): void {
+  if (process.env["NPM_SOFTISTX_READ_TOKEN"]) return;
+  const file = join(homedir(), ".config/secrets/npm-sofistx-read-token");
+  const token = existsSync(file) ? readFileSync(file, "utf8").trim() : "";
+  if (token) process.env["NPM_SOFTISTX_READ_TOKEN"] = token;
+  else
+    console.warn(
+      "warning: NPM_SOFTISTX_READ_TOKEN unset: @softistx installs work only while the packages are public (plugins#233)",
+    );
 }
 
 /** Refuses a missing env file, or one anybody but the owner can read. */

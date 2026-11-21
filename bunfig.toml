@@ -1,2 +1,7 @@
 [test]
 preload = ["./test/setup.ts"]
+
+# Reads @softistx from npmjs with the read-only token (softistx/plugins#233);
+# Bun omits the token when the variable is unset.
+[install.scopes]
+"@softistx" = { url = "https://registry.npmjs.org", token = "$NPM_SOFTISTX_READ_TOKEN" }

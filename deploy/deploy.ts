@@ -51,6 +51,7 @@ import { $ } from "bun";
 import {
   API_ROOT,
   DEPLOY_DIR,
+  ensureReadToken,
   fail,
   flagValue,
   loadStack,
@@ -143,6 +144,9 @@ if (args.includes("--dry-run")) {
   process.exit(0);
 }
 
+// The images' `bun install` reads @softistx from npmjs with this token (a BuildKit
+// secret of the compose file): set before loadStack copies the environment.
+ensureReadToken();
 const stack = await loadStack(args);
 
 const problems = envProblems(stack.values, { backup: options.backup });
@@ -302,6 +306,7 @@ async function deployWidget(): Promise<void> {
   }
 
   if (!existsSync(root)) fail(`no widget checkout at ${root}`);
+  ensureReadToken();
   if (options.noPull) step("skip", "git pull (--no-pull)");
   else {
     const out = (await $`git pull --ff-only`.cwd(root).text())
