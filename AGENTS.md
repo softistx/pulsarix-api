@@ -14,3 +14,47 @@ This file states only what is pulsarix-api's own.
 - Error texts (`src/i18n/texts.ts`, English and French) live in code, not in core-database
   migrations as operix's D9/D10 have them: a deliberate departure. There is no migrations
   framework in v1, and the texts change with the code that raises them.
+
+## Modules
+
+A module is a folder `src/modules/<name>/`, its files named `<name>.<role>.ts` (the alxia layout of
+schoolz-api's AGENTS.md "Modules"). `src/core/` follows it too.
+
+| File | Holds |
+| --- | --- |
+| `<name>.graphqls` | the module's SDL |
+| `<name>.model.ts` | the `@softistx/mongo` collection: Zod schema, indexes, stamps |
+| `<name>.service.ts` (`services/` when several) | the business rules; with the data-loader files, the only code that reads or writes a model |
+| `<name>.resolver.ts` (`resolvers/` when several) | thin: guard, then call the service |
+| `<name>.data-loader.ts` (`data-loaders/` when several) | the module's DataLoaders, each with its spec |
+| `<name>.errors.ts` | its refusals and its codes |
+| `<name>.utils.ts` (`utils/` when several, with a barrel) | its helper functions: not a business rule, no collection access |
+| `<name>.rules.ts` | its pure rules: input checks and computations, no storage |
+| `<name>.archived.ts`, `.usage.ts`, `.lock.ts`, `.query.ts`, `.validation.ts`, `.kinds.ts` | pulsarix's own roles: what an archive refuses, the usage counts, the lock documents, the query builders, the input checks, the kinds a module declares |
+| `<name>.routes.ts` (`routes/` when several), `<name>.http.ts` | the REST routes of the transport below, and their paths and shared HTTP pieces |
+| `module.ts` | the `defineModule` declaration the registry lists |
+| `public.ts` | what other modules may import from this one (the only entry point across modules) |
+
+- **Flat or folders**: a role with one file stays flat at the module's root; once it has several
+  files they go in a folder named after the role, with an `index.ts` barrel (except `graphql/`).
+  Inside a module imports are relative; `@/…` is for other modules.
+- **Sizes**: a file stays under 250 lines, a function under 80, a service method under 50.
+  Past it, split by concern.
+- **No helper function at the top level of a service, a resolver or a data-loader**: such a file
+  holds its role; a small helper goes to the module's `<name>.utils.ts` (or rules, errors) with
+  its spec. What stays is what reads or writes a model. Top-level `const` data may stay.
+- **Never `== null` or `!= null`**: test `=== undefined` or `=== null` as the type says.
+- **A helper used by several modules** goes to `src/core/shared` and is never copied.
+- **Specs** (D1): a module's specs are GraphQL specs through the app, placed beside their service
+  as `services/<x>.service.spec.ts` (`<name>.service.spec.ts` when flat). No unit spec is
+  required for a service; rules, utils and data-loaders keep their own specs.
+
+## Transport
+
+- GraphQL on `/graphql` is the team's transport. The widget's public surface is
+  `/public/graphql` plus these `/public/*` routes, the only others: `/public/media/report-files`,
+  `/public/live/requests`, `/public/tracking/files`, `/public/requests/files` and
+  `/public/unsubscribe` (intake). Any other REST route is a departure to argue in the PR.
+- Media goes through `@softistx/alxia-media`: keys in the schema, files over a private bucket.
+- `Attachment.url` and `ClientReportFile.url` are deliberate same-origin `/media/<kind>/<key>`
+  paths served by the API, not bucket URLs (D4).
