@@ -114,10 +114,12 @@ export class WidgetKeysService {
         ...(input.allowedOrigins && {
           allowedOrigins: allowListOf(input.allowedOrigins),
         }),
-        ...(input.active != null && { active: input.active }),
-        ...(input.attachmentsEnabled != null && {
-          attachmentsEnabled: input.attachmentsEnabled,
-        }),
+        ...(input.active !== undefined &&
+          input.active !== null && { active: input.active }),
+        ...(input.attachmentsEnabled !== undefined &&
+          input.attachmentsEnabled !== null && {
+            attachmentsEnabled: input.attachmentsEnabled,
+          }),
         version: current.version,
       });
     } catch (error) {

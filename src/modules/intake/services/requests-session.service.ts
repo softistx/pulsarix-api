@@ -46,7 +46,8 @@ export async function openSession(
   }
   caller.originGranted = true;
   if (!key.active) throw keyDisabled();
-  if (caller.identity == null) throw identityInvalid();
+  if (caller.identity === undefined || caller.identity === null)
+    throw identityInvalid();
   const identity = verifyIdentity(caller.identity, key, intake.now());
   const reporter: Reporter = {
     keyId: key._id,

@@ -62,6 +62,15 @@ describe("publicStateLoader", () => {
     expect(states).toEqual(["inProgress", "resolved", "received"]);
   });
 
+  test("a later load of the same report reads again, never the memoised state", async () => {
+    const { mongoOf, reads, report, open } = fake();
+    const loader = publicStateLoader(mongoOf);
+    const same = report(open);
+    await loader.load(same);
+    await loader.load(same);
+    expect(reads).toEqual({ issues: 2, statuses: 2 });
+  });
+
   test("a rejected guard rejects every report of the batch", async () => {
     const { report } = fake();
     const loader = publicStateLoader(() => Promise.reject(new Error("no")));

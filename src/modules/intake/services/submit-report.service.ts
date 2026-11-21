@@ -1,9 +1,8 @@
 import { ObjectId } from "mongodb";
-import { attachmentsDisabled, keyDisabled, tooFast } from "../intake.errors";
-import { trackingMail } from "../intake.mail";
+import { keyDisabled, tooFast } from "../intake.errors";
 import type { Caller, Submitted } from "../intake.types";
 import type { ClientReportDocument, WidgetKeyDocument } from "../models";
-import { type CheckedFile, checkFiles } from "../rules/files-input.rules";
+import type { CheckedFile } from "../rules/files-input.rules";
 import {
   checkMetadata,
   MIN_FILL_MS,
@@ -12,63 +11,16 @@ import {
   type SubmittedReport,
   submitInput,
 } from "../rules/submit-input.rules";
-import { attachmentsOn } from "../utils/attachments.utils";
 import { newReportFields, reporterEmailOf } from "../utils/reports.utils";
-import { emailDigest, newTrackingToken } from "../utils/token.utils";
+import {
+  checkedFilesOf,
+  limitReporter,
+  mailTracking,
+} from "../utils/submit.utils";
+import { newTrackingToken } from "../utils/token.utils";
 import { identifyCaller, sealTrackingToken } from "./identity.service";
 import { decoyTickets, reserveSlots, ticketExpiry } from "./slots.service";
 import type { PublicIntake } from "./submit.service";
-
-// Every declared file is checked before anything is made (plan §17, A12); a
-// refusal is counted on the key (A13).
-function checkedFilesOf(
-  intake: PublicIntake,
-  key: WidgetKeyDocument,
-  declared: SubmitInput["files"],
-): CheckedFile[] {
-  const files = declared ?? [];
-  try {
-    if (files.length > 0 && !attachmentsOn(key)) throw attachmentsDisabled();
-    return checkFiles(files);
-  } catch (error) {
-    intake.countRefusal(key._id, error);
-    throw error;
-  }
-}
-
-async function limitReporter(
-  intake: PublicIntake,
-  key: WidgetKeyDocument,
-  email: string | null,
-) {
-  if (email) {
-    await intake.limit((l) => l.intakeEmail, { digest: emailDigest(email) });
-  }
-  await intake.limit((l) => l.intakeOrganisation, {
-    organisationId: key.organisationId.toHexString(),
-  });
-}
-
-// The e-mail that tells the reporter where to follow the report.
-function mailTracking(
-  intake: PublicIntake,
-  created: ClientReportDocument,
-  email: string,
-  token: string,
-  projectName: string,
-) {
-  intake.background(async () => {
-    await intake.deps.mailer.send({
-      from: intake.deps.from,
-      to: { name: email, address: email },
-      ...trackingMail({
-        locale: created.locale,
-        projectName,
-        link: `${intake.deps.uiOrigin}/track/${token}`,
-      }),
-    });
-  });
-}
 
 // The report, its tickets and what follows it (the live event, the e-mail).
 async function fileReport(

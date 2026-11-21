@@ -199,7 +199,8 @@ export class ReportUploads {
     // carries a removal date at once, so the retention job purges it.
     const orphaned =
       report?.state === "closed" &&
-      report.issueId != null &&
+      report.issueId !== undefined &&
+      report.issueId !== null &&
       !(await mongo.db.issues.findById(report.issueId));
     const done = await mongo.db.clientReportFiles.raw.updateOne(
       { _id: new ObjectId(claims.slot), state: "pending" },

@@ -34,7 +34,7 @@ export class ViewerService {
     if (issues.length > 0) throw invalid(issues);
     const patch: { name?: string; locale?: "en" | "fr" } = {};
     if (name) patch.name = name;
-    if (input.language != null) {
+    if (input.language !== undefined && input.language !== null) {
       patch.locale = input.language === "EN" ? "en" : "fr";
     }
     if (Object.keys(patch).length === 0) return this.viewer;

@@ -110,7 +110,8 @@ export class TimeTracking {
         date: input.date,
         durationSeconds: input.durationSeconds,
         ...(input.description && { description: input.description }),
-        ...(input.billable != null && { billable: input.billable }),
+        ...(input.billable !== undefined &&
+          input.billable !== null && { billable: input.billable }),
       });
       return loggedOf(entry);
     } catch (error) {
