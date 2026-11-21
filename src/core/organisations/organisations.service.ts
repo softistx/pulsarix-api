@@ -20,28 +20,7 @@ import {
   timeZone,
 } from "./organisations.model";
 import { provisionOrganisation } from "./organisations.provision";
-
-// Organisations by name, then id, as the switcher lists them.
-const byName = (a: OrganisationDocument, b: OrganisationDocument) =>
-  a.name.localeCompare(b.name) ||
-  a._id.toHexString().localeCompare(b._id.toHexString());
-
-// "North Star Ltd." -> "north-star-ltd": lower case, accents dropped, anything
-// else a hyphen. A name that gives nothing usable (only symbols, or the shape
-// of an id) gets a random tail so it still has an address.
-export function slugOf(name: string) {
-  const slug = name
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 63)
-    .replace(/-+$/, "");
-  return organisationSlug.safeParse(slug).success
-    ? slug
-    : `org-${crypto.randomUUID().slice(0, 8)}`;
-}
+import { byName, slugOf } from "./organisations.utils";
 
 // The organisation registry, in the core database, and the creation of an
 // organisation with its database.

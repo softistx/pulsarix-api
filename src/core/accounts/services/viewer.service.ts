@@ -1,10 +1,10 @@
 import { JanusError } from "@softistx/janus";
-import type { Locale } from "../../i18n/locale";
-import type { Auth } from "../auth";
-import { requireFresh } from "../auth/fresh";
-import { type Viewer, viewerOf } from "../auth/viewer";
-import { invalid, required } from "../shared/errors";
-import { authCall } from "./accounts.errors";
+import type { Locale } from "../../../i18n/locale";
+import type { Auth } from "../../auth";
+import { requireFresh } from "../../auth/fresh";
+import { type Viewer, viewerOf } from "../../auth/viewer";
+import { invalid, required } from "../../shared/errors";
+import { authCall } from "../accounts.errors";
 
 // What the signed-in account does to itself: its name and language, its
 // password, its second factor, a step-up. Built for the request's viewer (a

@@ -1,4 +1,5 @@
 import type { Session } from "@softistx/janus";
+import { isLocale, type Locale } from "../../i18n/locale";
 import { type Viewer, viewerOf } from "../auth/viewer";
 
 export type Account = Parameters<typeof viewerOf>[0];
@@ -46,3 +47,9 @@ export function signedIn(
         challenge: { token: answer.challenge, expiresAt: answer.expiresAt },
       };
 }
+
+// The account's stored language when it has one, else the request's.
+export const accountLocale = (
+  user: { locale?: string | null | undefined },
+  fallback: Locale,
+): Locale => (isLocale(user.locale) ? user.locale : fallback);

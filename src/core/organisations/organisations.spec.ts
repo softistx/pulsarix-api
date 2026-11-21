@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { authApp, ownerWithOrganisation, signedUp } from "~/auth";
 import { codeOf } from "~/http";
 import { coreMongo } from "../../config/db";
-import { slugOf } from "./organisations.service";
+import { slugOf } from "./organisations.utils";
 
 const kit = authApp();
 

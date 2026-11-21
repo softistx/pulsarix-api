@@ -7,5 +7,4 @@ export {
   sessionOf,
   signedIn,
 } from "./accounts.utils";
-export { SignInService } from "./sign-in.service";
-export { ViewerService } from "./viewer.service";
+export { SignInService, ViewerService } from "./services";
