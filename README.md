@@ -49,6 +49,9 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 - The reporter's e-mail (A19), the queue `intakeReporterMail`: a team reply or a change of the request's public state queues one job per report, which sends one e-mail after a 10-minute window, so three replies in ten minutes are one mail. An identified reporter reads the replies in the mail and lands on the page they filed from, linked only when its origin is one of the key's allowed origins; an unidentified one gets the tracking link. An identified report is mailed only to the address its identity token vouches for (the form's address is ignored; a token without an `email` claim means no mail). Each mail carries an unsubscribe link, `GET|POST /public/unsubscribe/<org>.<report>.<mac>`, served on the UI hostname through Traefik's `/public/` rule (one click sets `emailsOff` on every request of that reporter under the key); the `List-Unsubscribe` header is sent only when the UI origin is https. The link's secret is derived from `INTAKE_TICKET_SECRET` (else from `API_PROXY_SECRET`): rotating it voids the links already sent.
 - `bun run schema:print` writes `schema.graphql`, the committed contract the UI generates
   its client from.
+- `bun run schema:print:public` writes `schema.public.graphql` (the `/public/graphql` schema) and
+  `operations/public/<id>.graphql` (one document per persisted operation, in id order): the committed
+  contract the widget's type-only codegen reads from a sibling checkout.
 
 ## Deployment
 
@@ -58,7 +61,7 @@ The plan is [../docs/plan.md](../docs/plan.md) (slices A0 to A10); the vocabular
 
 ## Checks
 
-`bun run verify` is the green bar: generate, `schema:print --check`, `biome ci`,
+`bun run verify` is the green bar: generate, `schema:print --check`, `schema:print:public --check`, `biome ci`,
 `context:check`, `bun check`, `bun test`, production build. The specs need no Docker: they
 start an in-memory MongoDB replica set (`test/setup.ts`). CI runs `bun run verify:pr` (the same steps, with only the specs a diff affects) on pull
 requests into `develop`. Layout: `src/core/` (kernel), `src/modules/` (business
