@@ -5,10 +5,10 @@ import type { ProjectsMongo } from "./projects.usage";
 
 // Fake collections whose `findMany` is a spy over fixed rows.
 function fake(statuses: object[], labels: object[]) {
-  const calls: Record<string, unknown[]> = { statuses: [], labels: [] };
-  const collection = (name: string, rows: object[]) => ({
+  const calls = { statuses: [] as unknown[], labels: [] as unknown[] };
+  const collection = (name: "statuses" | "labels", rows: object[]) => ({
     findMany: (query: unknown) => {
-      calls[name]?.push(query);
+      calls[name].push(query);
       return Promise.resolve(rows);
     },
   });
