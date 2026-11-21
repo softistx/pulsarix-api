@@ -25,7 +25,7 @@ import {
   type Limiter,
   PublicIntake,
   type ReportReceived,
-} from "../src/modules/intake/intake.submit";
+} from "../src/modules/intake/services/submit.service";
 import { authApp, ownerWithOrganisation, uiOrigin } from "./auth";
 
 // A rate limit that counts up to the production limit and then refuses, with a

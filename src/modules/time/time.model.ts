@@ -4,7 +4,7 @@ import { actors } from "../../core/shared/actors";
 
 // The organisation's chronix link, ONE document (`_id` "main") in the
 // organisation's database. `sealedKey` is the link key sealed with the
-// application's keys (time.seal.ts); it never leaves the API. Time itself
+// application's keys (utils/seal.utils.ts); it never leaves the API. Time itself
 // (entries, totals) is chronix's: pulsarix stores none.
 export const timeLinks = defineCollection({
   name: "timeLinks",

@@ -12,8 +12,8 @@ import {
 } from "../attachments/public";
 import { fileNotFound } from "./intake.errors";
 import { fileKindName, pdfSize, previewSize } from "./intake.files.kinds";
-import { reportFilesRoutes } from "./intake.files.routes";
 import { respond } from "./intake.http";
+import { reportFilesRoutes } from "./routes/files.routes";
 
 const SIZES = ["full", pdfSize, previewSize] as const;
 type Size = (typeof SIZES)[number];

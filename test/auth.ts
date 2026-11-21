@@ -10,8 +10,8 @@ import { createApp } from "../src/app";
 import { coreMongo } from "../src/config/db";
 import { createAuth } from "../src/core/auth";
 import type { KernelLimits } from "../src/core/shared/limits";
-import type { Media } from "../src/modules/attachments/attachments.storage";
-import type { PublicIntake } from "../src/modules/intake/intake.submit";
+import type { Media } from "../src/modules/attachments/attachments.store";
+import type { PublicIntake } from "../src/modules/intake/services/submit.service";
 import type { ChronixLinkFactory } from "../src/modules/time/chronix.client";
 import { type Http, http } from "./http";
 

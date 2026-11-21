@@ -5,7 +5,7 @@ import { registerLabelRemoval, registerStatusUsage } from "../projects/public";
 import issuesTypeDefs from "./issues.graphqls" with { type: "text" };
 import { issueCounters, issues } from "./issues.model";
 import { issuesResolvers } from "./issues.resolver";
-import type { IssuesMongo } from "./issues.service";
+import type { IssuesMongo } from "./issues.types";
 
 // The projects module calls these inside its own transactions; the handle it
 // passes is the organisation's database, which holds the issues as well.

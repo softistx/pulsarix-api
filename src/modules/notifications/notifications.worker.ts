@@ -3,8 +3,8 @@ import { coreMongo, tenancy } from "../../config/db";
 import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
-import { type DigestDeps, sendDigest } from "./notifications.digest";
-import type { NotificationsMongo } from "./notifications.service";
+import type { NotificationsMongo } from "./services";
+import { type DigestDeps, sendDigest } from "./services";
 
 // The digest's reach into the running server: the organisation databases
 // through the process's tenancy store, the accounts and memberships through

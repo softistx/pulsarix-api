@@ -2,8 +2,9 @@ import { InvalidCursorError, toObjectId } from "@softistx/mongo";
 import type { ObjectId } from "mongodb";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
+import { escapeRegex } from "../../core/shared/regex";
 import type { IssueDocument, Priority } from "./issues.model";
-import type { IssuesMongo } from "./issues.service";
+import type { IssuesMongo } from "./issues.types";
 
 export interface IssueFilter {
   statusIds?: string[] | null;
@@ -58,8 +59,6 @@ export interface IssuePage {
 }
 
 const MAX_PAGE = 100;
-const escapeRegex = (text: string) =>
-  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const ids = (given: string[], path: string): ObjectId[] =>
   given.map((id) => idOrInvalid(id, path));

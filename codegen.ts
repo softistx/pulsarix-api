@@ -41,18 +41,16 @@ const config: CodegenConfig = {
           Attachment:
             "@/modules/attachments/attachments.model#AttachmentDocument",
           Activity: "@/modules/activity/activity.model#ActivityDocument",
-          ActivityConnection:
-            "@/modules/activity/activity.service#ActivityPage",
+          ActivityConnection: "@/modules/activity/services#ActivityPage",
           Notification:
             "@/modules/notifications/notifications.model#NotificationDocument",
           NotificationConnection:
-            "@/modules/notifications/notifications.service#NotificationPage",
-          WidgetKey: "@/modules/intake/intake.model#WidgetKeyDocument",
-          ClientReport: "@/modules/intake/intake.model#ClientReportDocument",
-          ClientReportFile:
-            "@/modules/intake/intake.model#ClientReportFileDocument",
-          ClientReportConnection: "@/modules/intake/intake.reports#ReportPage",
-          Dashboard: "@/modules/dashboard/dashboard.base#DashboardParent",
+            "@/modules/notifications/services/notifications.service#NotificationPage",
+          WidgetKey: "@/modules/intake/models#WidgetKeyDocument",
+          ClientReport: "@/modules/intake/models#ClientReportDocument",
+          ClientReportFile: "@/modules/intake/models#ClientReportFileDocument",
+          ClientReportConnection: "@/modules/intake/intake.types#ReportPage",
+          Dashboard: "@/modules/dashboard/services#DashboardParent",
           TimeSpent: "@/modules/time/time.model#TimeSpentParent",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",

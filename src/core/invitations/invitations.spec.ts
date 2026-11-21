@@ -29,22 +29,45 @@ const ChangeRole = `mutation($id: ID!, $role: Role!) {
   changeMemberRole(id: $id, role: $role) { id role }
 }`;
 
-describe("sign-up, invite, accept, role change", () => {
-  test("the whole onboarding flow", async () => {
-    // Sign-up, then an organisation: the account owns it.
-    const { owner, organisation } = await ownerWithOrganisation(kit);
-    const asOwner = kit.client(owner.token, { organisation: organisation.id });
-    expect(
-      (await asOwner.call<{ members: { role: string }[] }>(Members)).members,
-    ).toMatchObject([{ role: "owner", isViewer: true }]);
+async function invitePerson() {
+  // Sign-up, then an organisation: the account owns it. The owner invites a
+  // person who has no account yet.
+  const { owner, organisation } = await ownerWithOrganisation(kit);
+  const asOwner = kit.client(owner.token, { organisation: organisation.id });
+  expect(
+    (await asOwner.call<{ members: { role: string }[] }>(Members)).members,
+  ).toMatchObject([{ role: "owner", isViewer: true }]);
+  const email = uniqueEmail("grace");
+  const invited = await asOwner.call<{
+    inviteMember: { id: string; status: string };
+  }>(Invite, { input: { email, name: "Grace Hopper", role: "member" } });
+  expect(invited.inviteMember.status).toBe("PENDING");
+  return {
+    asOwner,
+    email,
+    organisationId: organisation.id,
+    token: tokenSent(kit, email, "invitation"),
+  };
+}
 
-    // The owner invites a person who has no account yet.
-    const email = uniqueEmail("grace");
-    const invited = await asOwner.call<{
-      inviteMember: { id: string; status: string };
-    }>(Invite, { input: { email, name: "Grace Hopper", role: "member" } });
-    expect(invited.inviteMember.status).toBe("PENDING");
-    const token = tokenSent(kit, email, "invitation");
+async function acceptedMember() {
+  const invite = await invitePerson();
+  const accepted = await kit.client().call<{
+    acceptInvitation: {
+      signIn: { session: { token: string; viewer: { id: string } } };
+    };
+  }>(Accept, { token: invite.token, password: specPassword });
+  const session = accepted.acceptInvitation.signIn.session;
+  return {
+    ...invite,
+    grace: session.viewer,
+    asGrace: kit.client(session.token, { organisation: invite.organisationId }),
+  };
+}
+
+describe("sign-up, invite, accept, role change", () => {
+  test("an invited person accepts once and is signed in", async () => {
+    const { asOwner, email, token } = await invitePerson();
 
     // The mail is in English by default and carries the organisation's name.
     const mail = kit.outbox.sent.findLast((sent) =>
@@ -59,15 +82,13 @@ describe("sign-up, invite, accept, role change", () => {
     const accepted = await anonymous.call<{
       acceptInvitation: {
         linked: boolean;
-        signIn: {
-          status: string;
-          session: { token: string; viewer: { id: string; name: string } };
-        };
+        signIn: { session: { viewer: { name: string } } };
       };
     }>(Accept, { token, password: specPassword });
     expect(accepted.acceptInvitation.linked).toBe(false);
-    const grace = accepted.acceptInvitation.signIn.session;
-    expect(grace.viewer.name).toBe("Grace Hopper");
+    expect(accepted.acceptInvitation.signIn.session.viewer.name).toBe(
+      "Grace Hopper",
+    );
 
     // The token is spent.
     expect(
@@ -75,9 +96,15 @@ describe("sign-up, invite, accept, role change", () => {
         await anonymous.attempt(Accept, { token, password: specPassword }),
       ),
     ).toBe("invitations.errors.invalid");
+    expect(
+      (await asOwner.call<{ members: unknown[] }>(Members)).members,
+    ).toHaveLength(2);
+  });
 
-    // The new member sees the organisation as a member, and cannot manage.
-    const asGrace = kit.client(grace.token, { organisation: organisation.id });
+  test("a new member cannot manage, and a role change shows at once", async () => {
+    const { asOwner, asGrace, grace, organisationId } = await acceptedMember();
+    expect(organisationId).toBeString();
+
     const seen = await asGrace.call<{
       members: { email: string; role: string }[];
     }>(Members);
@@ -94,20 +121,14 @@ describe("sign-up, invite, accept, role change", () => {
     ).toBe("auth.errors.forbidden");
     expect(
       codeOf(
-        await asGrace.attempt(ChangeRole, {
-          id: grace.viewer.id,
-          role: "admin",
-        }),
+        await asGrace.attempt(ChangeRole, { id: grace.id, role: "admin" }),
       ),
     ).toBe("auth.errors.forbidden");
 
     // The owner changes the role; the change shows at once.
     const changed = await asOwner.call<{ changeMemberRole: { role: string } }>(
       ChangeRole,
-      {
-        id: grace.viewer.id,
-        role: "admin",
-      },
+      { id: grace.id, role: "admin" },
     );
     expect(changed.changeMemberRole.role).toBe("admin");
     const permissions = await asGrace.call<{

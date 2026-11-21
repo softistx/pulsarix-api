@@ -4,8 +4,8 @@ import notificationsTypeDefs from "./notifications.graphqls" with {
   type: "text",
 };
 import { notifications } from "./notifications.model";
-import { recordNotifications } from "./notifications.record";
 import { notificationsResolvers } from "./notifications.resolver";
+import { recordNotifications } from "./services";
 
 // Every journalled change is turned into notifications inside the transaction
 // that wrote it (notifications.rules.ts decides who is told).

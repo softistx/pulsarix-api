@@ -20,24 +20,21 @@ import { type Base, type BaseOptions, createBase } from "./http/context";
 import { clientHeader } from "./http/csrf";
 import { graphqlPlugins } from "./http/graphql-plugins";
 import { schema } from "./http/schema";
-import { mediaPipeline } from "./modules/attachments/attachments.routes";
-import {
-  type Media,
-  useMedia,
-} from "./modules/attachments/attachments.storage";
+import { type Media, useMedia } from "./modules/attachments/attachments.store";
+import { mediaPipeline } from "./modules/attachments/routes";
 import { reportFilesReadRoutes } from "./modules/intake/intake.files.read";
-import { liveRequestRoutes } from "./modules/intake/intake.live.routes";
-import { unsubscribeSecret } from "./modules/intake/intake.notify";
-import { requestFileRoutes } from "./modules/intake/intake.requests.routes";
-import { publicRoutes } from "./modules/intake/intake.routes";
 import {
   serverIntake,
   serverTicketSecret,
 } from "./modules/intake/intake.server";
-import type { PublicIntake } from "./modules/intake/intake.submit";
-import { trackingFileRoutes } from "./modules/intake/intake.tracking.routes";
 import { unsubscribeRoutes } from "./modules/intake/intake.unsubscribe";
-import { uploadRoutes } from "./modules/intake/intake.uploads.routes";
+import { liveRequestRoutes } from "./modules/intake/routes/live.routes";
+import { publicRoutes } from "./modules/intake/routes/public-graphql.routes";
+import { requestFileRoutes } from "./modules/intake/routes/requests.routes";
+import { trackingFileRoutes } from "./modules/intake/routes/tracking.routes";
+import { uploadRoutes } from "./modules/intake/routes/uploads.routes";
+import type { PublicIntake } from "./modules/intake/services/submit.service";
+import { unsubscribeSecret } from "./modules/intake/utils/mail.utils";
 import { modules } from "./modules/registry";
 import {
   type ChronixLinkFactory,

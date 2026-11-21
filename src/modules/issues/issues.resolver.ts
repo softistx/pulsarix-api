@@ -1,28 +1,7 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { requirePermission, requireViewer } from "../../core/access";
-import type { Context } from "../../http/context";
+import { requireViewer } from "../../core/access";
 import { listIssues } from "./issues.query";
-import { IssuesService } from "./issues.service";
-
-type Permission = "issue:read" | "issue:write" | "issue:delete";
-
-// The service of the request's organisation, once the guard let the viewer in.
-async function scoped(ctx: Context, permission: Permission) {
-  const { mongo, tenant } = await requirePermission(ctx, permission);
-  const viewerId = requireViewer(ctx).id;
-  return {
-    viewerId,
-    mongo,
-    issues: new IssuesService(
-      mongo,
-      async (accountId) =>
-        (await ctx.services.roleOf(tenant._id.toHexString(), accountId)) !==
-        null,
-      viewerId,
-      tenant._id.toHexString(),
-    ),
-  };
-}
+import { scoped } from "./utils";
 
 export const issuesResolvers: Resolvers = {
   Query: {

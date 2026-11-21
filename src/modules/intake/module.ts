@@ -5,27 +5,31 @@ import {
   registerCommentSource,
 } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
-import { followIssue } from "./intake.closing";
+import intakeTypeDefs from "./graphql/intake.graphqls" with { type: "text" };
 import { clientMessages } from "./intake.comments";
-import intakeTypeDefs from "./intake.graphqls" with { type: "text" };
 import {
   announceIssueChange,
   announcePublicReply,
 } from "./intake.live.handlers";
-import { clientReportMessages } from "./intake.messages.model";
-import { clientReportFiles, clientReports, widgetKeys } from "./intake.model";
-import { mailPublicReply, mailStateChange } from "./intake.notify";
-import { intakeResolvers } from "./intake.resolver";
-import { clearClientWaiting } from "./intake.waiting";
+import {
+  clientReportFiles,
+  clientReportMessages,
+  clientReports,
+  widgetKeys,
+} from "./models";
+import { intakeResolvers } from "./resolvers";
+import { followIssue } from "./services/closing.service";
+import { mailPublicReply, mailStateChange } from "./services/notify.service";
+import { clearClientWaiting } from "./services/waiting.service";
 
-// A report follows its issue to its end (intake.closing.ts).
+// A report follows its issue to its end (services/closing.service.ts).
 registerIssueChange(followIssue);
-// A public reply clears "the client is waiting" (intake.waiting.ts), and the
+// A public reply clears "the client is waiting" (services/waiting.service.ts), and the
 // reporters' messages read as `source: CLIENT` entries of the issue's comments
 // (intake.comments.ts).
 registerCommentChange(clearClientWaiting);
 registerCommentSource(clientMessages);
-// The reporters' e-mails (intake.notify.ts): a public reply or a move of the
+// The reporters' e-mails (services/notify.service.ts): a public reply or a move of the
 // issue schedules one batched e-mail. The reporters' live streams hear the team's replies and issue moves
 // (intake.live.handlers.ts).
 registerCommentChange(announcePublicReply);
@@ -35,7 +39,7 @@ registerIssueChange(mailStateChange);
 
 // The intake: widget keys with their allowed origins (core database), the
 // client reports they bring in (organisation database), the team's inbox with
-// accept and decline, and the public side (src/modules/intake/intake.routes.ts,
+// accept and decline, and the public side (routes/public-graphql.routes.ts,
 // mounted by src/app.ts at /public/graphql, which is not part of /graphql).
 export const intakeModule = defineModule({
   name: "intake",

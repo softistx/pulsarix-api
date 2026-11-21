@@ -17,7 +17,7 @@ import {
 import type { CommentDocument } from "./comments.model";
 import { type CommentEntry, mergedEntries } from "./comments.sources";
 import { type CommentChange, commentChanged } from "./comments.usage";
-import { mentionedIds } from "./mentions";
+import { mentionedIds } from "./comments.utils";
 
 export type CommentsMongo = ModuleMongo<"comments">;
 
@@ -182,24 +182,36 @@ export class CommentsService {
 
   // A field left out stays as it is. A changed body is checked again.
   async edit(id: string, input: EditCommentInput): Promise<CommentDocument> {
-    if (input.body == null && input.public == null) {
+    if (
+      (input.body === undefined || input.body === null) &&
+      (input.public === undefined || input.public === null)
+    ) {
       throw invalid([{ path: "body", code: "validation.errors.required" }]);
     }
     const current = await this.changeable(id);
-    if (input.public != null && current.authorId !== this.viewerId) {
+    if (
+      input.public !== undefined &&
+      input.public !== null &&
+      current.authorId !== this.viewerId
+    ) {
       throw publicAuthorOnly();
     }
     const resolved =
-      input.body != null && input.body.trim() !== current.body
+      input.body !== undefined &&
+      input.body !== null &&
+      input.body.trim() !== current.body
         ? await this.resolve(input.body)
         : null;
     return this.write(async (tx, changed) => {
       await this.writable(tx, current.issueId);
       const edited = await tx.db.comments.update(current._id, {
         ...resolved,
-        ...(input.public != null && { public: input.public }),
+        ...(input.public !== undefined &&
+          input.public !== null && { public: input.public }),
         ...((resolved ||
-          (input.public != null && input.public !== current.public)) && {
+          (input.public !== undefined &&
+            input.public !== null &&
+            input.public !== current.public)) && {
           editedAt: new Date(),
         }),
       });
