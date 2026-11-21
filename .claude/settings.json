@@ -1,0 +1,9 @@
+{
+  "extraKnownMarketplaces": {
+    "softistx": {
+      "source": { "source": "github", "repo": "softistx/plugins" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": { "alxia-graphql-api@softistx": true }
+}
