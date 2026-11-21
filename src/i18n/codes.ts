@@ -1,4 +1,4 @@
-import { codesOf } from "@alxia/modules";
+import { codesOf } from "@softistx/alxia-modules";
 import { modules } from "../modules/registry";
 import { defineCodes } from "./define-codes";
 
@@ -22,7 +22,7 @@ export const auth = defineCodes("auth", [
 ]);
 
 // Which organisation a request is about: the header, the registry, the slug.
-// @alxia/tenancy fixes these three codes, American spelling included.
+// @softistx/alxia-tenancy fixes these three codes, American spelling included.
 export const tenancy = defineCodes("tenancy", [
   "organization-required",
   "unknown-organization",

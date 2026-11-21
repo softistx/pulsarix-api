@@ -1,4 +1,4 @@
-import type { Tenant, TenantRegistry } from "@alxia/tenancy";
+import type { Tenant, TenantRegistry } from "@softistx/alxia-tenancy";
 import type { CoreMongo } from "../../config/db";
 
 type Registry = CoreMongo["db"]["organisations"];

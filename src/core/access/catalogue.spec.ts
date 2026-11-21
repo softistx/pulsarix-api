@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { modules } from "../../modules/registry";
 import { accessOf } from "./catalogue";
 import { roles } from "./roles";

@@ -1,6 +1,6 @@
-import { alxia, defineMiddleware } from "@alxia/core";
-import type { GraphQLContext } from "@alxia/graphql";
-import type { ViewerMemberships } from "@alxia/tenancy";
+import { alxia, defineMiddleware } from "@softistx/alxia";
+import type { GraphQLContext } from "@softistx/alxia-graphql";
+import type { ViewerMemberships } from "@softistx/alxia-tenancy";
 import { StoreFailure } from "@softistx/janus";
 import type { AppTenancy } from "../config/db";
 import { env } from "../config/env";
@@ -71,7 +71,7 @@ export interface BaseOptions {
 
 export type Base = ReturnType<typeof createBase>;
 
-// The request's scope as a resolver gets it (@alxia/tenancy): the `tenant`
+// The request's scope as a resolver gets it (@softistx/alxia-tenancy): the `tenant`
 // (the organisation), `mongo` (its database as the viewer), `core` (the core
 // database) and `member` (the viewer's role there).
 export type ScopedRequestScope = Awaited<ReturnType<AppTenancy["scope"]>>;

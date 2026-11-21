@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dbOf } from "@alxia/tenancy";
+import { dbOf } from "@softistx/alxia-tenancy";
 import { syncCoreAtBoot, syncCoreDatabase } from "./core-sync";
 import { coreMongo } from "./db";
 

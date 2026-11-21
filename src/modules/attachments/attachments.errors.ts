@@ -1,4 +1,4 @@
-import type { MediaRefusal } from "@alxia/media";
+import type { MediaRefusal } from "@softistx/alxia-media";
 import { fail } from "../../core/shared/errors";
 
 // The file is over the size limit: `max` is the limit in MB for the bytes
@@ -33,7 +33,7 @@ export const attachmentNotFound = () =>
 export const unavailable = () =>
   fail("attachments.errors.unavailable", { status: 503 });
 
-// A refusal of @alxia/media as the API's error, so a client reads an upload
+// A refusal of @softistx/alxia-media as the API's error, so a client reads an upload
 // refusal like a GraphQL one. `undefined` for the package's transport
 // refusals (`stalled`, `interrupted`, ...), which keep its own body.
 export function refusalFailure(

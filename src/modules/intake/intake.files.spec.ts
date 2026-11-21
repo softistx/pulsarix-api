@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { alxia } from "@alxia/core";
+import { alxia } from "@softistx/alxia";
 import type { TestS3 } from "@softistx/s3/testing";
 import {
   bucketKeys,

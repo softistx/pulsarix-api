@@ -1,4 +1,4 @@
-import { alxia } from "@alxia/core";
+import { alxia } from "@softistx/alxia";
 import { GraphQLError, graphql } from "graphql";
 import { addressKey } from "../../core/shared/address";
 import { fail } from "../../core/shared/errors";

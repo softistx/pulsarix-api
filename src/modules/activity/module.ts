@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import activityTypeDefs from "./activity.graphqls" with { type: "text" };
 import { activities } from "./activity.model";
 import { activityResolvers } from "./activity.resolver";

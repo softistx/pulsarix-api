@@ -1,5 +1,5 @@
-import { alxia, definePlugin } from "@alxia/core";
-import type { MediaContext } from "@alxia/media";
+import { alxia, definePlugin } from "@softistx/alxia";
+import type { MediaContext } from "@softistx/alxia-media";
 import { can, requirePermission } from "../../core/access";
 import { fail } from "../../core/shared/errors";
 import type { Viewer } from "../../http/context";

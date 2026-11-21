@@ -45,7 +45,7 @@ export const retryParams = (retryAfter: number) => ({
 
 // Too many tries, or too many mails: 429 `auth.errors.too-many-attempts`, with
 // `retryAfter` (seconds) and `minutes` (rounded up) in `extensions` and
-// `extensions.params`, and `reason: "throttled"` (what `@alxia/react-router`'s
+// `extensions.params`, and `reason: "throttled"` (what `@softistx/alxia-react-router`'s
 // `codeRefusal` recognises as a timed wait).
 export function tooManyAttempts(retryAfter: number) {
   const params = retryParams(retryAfter);

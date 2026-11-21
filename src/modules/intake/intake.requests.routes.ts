@@ -1,4 +1,4 @@
-import { alxia } from "@alxia/core";
+import { alxia } from "@softistx/alxia";
 import type { Media } from "../attachments/public";
 import { unavailable } from "./intake.errors";
 import { previewSize } from "./intake.files.kinds";

@@ -1,5 +1,8 @@
-import { defineMiddleware } from "@alxia/core";
-import { type MediaBucket, mediaRoutes as routesOf } from "@alxia/media";
+import { defineMiddleware } from "@softistx/alxia";
+import {
+  type MediaBucket,
+  mediaRoutes as routesOf,
+} from "@softistx/alxia-media";
 import { StoreFailure } from "@softistx/janus";
 import { isBucketUnavailable } from "@softistx/s3";
 import { GraphQLError } from "graphql";
@@ -86,7 +89,7 @@ const noBucket: MediaBucket = { open: dead, put: dead, delete: dead };
 //    owner must exist, a comment's files are added by its author (or an
 //    admin), and an owner carries at most `maxPerOwner` files;
 //
-// then @alxia/media's routes: PUT /media/attachments and GET
+// then @softistx/alxia-media's routes: PUT /media/attachments and GET
 // /media/attachments/:key[/256], with the content types, the size limit and the
 // thumbnail of attachments.kinds.ts. The record is made as the upload
 // answers, so a stored file always has one; a read is served only while a

@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { codes } from "./invitations.errors";
 import invitationsTypeDefs from "./invitations.graphqls" with { type: "text" };
 import { invitations } from "./invitations.model";
@@ -11,6 +11,6 @@ export const invitationsModule = defineModule({
   dependsOn: ["access", "accounts", "organisations", "members"],
   coreCollections: { invitations },
   typeDefs: [invitationsTypeDefs],
-  resolvers: invitationsResolvers as never,
+  resolvers: invitationsResolvers,
   codes,
 });

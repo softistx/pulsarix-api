@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import searchTypeDefs from "./search.graphqls" with { type: "text" };
 import { searchResolvers } from "./search.resolver";
 

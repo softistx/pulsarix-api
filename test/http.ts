@@ -1,4 +1,4 @@
-import { DEFAULT_HEADER as organisationHeader } from "@alxia/tenancy";
+import { DEFAULT_HEADER as organisationHeader } from "@softistx/alxia-tenancy";
 import { clientHeader } from "../src/http/csrf";
 import type { AuthApp } from "./auth";
 

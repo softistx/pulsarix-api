@@ -1,4 +1,4 @@
-import { alxia } from "@alxia/core";
+import { alxia } from "@softistx/alxia";
 import { GraphQLError } from "graphql";
 import { realtime } from "../../config/redis";
 import { keyDisabled, tooManyRequests } from "./intake.errors";

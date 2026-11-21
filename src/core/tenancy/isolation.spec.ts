@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { defineModule } from "@alxia/modules";
-import { dbOf } from "@alxia/tenancy";
+import { defineModule } from "@softistx/alxia-modules";
+import { dbOf } from "@softistx/alxia-tenancy";
 import { defineCollection, id } from "@softistx/mongo";
 import { z } from "zod";
 import { authApp, ownerWithOrganisation } from "~/auth";

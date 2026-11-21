@@ -1,5 +1,5 @@
-import { alxia } from "@alxia/core";
-import type { MediaContext } from "@alxia/media";
+import { alxia } from "@softistx/alxia";
+import type { MediaContext } from "@softistx/alxia-media";
 import { ObjectId } from "mongodb";
 import { addressKey } from "../../core/shared/address";
 import { localeOfRequest } from "../../i18n/locale";
@@ -27,7 +27,7 @@ const UPLOAD_PATH = "/public/media/report-files";
 // Everything is checked by `ReportUploads.admit` before a byte of the body is
 // read (the ticket, the key and `Origin`, the announced type and length, the
 // byte limits, the slot, the quarantine); then the body goes, as it is, to
-// the `report-files` kind of @alxia/media, which sniffs it, makes the
+// the `report-files` kind of @softistx/alxia-media, which sniffs it, makes the
 // renditions and stores them. Without a file store, 503.
 export function uploadRoutes(
   intake: PublicIntake,
@@ -129,7 +129,7 @@ async function handlePut(
   }
 }
 
-// The `report-files` routes of @alxia/media behind the admissions: a write
+// The `report-files` routes of @softistx/alxia-media behind the admissions: a write
 // only for a request `admit` passed, no read (the team's own routes read, A13).
 function mediaStore(
   uploads: ReportUploads,

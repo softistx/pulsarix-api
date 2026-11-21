@@ -12,7 +12,7 @@ export type OwnerType = z.infer<typeof ownerType>;
 
 // A file on an issue or on one of its comments, in the organisation's
 // database. The bytes live in the private bucket under `storageKey` (the key
-// the upload route answered, @alxia/media); `previewKey` names the thumbnail
+// the upload route answered, @softistx/alxia-media); `previewKey` names the thumbnail
 // rendition stored beside it (an image's square), null when there is none (a
 // PDF: see CONTEXT.md). `issueId` is the issue in both cases, so removing an
 // issue finds the files of its comments too.

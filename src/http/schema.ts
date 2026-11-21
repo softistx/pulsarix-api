@@ -1,9 +1,9 @@
-import { freshPerMutation } from "@alxia/graphql";
-import { type Module, typeDefsOf } from "@alxia/modules";
 import { mergeTypeDefs } from "@graphql-tools/merge";
-import { createSchema } from "@graxia/core";
 import { scalarResolvers, scalarTypeDefs } from "@nxgt/graphql-scalars";
 import { constraintTypeDefs, withValidation } from "@nxgt/graphql-validation";
+import { freshPerMutation } from "@softistx/alxia-graphql";
+import { type Module, resolversOf, typeDefsOf } from "@softistx/alxia-modules";
+import { createSchema } from "@softistx/graxia";
 import { modules } from "../modules/registry";
 import type { Context } from "./context";
 
@@ -22,16 +22,7 @@ export function schemaOf(list: readonly Module[]) {
         constraintTypeDefs,
         ...typeDefsOf(list),
       ]),
-      resolvers: [
-        scalarResolvers,
-        ...freshPerMutation(
-          // `Module.resolvers` is loosely typed (`Record<string, unknown>`),
-          // so the maps are not checked against the schema here.
-          list.flatMap((module) =>
-            module.resolvers ? [module.resolvers] : [],
-          ) as never[],
-        ),
-      ],
+      resolvers: [scalarResolvers, ...freshPerMutation(resolversOf(list))],
     }),
   );
 }

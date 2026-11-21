@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { registerActivityRecorded } from "../activity/public";
 import notificationsTypeDefs from "./notifications.graphqls" with {
   type: "text",

@@ -1,4 +1,4 @@
-import { dbOf } from "@alxia/tenancy";
+import { dbOf } from "@softistx/alxia-tenancy";
 import { fixedClock, scryptHasher } from "@softistx/janus";
 import { totpCode } from "@softistx/janus/testing";
 import {

@@ -1,4 +1,4 @@
-import { defineModule } from "@alxia/modules";
+import { defineModule } from "@softistx/alxia-modules";
 import { defineCodes } from "../../i18n/define-codes";
 import timeTypeDefs from "./time.graphqls" with { type: "text" };
 import { timeLinks } from "./time.model";

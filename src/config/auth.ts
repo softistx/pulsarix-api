@@ -1,4 +1,4 @@
-import { dbOf } from "@alxia/tenancy";
+import { dbOf } from "@softistx/alxia-tenancy";
 import { type Auth, createAuth } from "../core/auth";
 import { coreMongo } from "./db";
 import { env } from "./env";

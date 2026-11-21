@@ -1,4 +1,4 @@
-import { definePlugin } from "@graxia/core";
+import { definePlugin } from "@softistx/graxia";
 import { StoreFailure } from "@softistx/janus";
 import { GraphQLError } from "graphql";
 import { locationOf, reshaped } from "./constraints";

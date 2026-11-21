@@ -1,4 +1,4 @@
-import { dbOf } from "@alxia/tenancy";
+import { dbOf } from "@softistx/alxia-tenancy";
 import { syncMongoAdapter } from "@softistx/janus-mongo";
 import type { CoreMongo } from "./db";
 
