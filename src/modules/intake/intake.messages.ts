@@ -21,9 +21,9 @@ import { refreshIssueWaiting } from "./intake.waiting";
 import {
   attachmentsOn,
   type ClientReportDocument,
+  MAX_MESSAGE,
   type WidgetKeyDocument,
 } from "./models";
-import { MAX_MESSAGE } from "./models/client-report-messages.model";
 
 type MessageMongo = IntakeMongo & ModuleMongo<"issues">;
 

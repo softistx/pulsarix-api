@@ -14,9 +14,13 @@ import {
 } from "./intake.live.handlers";
 import { mailPublicReply, mailStateChange } from "./intake.notify";
 import { clearClientWaiting } from "./intake.waiting";
-import { clientReportFiles, clientReports, widgetKeys } from "./models";
-import { clientReportMessages } from "./models/client-report-messages.model";
-import { intakeResolvers } from "./resolvers/intake.resolver";
+import {
+  clientReportFiles,
+  clientReportMessages,
+  clientReports,
+  widgetKeys,
+} from "./models";
+import { intakeResolvers } from "./resolvers";
 
 // A report follows its issue to its end (intake.closing.ts).
 registerIssueChange(followIssue);
@@ -35,7 +39,7 @@ registerIssueChange(mailStateChange);
 
 // The intake: widget keys with their allowed origins (core database), the
 // client reports they bring in (organisation database), the team's inbox with
-// accept and decline, and the public side (src/modules/intake/routes/public-graphql.routes.ts,
+// accept and decline, and the public side (routes/public-graphql.routes.ts,
 // mounted by src/app.ts at /public/graphql, which is not part of /graphql).
 export const intakeModule = defineModule({
   name: "intake",
