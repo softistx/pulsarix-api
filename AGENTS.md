@@ -24,9 +24,9 @@ schoolz-api's AGENTS.md "Modules"). `src/core/` follows it too.
 | --- | --- |
 | `<name>.graphqls` | the module's SDL |
 | `<name>.model.ts` | the `@softistx/mongo` collection: Zod schema, indexes, stamps |
-| `<name>.service.ts` (`services/` when several) | the business rules; with the data-loader files, the only code that reads or writes a model |
+| `<name>.service.ts` (`services/` when several) | the business rules; with the data-loaders, the only code that reads or writes a model |
 | `<name>.resolver.ts` (`resolvers/` when several) | thin: guard, then call the service |
-| `<name>.data-loader.ts` (`data-loaders/` when several) | the module's DataLoaders, each with its spec |
+| `<name>.data-loader.ts` (`data-loaders/` when several) | the module's DataLoaders (A8 adds them), each with its spec |
 | `<name>.errors.ts` | its refusals and its codes |
 | `<name>.utils.ts` (`utils/` when several, with a barrel) | its helper functions: not a business rule, no collection access |
 | `<name>.rules.ts` | its pure rules: input checks and computations, no storage |
@@ -36,7 +36,7 @@ schoolz-api's AGENTS.md "Modules"). `src/core/` follows it too.
 | `public.ts` | what other modules may import from this one (the only entry point across modules) |
 
 - **Flat or folders**: a role with one file stays flat at the module's root; once it has several
-  files they go in a folder named after the role, with an `index.ts` barrel (except `graphql/`).
+  files they go in a folder named after the role, with an `index.ts` barrel.
   Inside a module imports are relative; `@/…` is for other modules.
 - **Sizes**: a file stays under 250 lines, a function under 80, a service method under 50.
   Past it, split by concern.
@@ -45,7 +45,7 @@ schoolz-api's AGENTS.md "Modules"). `src/core/` follows it too.
   its spec. What stays is what reads or writes a model. Top-level `const` data may stay.
 - **Never `== null` or `!= null`**: test `=== undefined` or `=== null` as the type says.
 - **A helper used by several modules** goes to `src/core/shared` and is never copied.
-- **Specs** (D1): a module's specs are GraphQL specs through the app, placed beside their service
+- **Specs** (plan decision D1): a module's specs are GraphQL specs through the app, placed beside their service
   as `services/<x>.service.spec.ts` (`<name>.service.spec.ts` when flat). No unit spec is
   required for a service; rules, utils and data-loaders keep their own specs.
 
@@ -54,7 +54,7 @@ schoolz-api's AGENTS.md "Modules"). `src/core/` follows it too.
 - GraphQL on `/graphql` is the team's transport. The widget's public surface is
   `/public/graphql` plus these `/public/*` routes, the only others: `/public/media/report-files`,
   `/public/live/requests`, `/public/tracking/files`, `/public/requests/files` and
-  `/public/unsubscribe` (intake). Any other REST route is a departure to argue in the PR.
+  `/public/unsubscribe` (intake). Other than the `@softistx/alxia-media` routes under `/media/*`, any REST route is a departure to argue in the PR.
 - Media goes through `@softistx/alxia-media`: keys in the schema, files over a private bucket.
 - `Attachment.url` and `ClientReportFile.url` are deliberate same-origin `/media/<kind>/<key>`
-  paths served by the API, not bucket URLs (D4).
+  paths served by the API, not bucket URLs (plan decision D4).
