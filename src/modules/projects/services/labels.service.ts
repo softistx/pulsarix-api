@@ -12,6 +12,7 @@ import {
   projectNotFound,
 } from "../projects.errors";
 import { colour, type LabelDocument } from "../projects.model";
+import { LABELS_ORDER } from "../projects.search";
 import { labelRemoved, type ProjectsMongo } from "../projects.usage";
 
 export interface CreateLabelInput {
@@ -32,8 +33,7 @@ export class LabelsService {
   list(projectId: string): Promise<LabelDocument[]> {
     return this.mongo.db.labels.findMany({
       filter: { projectId: toObjectId(projectId) },
-      sort: { name: 1 },
-      collation: { locale: "en", strength: 2 },
+      ...LABELS_ORDER,
     });
   }
 

@@ -1,45 +1,10 @@
 import type { ObjectId } from "mongodb";
-import { figuresPipeline } from "../dashboard.utils";
-import type { Base, DashboardParent } from "./base.service";
-
-interface Row {
-  _id: ObjectId;
-  open: number;
-  urgent: number;
-  late: number;
-  triage: number;
-}
-
-// One aggregation per request, shared by `projects` and `triage`.
-const cached = new WeakMap<DashboardParent, Promise<Map<string, Row>>>();
-
-function rowsOf(parent: DashboardParent, base: Base) {
-  let rows = cached.get(parent);
-  if (!rows) {
-    rows = readRows(parent, base);
-    cached.set(parent, rows);
-  }
-  return rows;
-}
-
-async function readRows(parent: DashboardParent, base: Base) {
-  if (base.openIds.length === 0) return new Map<string, Row>();
-  const pipeline = figuresPipeline(
-    base.projects.map((p) => p._id),
-    base.openIds,
-    base.triageIds,
-    parent.startOfToday,
-  );
-  const rows = (await parent.mongo.db.issues.raw
-    .aggregate(pipeline)
-    .toArray()) as Row[];
-  return new Map(rows.map((row) => [row._id.toHexString(), row]));
-}
+import type { DashboardParent } from "./base.service";
 
 // Every active project with its figures, zeros included, by name.
 export async function projectFigures(parent: DashboardParent) {
   const base = await parent.base();
-  const rows = await rowsOf(parent, base);
+  const rows = await parent.rows();
   return base.projects.map((project) => {
     const row = rows.get(project.id);
     return {
@@ -54,7 +19,7 @@ export async function projectFigures(parent: DashboardParent) {
 // The projects with a triage issue or a new client report.
 export async function triageBacklog(parent: DashboardParent) {
   const base = await parent.base();
-  const rows = await rowsOf(parent, base);
+  const rows = await parent.rows();
   const reports = (await parent.mongo.db.clientReports.raw
     .aggregate([
       {

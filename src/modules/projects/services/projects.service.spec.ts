@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
-import { registerStatusUsage } from "./public";
+import { registerStatusUsage } from "../public";
 
 const kit = authApp();
 

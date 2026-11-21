@@ -1,16 +1,16 @@
 import { attachmentsDisabled } from "../intake.errors";
 import { trackingMail } from "../intake.mail";
+import type { SubmitPort } from "../intake.types";
 import type { ClientReportDocument, WidgetKeyDocument } from "../models";
 import { type CheckedFile, checkFiles } from "../rules/files-input.rules";
 import type { SubmitInput } from "../rules/submit-input.rules";
-import type { PublicIntake } from "../services/submit.service";
 import { attachmentsOn } from "./attachments.utils";
 import { emailDigest } from "./token.utils";
 
 // Every declared file is checked before anything is made (plan §17, A12); a
 // refusal is counted on the key (A13).
 export function checkedFilesOf(
-  intake: Pick<PublicIntake, "countRefusal">,
+  intake: Pick<SubmitPort, "countRefusal">,
   key: Pick<WidgetKeyDocument, "_id" | "attachmentsEnabled">,
   declared: SubmitInput["files"],
 ): CheckedFile[] {
@@ -27,7 +27,7 @@ export function checkedFilesOf(
 // What a submission spends before anything is made: one unit on the reporter's
 // e-mail (when there is one) and one on the key's organisation.
 export async function limitReporter(
-  intake: Pick<PublicIntake, "limit">,
+  intake: Pick<SubmitPort, "limit">,
   key: Pick<WidgetKeyDocument, "organisationId">,
   email: string | null,
 ) {
@@ -41,7 +41,7 @@ export async function limitReporter(
 
 // The e-mail that tells the reporter where to follow the report.
 export function mailTracking(
-  intake: Pick<PublicIntake, "background" | "deps">,
+  intake: Pick<SubmitPort, "background" | "deps">,
   created: Pick<ClientReportDocument, "locale">,
   email: string,
   token: string,

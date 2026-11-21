@@ -6,7 +6,6 @@ import { idOrInvalid } from "../../../core/shared/ids";
 import type { IssueDocument } from "../issues.model";
 import type { CreateIssueInput, IssuesMongo } from "../issues.types";
 import { invalidField } from "../issues.validation";
-import { rankAfter } from "../rank";
 import { createIssues } from "../utils/checks.utils";
 import { CREATED, newIssue, optionalId } from "../utils/fields.utils";
 import type { IssuesProject } from "./issues-project.service";
@@ -36,7 +35,7 @@ export class IssueCreation {
             statusId: status._id,
             number,
             key: `${project.key}-${number}`,
-            rank: await this.endOfColumn(tx, status._id),
+            rank: await this.project.endOfColumn(tx, status._id),
             reporterId: this.project.viewerId,
           }),
         );
@@ -68,19 +67,5 @@ export class IssueCreation {
       await tx.db.issueCounters.update(counter._id, { last: number });
     else await tx.db.issueCounters.create({ projectId, last: number });
     return number;
-  }
-
-  // The end of a status's column: the rank after its last issue.
-  async endOfColumn(
-    tx: IssuesMongo,
-    statusId: ObjectId,
-    except?: ObjectId,
-  ): Promise<string> {
-    const last = await tx.db.issues.findMany({
-      filter: { statusId, ...(except && { _id: { $ne: except } }) },
-      sort: { rank: -1 },
-      limit: 1,
-    });
-    return rankAfter(last[0]?.rank ?? null);
   }
 }

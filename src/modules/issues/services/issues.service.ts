@@ -30,7 +30,7 @@ export class IssuesService {
   ) {
     this.project = new IssuesProject(mongo, isMember, viewerId, organisationId);
     this.creation = new IssueCreation(this.project);
-    this.moves = new IssueMoves(this.project, this.creation);
+    this.moves = new IssueMoves(this.project);
     this.updates = new IssueUpdates(this.project, this.moves);
   }
 

@@ -110,6 +110,13 @@ journalled in the issue's activity as an `updated` row with one change, field `a
 file name for an upload, `from` it for a delete), so the issue's watchers are notified like any
 other change.
 
+## Per-request loaders
+
+`dataLoaders(ctx)` (src/modules/data-loaders.ts) builds the DataLoaders of a request once and memoises
+them in a `WeakMap<Context, DataLoaders>`: the projects' statuses and labels, the time totals and timer,
+and the intake reads. A resolver asks for them through the context, never builds its own, and they are
+dropped with the request. A module's loaders reach other modules only through their `public.ts`.
+
 ## Public endpoint
 
 `POST /public/graphql` is the product's only unauthenticated surface, apart from `/graphql`'s own
