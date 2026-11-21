@@ -1,15 +1,9 @@
 import { JanusError } from "@softistx/janus";
-import { isLocale, type Locale } from "../../i18n/locale";
-import type { Auth } from "../auth";
-import { invalid, unavailable } from "../shared/errors";
-import { authCall, signInCall } from "./accounts.errors";
-import { sessionOf, signedIn } from "./accounts.utils";
-
-// The account's stored language when it has one, else the request's.
-const accountLocale = (
-  user: { locale?: string | null | undefined },
-  fallback: Locale,
-): Locale => (isLocale(user.locale) ? user.locale : fallback);
+import type { Locale } from "../../../i18n/locale";
+import type { Auth } from "../../auth";
+import { invalid, unavailable } from "../../shared/errors";
+import { authCall, signInCall } from "../accounts.errors";
+import { accountLocale, sessionOf, signedIn } from "../accounts.utils";
 
 // The sign-in flows, over janus: sign-up, a password, the second factor's
 // code, a link sent by e-mail, a forgotten password. Each janus refusal leaves
