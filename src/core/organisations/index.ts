@@ -4,4 +4,5 @@ export {
   organisationSlug,
 } from "./organisations.model";
 export { provisionOrganisation } from "./organisations.provision";
-export { OrganisationsService, slugOf } from "./organisations.service";
+export { OrganisationsService } from "./organisations.service";
+export { slugOf } from "./organisations.utils";
