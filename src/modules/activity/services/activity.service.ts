@@ -1,10 +1,10 @@
 import type { ObjectId } from "mongodb";
-import type { ModuleMongo } from "../../config/db";
-import type { FieldChange } from "../../core/shared/changes";
-import { invalid } from "../../core/shared/errors";
-import { idOrInvalid } from "../../core/shared/ids";
-import { projectNotFound } from "../projects/public";
-import type { ActivityDocument, ActivityVerb } from "./activity.model";
+import type { ModuleMongo } from "../../../config/db";
+import type { FieldChange } from "../../../core/shared/changes";
+import { invalid } from "../../../core/shared/errors";
+import { idOrInvalid } from "../../../core/shared/ids";
+import { projectNotFound } from "../../projects/public";
+import type { ActivityDocument, ActivityVerb } from "../activity.model";
 
 export type ActivityMongo = ModuleMongo<"activity">;
 

@@ -5,7 +5,7 @@ import { clientHeader } from "../src/http/csrf";
 import {
   createMedia,
   type Media,
-} from "../src/modules/attachments/attachments.storage";
+} from "../src/modules/attachments/attachments.store";
 
 // A real S3 API for a spec, started by @softistx/s3/testing (SeaweedFS on free
 // ports, no Docker), with the bucket the routes write to. The first run on a

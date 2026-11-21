@@ -17,7 +17,7 @@ import {
 import type { CommentDocument } from "./comments.model";
 import { type CommentEntry, mergedEntries } from "./comments.sources";
 import { type CommentChange, commentChanged } from "./comments.usage";
-import { mentionedIds } from "./mentions";
+import { mentionedIds } from "./comments.utils";
 
 export type CommentsMongo = ModuleMongo<"comments">;
 

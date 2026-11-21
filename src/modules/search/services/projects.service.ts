@@ -1,5 +1,5 @@
-import type { ProjectDocument } from "../projects/public";
-import { ranked, type SearchMongo } from "./search.service";
+import type { ProjectDocument } from "../../projects/public";
+import { ranked, type SearchMongo } from "../search.utils";
 
 // Projects by relevance: the text index (key and name weigh more than the
 // description), then a substring of the key or name. Archived projects are

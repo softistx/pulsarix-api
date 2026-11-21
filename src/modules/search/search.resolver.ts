@@ -1,43 +1,8 @@
-import type { Permission } from "@softistx/alxia-access";
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import {
-  can,
-  requireMember,
-  requirePermission,
-  requireViewer,
-} from "../../core/access";
+import { requireMember, requireViewer } from "../../core/access";
 import { invalid } from "../../core/shared/errors";
-import type { Context } from "../../http/context";
-import { searchIssues } from "./search.issues";
-import { searchMembers } from "./search.members";
-import { searchProjects } from "./search.projects";
-import { MAX_FIRST, MAX_QUERY } from "./search.service";
-
-type Kind = "issue" | "project" | "member";
-
-// What reading each kind needs: the permission of the module that owns it.
-const needs: Record<Kind, Permission> = {
-  issue: "issue:read",
-  project: "project:read",
-  member: "member:read",
-};
-const everyKind = Object.keys(needs) as Kind[];
-
-// The kinds to search: the ones asked for, each of which the viewer must hold
-// the permission of (403 otherwise), or every kind the viewer may read.
-async function allowed(
-  ctx: Context,
-  asked: readonly Kind[] | null | undefined,
-) {
-  if (asked && asked.length > 0) {
-    for (const kind of new Set(asked))
-      await requirePermission(ctx, needs[kind]);
-    return new Set(asked);
-  }
-  const held = new Set<Kind>();
-  for (const kind of everyKind) if (await can(ctx, needs[kind])) held.add(kind);
-  return held;
-}
+import { allowed, MAX_FIRST, MAX_QUERY, searchMembers } from "./search.utils";
+import { searchIssues, searchProjects } from "./services";
 
 export const searchResolvers: Resolvers = {
   Query: {

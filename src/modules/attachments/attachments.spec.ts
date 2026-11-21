@@ -4,7 +4,7 @@ import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import { bucketKeys, call, errorOf, pdf, png, startMediaS3 } from "~/media";
 import { maxBytes, maxPerOwner } from "./attachments.kinds";
-import type { Media } from "./attachments.storage";
+import type { Media } from "./attachments.store";
 
 // The file routes (CSRF header, janus Bearer token, x-organization-id, the
 // permissions, @softistx/alxia-media's checks) over a real S3 API

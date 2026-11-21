@@ -41,8 +41,7 @@ const config: CodegenConfig = {
           Attachment:
             "@/modules/attachments/attachments.model#AttachmentDocument",
           Activity: "@/modules/activity/activity.model#ActivityDocument",
-          ActivityConnection:
-            "@/modules/activity/activity.service#ActivityPage",
+          ActivityConnection: "@/modules/activity/services#ActivityPage",
           Notification:
             "@/modules/notifications/notifications.model#NotificationDocument",
           NotificationConnection:
@@ -52,7 +51,7 @@ const config: CodegenConfig = {
           ClientReportFile:
             "@/modules/intake/intake.model#ClientReportFileDocument",
           ClientReportConnection: "@/modules/intake/intake.reports#ReportPage",
-          Dashboard: "@/modules/dashboard/dashboard.base#DashboardParent",
+          Dashboard: "@/modules/dashboard/services#DashboardParent",
           TimeSpent: "@/modules/time/time.model#TimeSpentParent",
           AcceptInvitationPayload:
             "@/core/invitations/invitations.acceptance#AcceptedInvitation",

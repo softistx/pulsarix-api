@@ -10,7 +10,7 @@ import {
 } from "~/dashboard";
 import { codeOf } from "~/http";
 import { intakeKit } from "~/intake";
-import { figuresPipeline } from "./dashboard.figures";
+import { figuresPipeline } from "./dashboard.utils";
 
 const figuresOf = (data: DashboardData, key: string) =>
   data.dashboard.projects.find((p) => p.project.key === key);
