@@ -1,19 +1,19 @@
 import type { ObjectId } from "mongodb";
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { requirePermission, requireViewer } from "../../core/access";
-import type { Context } from "../../http/context";
-import { IssuesService } from "../issues/public";
+import { requirePermission, requireViewer } from "../../../core/access";
+import type { Context } from "../../../http/context";
+import { IssuesService } from "../../issues/public";
 import {
   filePreviewUrl,
   filesOfReport,
   fileUrl,
   pendingCountsOf,
   releasedFilesOfIssue,
-} from "./intake.files.team";
-import { WidgetKeysService } from "./intake.keys";
-import { attachmentsOn } from "./intake.model";
-import { ReportsService } from "./intake.reports";
-import { publicStateLoaderOf } from "./intake.requests.state";
+} from "../intake.files.team";
+import { WidgetKeysService } from "../intake.keys";
+import { ReportsService } from "../intake.reports";
+import { publicStateLoaderOf } from "../intake.requests.state";
+import { attachmentsOn } from "../models";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
 // recent proof of identity (plan §11, "step-up for key creation").

@@ -16,7 +16,7 @@ import {
 } from "~/media";
 import type { Media } from "../attachments/public";
 import { maxFileBytes } from "./intake.files.kinds";
-import { reportFilesRoutes } from "./intake.files.routes";
+import { reportFilesRoutes } from "./routes/files.routes";
 
 // The `report-files` media kind over a real S3 API (@softistx/s3/testing). The
 // route here is the kind's own, mounted with the guard a spec needs (anyone

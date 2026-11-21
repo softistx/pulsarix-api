@@ -3,8 +3,8 @@ import type { ModuleMongo } from "../../config/db";
 import { idOrInvalid } from "../../core/shared/ids";
 import { issueNotFound } from "../issues/public";
 import { fileKindName, pdfSize, previewSize } from "./intake.files.kinds";
-import type { ClientReportFileDocument } from "./intake.model";
 import type { IntakeMongo } from "./intake.reports";
+import type { ClientReportFileDocument } from "./models";
 
 // What the team reads of a report's files (A13). A file is listed once its
 // bytes are stored: `quarantined` until its report is decided, `released` once

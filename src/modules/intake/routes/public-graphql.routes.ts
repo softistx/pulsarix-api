@@ -1,30 +1,30 @@
 import { alxia } from "@softistx/alxia";
 import { GraphQLError, graphql } from "graphql";
-import { addressKey } from "../../core/shared/address";
-import { fail } from "../../core/shared/errors";
-import { clientHeader } from "../../http/csrf";
-import { localeOfRequest } from "../../i18n/locale";
+import { addressKey } from "../../../core/shared/address";
+import { fail } from "../../../core/shared/errors";
+import { clientHeader } from "../../../http/csrf";
+import { localeOfRequest } from "../../../i18n/locale";
+import {
+  type PersistedId,
+  persistedOperations,
+  publicSchema,
+  trackingOperations,
+} from "../graphql/public.schema";
 import {
   originNotAllowed,
   persistedOnly,
   unsupportedMedia,
-} from "./intake.errors";
+} from "../intake.errors";
 import {
   answerOf,
   corsHeaders,
   respond,
   secure,
   TRACKING_HEADER,
-} from "./intake.http";
-import { IDENTITY_HEADER } from "./intake.identity";
-import { normaliseOrigin } from "./intake.origins";
-import {
-  type PersistedId,
-  persistedOperations,
-  publicSchema,
-  trackingOperations,
-} from "./intake.public-schema";
-import type { Caller, PublicIntake } from "./intake.submit";
+} from "../intake.http";
+import { IDENTITY_HEADER } from "../intake.identity";
+import { normaliseOrigin } from "../intake.origins";
+import type { Caller, PublicIntake } from "../intake.submit";
 
 // The body /public/graphql reads: a report is at most 10 000 characters of
 // description plus a title and 2 KB of metadata.
@@ -36,7 +36,7 @@ const isPersisted = (id: unknown): id is PersistedId =>
 // POST /public/graphql (and its CORS preflight): the widget's endpoint and the
 // tracking page's, the product's only unauthenticated surface (plan §11).
 //
-// - persisted operations only, named by `id` (src/modules/intake/intake.public-schema.ts);
+// - persisted operations only, named by `id` (src/modules/intake/graphql/public.schema.ts);
 // - JSON only (a form cannot send it, so no cross-site form reaches a resolver);
 // - CORS for the origins some live key allows, and the key's own list is
 //   checked on every call; the answer to a foreign origin carries no CORS header;

@@ -4,14 +4,14 @@ import {
   mediaRoutes,
 } from "@softistx/alxia-media";
 import type { GraphQLError } from "graphql";
-import type { Media } from "../attachments/public";
+import type { Media } from "../../attachments/public";
 import {
   defineReportFilesKind,
   fileKindName,
   fileRefusal,
   type ReportFilesAccess,
-} from "./intake.files.kinds";
-import { organisationFolder } from "./intake.files.storage";
+} from "../intake.files.kinds";
+import { organisationFolder } from "../intake.files.storage";
 
 export interface ReportFilesRoutesOptions<Requires extends object>
   extends ReportFilesAccess<Requires> {

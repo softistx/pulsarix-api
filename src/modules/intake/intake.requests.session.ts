@@ -4,10 +4,10 @@ import {
   originNotAllowed,
 } from "./intake.errors";
 import { type Identity, verifyIdentity } from "./intake.identity";
-import type { WidgetKeyDocument } from "./intake.model";
 import { originAllowed } from "./intake.origins";
 import type { Caller, IntakeMongo, PublicIntake } from "./intake.submit";
 import type { Reporter } from "./intake.thread";
+import type { WidgetKeyDocument } from "./models";
 
 // The reporter's side of the public endpoint (plan §19, A17): "My requests",
 // one request with its thread, a reply, "resolved", "reopen", the read mark,

@@ -1,8 +1,8 @@
 import type { ObjectId } from "mongodb";
 import { type PublicState, publicStateOfStatus } from "../projects/public";
-import type { ClientReportDocument } from "./intake.model";
 import { derivePublicState } from "./intake.publicstate";
 import type { IntakeMongo } from "./intake.submit";
+import type { ClientReportDocument } from "./models";
 
 // The public state and the unread count of many reports at once (plan §19):
 // the lists of "My requests" and the live stream read them for a whole

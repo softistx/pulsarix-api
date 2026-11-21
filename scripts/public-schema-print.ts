@@ -6,8 +6,8 @@ import {
   print,
   printSchema,
 } from "graphql";
-import { persistedOperations } from "@/modules/intake/intake.public.operations";
-import { publicTypeDefs } from "@/modules/intake/intake.public.typedefs";
+import { persistedOperations } from "@/modules/intake/graphql/public.operations";
+import { publicTypeDefs } from "@/modules/intake/graphql/public.typedefs";
 
 // Writes the schema of /public/graphql to schema.public.graphql and each of its
 // persisted operations to operations/public/<id>.graphql, at the repository

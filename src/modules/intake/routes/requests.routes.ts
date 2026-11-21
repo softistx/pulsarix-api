@@ -1,18 +1,18 @@
 import { alxia } from "@softistx/alxia";
-import type { Media } from "../attachments/public";
-import { unavailable } from "./intake.errors";
-import { previewSize } from "./intake.files.kinds";
-import { reportFileReader } from "./intake.files.read";
+import type { Media } from "../../attachments/public";
+import { unavailable } from "../intake.errors";
+import { previewSize } from "../intake.files.kinds";
+import { reportFileReader } from "../intake.files.read";
 import {
   corsHeaders,
   REQUEST_FILES_PATH,
   respond,
   secure,
-} from "./intake.http";
-import { thumbnailOf } from "./intake.requests.actions";
-import { callerOf, keyOf, preflight, refusal } from "./intake.requests.http";
-import { openSession } from "./intake.requests.session";
-import type { PublicIntake } from "./intake.submit";
+} from "../intake.http";
+import { thumbnailOf } from "../intake.requests.actions";
+import { callerOf, keyOf, preflight, refusal } from "../intake.requests.http";
+import { openSession } from "../intake.requests.session";
+import type { PublicIntake } from "../intake.submit";
 
 // GET /public/requests/files/<fileId>?key=...: the 256 px thumbnail of one of
 // the reporter's own pictures, for the widget's thread. A file of another

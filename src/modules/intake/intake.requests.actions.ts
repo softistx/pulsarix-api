@@ -6,7 +6,6 @@ import { fileNotFound } from "./intake.errors";
 import type { DeclaredFile } from "./intake.files.input";
 import { announceChanged } from "./intake.live";
 import { postMessage } from "./intake.messages";
-import type { ClientReportDocument } from "./intake.model";
 import { reportsOf } from "./intake.requests.read";
 import type { Scope, Session } from "./intake.requests.session";
 import { unreadOf } from "./intake.requests.state";
@@ -14,6 +13,7 @@ import { eraseReport } from "./intake.retention";
 import type { FileTicket } from "./intake.slots";
 import type { PublicIntake } from "./intake.submit";
 import { markRead, ownedReport } from "./intake.thread";
+import type { ClientReportDocument } from "./models";
 
 // What the reporter does besides settling: reply, the read mark, the e-mail
 // switch, "delete my data" and the thumbnail read.

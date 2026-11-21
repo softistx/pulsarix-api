@@ -9,11 +9,11 @@ import { withoutMarkers } from "../comments/public";
 import type { IssueChangeHandler } from "../issues/public";
 import { openTrackingToken } from "./intake.identity";
 import { reporterMail } from "./intake.mail";
-import type { ClientReportDocument } from "./intake.model";
 import { publicStateOf } from "./intake.publicstate";
 import type { IntakeMongo } from "./intake.submit";
 import { publicFilter } from "./intake.thread";
 import { UNSUBSCRIBE_PATH, unsubscribeToken } from "./intake.unsubscribe";
+import type { ClientReportDocument } from "./models";
 
 // The reporter's e-mails (plan §19, A19). A public reply of the team, or a
 // change of the public state of the request, schedules one job per report

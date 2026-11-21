@@ -5,18 +5,18 @@ import {
   registerCommentSource,
 } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
+import intakeTypeDefs from "./graphql/intake.graphqls" with { type: "text" };
 import { followIssue } from "./intake.closing";
 import { clientMessages } from "./intake.comments";
-import intakeTypeDefs from "./intake.graphqls" with { type: "text" };
 import {
   announceIssueChange,
   announcePublicReply,
 } from "./intake.live.handlers";
-import { clientReportMessages } from "./intake.messages.model";
-import { clientReportFiles, clientReports, widgetKeys } from "./intake.model";
 import { mailPublicReply, mailStateChange } from "./intake.notify";
-import { intakeResolvers } from "./intake.resolver";
 import { clearClientWaiting } from "./intake.waiting";
+import { clientReportFiles, clientReports, widgetKeys } from "./models";
+import { clientReportMessages } from "./models/client-report-messages.model";
+import { intakeResolvers } from "./resolvers/intake.resolver";
 
 // A report follows its issue to its end (intake.closing.ts).
 registerIssueChange(followIssue);
@@ -35,7 +35,7 @@ registerIssueChange(mailStateChange);
 
 // The intake: widget keys with their allowed origins (core database), the
 // client reports they bring in (organisation database), the team's inbox with
-// accept and decline, and the public side (src/modules/intake/intake.routes.ts,
+// accept and decline, and the public side (src/modules/intake/routes/public-graphql.routes.ts,
 // mounted by src/app.ts at /public/graphql, which is not part of /graphql).
 export const intakeModule = defineModule({
   name: "intake",

@@ -13,7 +13,7 @@ import { scopeOf } from "./intake.tracking";
 // the widget's "My requests" (A17), by tracking token instead of identity, and
 // through the same services, so the rules are the same (the 30 days of
 // "Reopen", a declined request read-only, the limits, the shared eraser). For
-// the UI server only (intake.routes.ts refuses an `Origin` and a missing client
+// the UI server only (routes/public-graphql.routes.ts refuses an `Origin` and a missing client
 // header). Every call is over the address's tracking limit first, and a token
 // that is malformed, unknown or erased gets the one 404 of a missing report.
 

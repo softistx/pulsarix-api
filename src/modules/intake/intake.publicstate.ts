@@ -1,6 +1,6 @@
 import type { ModuleMongo } from "../../config/db";
 import { type PublicState, publicStateOfStatus } from "../projects/public";
-import type { ClientReportDocument } from "./intake.model";
+import type { ClientReportDocument } from "./models";
 
 type StateMongo = ModuleMongo<"intake">;
 

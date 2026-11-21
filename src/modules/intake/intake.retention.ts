@@ -1,8 +1,8 @@
 import type { AppTenancy, ModuleMongo } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { markIssue } from "./intake.markers";
-import type { ClientReportDocument } from "./intake.model";
 import { refreshIssueWaiting } from "./intake.waiting";
+import type { ClientReportDocument } from "./models";
 
 // How long a settled report keeps its personal data (plan Q15).
 export const RETENTION_DAYS = 90;

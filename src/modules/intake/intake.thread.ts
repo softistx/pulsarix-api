@@ -1,8 +1,8 @@
 import { ObjectId } from "mongodb";
 import { withoutMarkers } from "../comments/public";
 import { reportNotFound } from "./intake.errors";
-import type { ClientReportDocument } from "./intake.model";
 import type { IntakeMongo } from "./intake.submit";
+import type { ClientReportDocument } from "./models";
 
 // The reporter's side of a request (plan §19, A16): the thread of one report,
 // its unread count and its read cursor. These are services, not endpoints: the

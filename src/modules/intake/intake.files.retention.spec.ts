@@ -14,8 +14,8 @@ import {
   UNTRIAGED_FILES_DAYS,
 } from "./intake.files.retention";
 import { fileObjectKeys, purgeOrganisationFiles } from "./intake.files.storage";
-import type { ClientReportDocument } from "./intake.model";
 import { ReportsService } from "./intake.reports";
+import type { ClientReportDocument } from "./models";
 
 const DAY = 86_400_000;
 const MINUTE = 60_000;

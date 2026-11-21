@@ -3,18 +3,18 @@ import { withoutMarkers } from "../comments/public";
 import type { PublicState } from "../projects/public";
 import { fileNotFound, reportNotFound } from "./intake.errors";
 import { TRACKING_FILES_PATH } from "./intake.http";
-import {
-  type ClientReportDocument,
-  declineReasonShown,
-  type ReportFileRole,
-  type ReportState,
-} from "./intake.model";
 import { publicStateOf } from "./intake.publicstate";
 import { detailOf, type RequestDetail } from "./intake.requests.read";
 import type { Scope } from "./intake.requests.session";
 import type { PublicIntake } from "./intake.submit";
 import { publicFilter } from "./intake.thread";
 import { parseTrackingToken } from "./intake.token";
+import {
+  type ClientReportDocument,
+  declineReasonShown,
+  type ReportFileRole,
+  type ReportState,
+} from "./models";
 
 // The tracking page's reads (the public side of the intake, intake.submit.ts):
 // a report by its token, and the thumbnails of the reporter's own pictures.

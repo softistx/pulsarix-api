@@ -6,11 +6,11 @@ import { tenancy } from "../../config/db";
 import { SYSTEM_ACTOR } from "../../core/shared/actors";
 import { LIVE_REQUESTS_PATH } from "./intake.http";
 import { IDENTITY_HEADER } from "./intake.identity";
-import { streamTiming } from "./intake.live.routes";
 import { eraseMyData } from "./intake.requests.actions";
 import { openLedger } from "./intake.requests.live";
 import type { Session } from "./intake.requests.session";
 import type { IntakeMongo } from "./intake.submit";
+import { streamTiming } from "./routes/live.routes";
 
 // A17: the public request endpoints and the live stream (plan §19).
 

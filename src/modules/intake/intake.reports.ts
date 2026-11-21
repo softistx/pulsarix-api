@@ -13,10 +13,10 @@ import { isSettled } from "./intake.closing";
 import { reportDecided, reportNotFound } from "./intake.errors";
 import { releaseFiles } from "./intake.files.team";
 import { announceChanged } from "./intake.live";
-import type { ClientReportDocument, ReportState } from "./intake.model";
 import { scheduleReporterMails } from "./intake.notify";
 import { prefillOf } from "./intake.prefill";
 import { refreshIssueWaiting } from "./intake.waiting";
+import type { ClientReportDocument, ReportState } from "./models";
 
 export type IntakeMongo = ModuleMongo<"intake">;
 

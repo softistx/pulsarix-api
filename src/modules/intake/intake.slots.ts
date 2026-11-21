@@ -2,9 +2,9 @@ import type { ObjectId } from "mongodb";
 import type { CheckedFile } from "./intake.files.input";
 import { newSlot } from "./intake.files.input";
 import { PENDING_SLOT_MINUTES } from "./intake.files.retention";
-import type { ReportFileRole, WidgetKeyDocument } from "./intake.model";
 import type { IntakeMongo } from "./intake.submit";
 import { signTicket } from "./intake.tickets";
+import type { ReportFileRole, WidgetKeyDocument } from "./models";
 
 // The upload tickets a report hands out (plan §17, A12): one per declared
 // file, signed (intake.tickets.ts), and, for a real report, one pending slot
@@ -12,7 +12,7 @@ import { signTicket } from "./intake.tickets";
 
 // One ticket per declared file, in the order declared: the widget PUTs the
 // file to `/public/media/report-files/<slot>` with the ticket in
-// `x-pulsarix-ticket` (intake.uploads.routes.ts).
+// `x-pulsarix-ticket` (routes/uploads.routes.ts).
 export interface FileTicket {
   slot: string;
   role: CheckedFile["role"];
