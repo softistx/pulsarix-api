@@ -1,27 +1,19 @@
 import type {
   ChronixActorClient,
-  LinkEntry,
   LinkTimer,
 } from "@softistx/chronix-react/server";
-import { idOrInvalid } from "../../core/shared/ids";
-import { issueNotFound } from "../issues/public";
-import { isProjectArchived } from "../projects/public";
+import { idOrInvalid } from "../../../core/shared/ids";
+import { issueNotFound } from "../../issues/public";
+import { isProjectArchived } from "../../projects/public";
 import {
   chronixFailure,
   emailUnverified,
   notLinked,
   pulsarixProjectArchived,
-} from "./time.errors";
-import type { TimeLink, TimeMongo } from "./time.link";
-import { isOnIssue, refOf } from "./time.ref";
-
-const loggedOf = (entry: LinkEntry) => ({
-  id: entry.id,
-  date: entry.date,
-  durationSeconds: entry.durationSeconds,
-  description: entry.description,
-  billable: entry.billable,
-});
+} from "../time.errors";
+import { loggedOf } from "../utils/logged.utils";
+import { isOnIssue, refOf } from "../utils/ref.utils";
+import type { TimeLink, TimeMongo } from "./link.service";
 
 // The member's calls on chronix: the timer and the manual log.
 export class TimeTracking {

@@ -1,7 +1,7 @@
 import type { Address, Mailer } from "@softistx/mail";
-import { realtime } from "../../config/redis";
-import type { Locale } from "../../i18n/locale";
-import { digestMail } from "./notifications.mail";
+import { realtime } from "../../../config/redis";
+import type { Locale } from "../../../i18n/locale";
+import { digestMail } from "../notifications.mail";
 import type { NotificationsMongo } from "./notifications.service";
 
 // How long after a notification the member's digest is mailed: what they read

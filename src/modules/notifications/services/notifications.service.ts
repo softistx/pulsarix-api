@@ -1,7 +1,7 @@
-import type { ModuleMongo } from "../../config/db";
-import { invalid } from "../../core/shared/errors";
-import { idOrInvalid } from "../../core/shared/ids";
-import type { NotificationDocument } from "./notifications.model";
+import type { ModuleMongo } from "../../../config/db";
+import { invalid } from "../../../core/shared/errors";
+import { idOrInvalid } from "../../../core/shared/ids";
+import type { NotificationDocument } from "../notifications.model";
 
 export type NotificationsMongo = ModuleMongo<"notifications">;
 

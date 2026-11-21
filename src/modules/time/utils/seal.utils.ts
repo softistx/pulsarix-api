@@ -1,6 +1,6 @@
 import { createDecipheriv, hkdfSync } from "node:crypto";
 import { parseSealingKeys, sealerFor } from "@softistx/janus";
-import { env } from "../../config/env";
+import { env } from "../../../config/env";
 
 // The link key is sealed before any store sees it: janus `sealerFor` under the
 // application's sealing keys (TOTP_KEYS, the keys the second factor's secrets

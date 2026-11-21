@@ -4,6 +4,7 @@ import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import { subscribe } from "~/sse";
 import { tenancy } from "../../config/db";
+import type { NotificationsMongo } from "./services";
 import {
   DIGEST_DELAY_MS,
   type DigestDeps,
@@ -11,8 +12,7 @@ import {
   scheduleDigest,
   sendDigest,
   useDigestQueue,
-} from "./notifications.digest";
-import type { NotificationsMongo } from "./notifications.service";
+} from "./services";
 
 const kit = authApp();
 

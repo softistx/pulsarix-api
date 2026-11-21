@@ -1,5 +1,5 @@
 import type { LinkTimer } from "@softistx/chronix-react/server";
-import { env } from "../../config/env";
+import { env } from "../../../config/env";
 
 // The kind of reference pulsarix gives chronix for an issue.
 export const ISSUE = "issue";

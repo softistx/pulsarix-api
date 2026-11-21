@@ -10,7 +10,7 @@ import { authApp, memberWith, ownerWithOrganisation, proveEmail } from "~/auth";
 import { codeOf } from "~/http";
 import { env } from "../../config/env";
 import { useChronix } from "./chronix.client";
-import { openLinkKey, sealLinkKey } from "./time.seal";
+import { openLinkKey, sealLinkKey } from "./utils";
 
 const KEY = "chx_link_good";
 // The package's fake is made for one organisation (its link answers that

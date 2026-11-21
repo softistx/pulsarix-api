@@ -1,14 +1,5 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { requireMember, requireViewer } from "../../core/access";
-import type { Context } from "../../http/context";
-import { NotificationsService } from "./notifications.service";
-
-// The viewer's own notifications, once the guard let them in: any member has
-// an inbox, whatever their role.
-async function scoped(ctx: Context) {
-  const { mongo } = await requireMember(ctx);
-  return new NotificationsService(mongo, requireViewer(ctx).id);
-}
+import { scoped } from "./notifications.utils";
 
 export const notificationsResolvers: Resolvers = {
   Query: {
