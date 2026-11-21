@@ -118,9 +118,10 @@ export class ProjectsService {
     const project = await this.byId(id);
     return this.mongo.db.projects.update(project._id, {
       ...(name !== undefined && name !== null && { name }),
-      ...(input.description != null && {
-        description: input.description.trim(),
-      }),
+      ...(input.description !== undefined &&
+        input.description !== null && {
+          description: input.description.trim(),
+        }),
       ...(input.leadId !== undefined && { leadId: input.leadId }),
     });
   }

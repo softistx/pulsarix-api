@@ -92,9 +92,10 @@ async function world() {
           method: options.method ?? "GET",
           headers: {
             origin: options.origin ?? kit.site,
-            ...(options.sub != null && {
-              [IDENTITY_HEADER]: token(options.sub),
-            }),
+            ...(options.sub !== undefined &&
+              options.sub !== null && {
+                [IDENTITY_HEADER]: token(options.sub),
+              }),
           },
         },
       ),

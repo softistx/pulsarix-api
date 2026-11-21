@@ -162,7 +162,7 @@ export async function identifyCaller(
   key: Parameters<typeof verifyIdentity>[1],
   token: string | null | undefined,
 ): Promise<Identity | null> {
-  if (token == null) return null;
+  if (token === undefined || token === null) return null;
   const identity = verifyIdentity(token, key, intake.now());
   await intake.limit((l) => l.intakeReporter, {
     keyId: key.id,

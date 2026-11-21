@@ -58,7 +58,9 @@ export const publicFilter = (
   report: ClientReportDocument,
   after?: Date | null,
 ) => {
-  const from = [report.linkedAt, after].filter((date) => date != null);
+  const from = [report.linkedAt, after].filter(
+    (date) => date !== undefined && date !== null,
+  );
   const since = from.length
     ? new Date(Math.max(...from.map((date) => date.getTime())))
     : null;
