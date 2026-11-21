@@ -26,17 +26,6 @@ export const filePreviewUrl = (file: ClientReportFileDocument) =>
     ? `/media/${fileKindName}/${file.storageKey}/${previewSize}`
     : null;
 
-// The stored files of a report, oldest first.
-export function filesOfReport(
-  mongo: IntakeMongo,
-  reportId: ObjectId,
-): Promise<ClientReportFileDocument[]> {
-  return mongo.db.clientReportFiles.findMany({
-    filter: { reportId, state: { $in: [...STORED] } },
-    sort: { _id: 1 },
-  });
-}
-
 // How many files of each report are still to come: a slot reserved (`pending`)
 // whose deadline has not passed, so the reporter's upload is still ahead. One grouped read of the
 // `reportId` index for a whole set of reports; a report with none is absent.
@@ -110,4 +99,16 @@ export async function releaseStranded(mongo: IntakeMongo): Promise<number> {
     await releaseFiles(mongo, report._id);
   }
   return reports.length;
+}
+
+// The stored files of several reports, oldest first: one read for a page of
+// the inbox (the `files` loader).
+export function filesOfReports(
+  mongo: IntakeMongo,
+  reportIds: readonly ObjectId[],
+): Promise<ClientReportFileDocument[]> {
+  return mongo.db.clientReportFiles.findMany({
+    filter: { reportId: { $in: [...reportIds] }, state: { $in: [...STORED] } },
+    sort: { _id: 1 },
+  });
 }

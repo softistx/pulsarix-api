@@ -1,7 +1,8 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requireViewer } from "../../core/access";
+import { dataLoaders } from "../data-loaders";
 import type { TimeSpentView } from "./services";
-import { isOnIssue, myTimer, scoped, spent } from "./utils";
+import { isOnIssue, scoped } from "./utils";
 
 export const timeResolvers: Resolvers = {
   Query: {
@@ -29,7 +30,7 @@ export const timeResolvers: Resolvers = {
   },
   TimeSpent: {
     myRunningTimer: async (parent, _, ctx) => {
-      const timer = await myTimer(ctx);
+      const timer = await dataLoaders(ctx).time.timer.load("me");
       if (!timer || !isOnIssue(timer, parent.issueId)) return null;
       return { startedAt: timer.startedAt, stoppedSeconds: null };
     },
@@ -38,9 +39,9 @@ export const timeResolvers: Resolvers = {
     // Degrades to a status, whatever chronix does; the issue query never fails
     // because of it.
     timeSpent: async (issue, _, ctx) => {
-      const view = await spent(ctx, issue.id).catch(
-        (): TimeSpentView => ({ status: "UNAVAILABLE" }),
-      );
+      const view = await dataLoaders(ctx)
+        .time.spent.load(issue.id)
+        .catch((): TimeSpentView => ({ status: "UNAVAILABLE" }));
       return {
         status: view.status,
         totalSeconds: "totalSeconds" in view ? view.totalSeconds : null,

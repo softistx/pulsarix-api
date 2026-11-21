@@ -1,4 +1,5 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
+import { dataLoaders } from "../data-loaders";
 import { publicStateOfStatus } from "./projects.model";
 import { manager, reader } from "./projects.utils";
 
@@ -34,10 +35,10 @@ export const projectsResolvers: Resolvers = {
   },
   Project: {
     id: (project) => project.id,
-    statuses: async (project, _, ctx) =>
-      (await reader(ctx)).statuses.list(project.id),
-    labels: async (project, _, ctx) =>
-      (await reader(ctx)).labels.list(project.id),
+    statuses: (project, _, ctx) =>
+      dataLoaders(ctx).projects.statuses.load(project.id),
+    labels: (project, _, ctx) =>
+      dataLoaders(ctx).projects.labels.load(project.id),
   },
   Status: {
     id: (status) => status.id,
