@@ -98,6 +98,7 @@ to the UI, so no router changes.
 ## Migrations
 
 There is no migration script; the schema is synced in two places.
+
 - **The core database at every boot.** `src/server.ts` calls `syncCoreAtBoot`
   (`src/config/core-sync.ts`) before the API listens: `coreMongo.sync()` (the
   organisation registry, locks, invitations) and janus-mongo's `syncMongoAdapter`

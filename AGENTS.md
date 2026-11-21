@@ -6,6 +6,7 @@ organisation through `@softistx/alxia-tenancy` (A1), English as the default lang
 owner's rules for every repository are in `~/.claude/CLAUDE.md`; the product's are in
 `~/workspace/dev/pulsarix/AGENTS.md`; the plan is `~/workspace/dev/pulsarix/docs/plan.md`.
 This file states only what is pulsarix-api's own.
+
 - `src/core/` is the kernel and depends on no business module; `src/modules/registry.ts` is
   the ONE list of modules.
 - `bun run verify` is the green bar; `typecheck` is `bun check`.
