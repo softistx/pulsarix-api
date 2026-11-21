@@ -16,7 +16,7 @@ export const distinct = (given: string[], path: string): ObjectId[] => {
 export const estimateIssue = (
   hours: number | null | undefined,
 ): FieldIssue[] =>
-  hours != null && !(hours >= 0 && hours <= 100_000)
+  hours !== undefined && hours !== null && !(hours >= 0 && hours <= 100_000)
     ? [{ path: "estimateHours", code: "validation.errors.out-of-range" }]
     : [];
 
