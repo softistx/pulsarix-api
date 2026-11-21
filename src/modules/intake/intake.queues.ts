@@ -40,7 +40,7 @@ export const intakeFilesRetention = defineQueue({
 // The reporter's e-mail (plan §19, A19): one job per report and time window,
 // due 10 minutes after the first public reply or state change in it, so that
 // replies and changes that follow share the one e-mail
-// (intake.notify.ts). A mail that fails is retried with a growing wait; a job
+// (services/notify.service.ts). A mail that fails is retried with a growing wait; a job
 // that completes leaves nothing behind.
 export const intakeReporterMail = defineQueue({
   name: "intake-reporter-mail",

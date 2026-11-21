@@ -9,10 +9,10 @@ import {
   respond,
   secure,
 } from "../intake.http";
-import { thumbnailOf } from "../intake.requests.actions";
-import { callerOf, keyOf, preflight, refusal } from "../intake.requests.http";
-import { openSession } from "../intake.requests.session";
-import type { PublicIntake } from "../intake.submit";
+import { thumbnailOf } from "../services/requests-actions.service";
+import { openSession } from "../services/requests-session.service";
+import type { PublicIntake } from "../services/submit.service";
+import { callerOf, keyOf, preflight, refusal } from "./requests.http";
 
 // GET /public/requests/files/<fileId>?key=...: the 256 px thumbnail of one of
 // the reporter's own pictures, for the widget's thread. A file of another

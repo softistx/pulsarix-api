@@ -1,4 +1,4 @@
-import type { Caller, PublicIntake } from "../intake.submit";
+import type { Caller, PublicIntake } from "../services/submit.service";
 
 // What a resolver of /public/graphql reads: the intake and who calls.
 export interface PublicContext {

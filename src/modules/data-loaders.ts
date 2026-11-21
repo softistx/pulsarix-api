@@ -1,6 +1,6 @@
 import { can, requirePermission } from "../core/access";
 import type { Context } from "../http/context";
-import { intakeLoaders } from "./intake/intake.data-loader";
+import { intakeLoaders } from "./intake/data-loaders";
 import { projectsLoaders } from "./projects/projects.data-loader";
 import { timeLoaders } from "./time/time.data-loader";
 import { scoped as timeScoped } from "./time/utils";

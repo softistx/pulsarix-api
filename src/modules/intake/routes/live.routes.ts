@@ -8,11 +8,17 @@ import {
   respond,
   secure,
 } from "../intake.http";
-import { verifyIdentity } from "../intake.identity";
-import { callerOf, keyOf, preflight, refusal } from "../intake.requests.http";
-import { openLedger, type RequestUpdate } from "../intake.requests.live";
-import { openSession, type Session } from "../intake.requests.session";
-import type { Caller, PublicIntake } from "../intake.submit";
+import { verifyIdentity } from "../services/identity.service";
+import {
+  openLedger,
+  type RequestUpdate,
+} from "../services/requests-live.service";
+import {
+  openSession,
+  type Session,
+} from "../services/requests-session.service";
+import type { Caller, PublicIntake } from "../services/submit.service";
+import { callerOf, keyOf, preflight, refusal } from "./requests.http";
 
 // Open streams per reporter: more would be a script, not a person's tabs.
 export const MAX_STREAMS = 3;

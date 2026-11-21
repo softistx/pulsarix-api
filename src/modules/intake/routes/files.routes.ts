@@ -11,7 +11,7 @@ import {
   fileRefusal,
   type ReportFilesAccess,
 } from "../intake.files.kinds";
-import { organisationFolder } from "../intake.files.storage";
+import { organisationFolder } from "../services/files-storage.service";
 
 export interface ReportFilesRoutesOptions<Requires extends object>
   extends ReportFilesAccess<Requires> {

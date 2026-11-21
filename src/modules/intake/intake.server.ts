@@ -5,14 +5,15 @@ import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
 import type { Media } from "../attachments/public";
-import { purgeAllReportFiles } from "./intake.files.retention";
-import { sendReporterMail, unsubscribeSecret } from "./intake.notify";
-import { eraseAll } from "./intake.retention";
+import { purgeAllReportFiles } from "./services/files-retention.service";
+import { sendReporterMail } from "./services/reporter-mail.service";
+import { eraseAll } from "./services/retention.service";
 import {
   type IntakeDeps,
   type IntakeLimits,
   PublicIntake,
-} from "./intake.submit";
+} from "./services/submit.service";
+import { unsubscribeSecret } from "./utils/mail.utils";
 
 // The key the upload tickets are signed with: INTAKE_TICKET_SECRET, else a
 // key derived from API_PROXY_SECRET (always set in production), else a fixed

@@ -15,7 +15,7 @@ import {
   TRACKING_FILES_PATH,
   TRACKING_HEADER,
 } from "../intake.http";
-import type { PublicIntake } from "../intake.submit";
+import type { PublicIntake } from "../services/submit.service";
 
 // GET /public/tracking/files/<fileId>: the thumbnail of one of the reporter's
 // own pictures, for the tracking page (`clientReportStatus` lists them). For

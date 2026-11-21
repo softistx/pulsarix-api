@@ -7,15 +7,12 @@ import type { Media } from "../../attachments/public";
 import { unavailable } from "../intake.errors";
 import { maxFileBytes } from "../intake.files.kinds";
 import { corsHeaders, respond, secure } from "../intake.http";
-import type { Caller, PublicIntake } from "../intake.submit";
-import { readTicket, TICKET_HEADER } from "../intake.tickets";
-import { type Admission, ReportUploads } from "../intake.uploads";
-import {
-  failure,
-  preflight,
-  requireClientHeader,
-} from "../intake.uploads.refusals";
+import type { Admission } from "../intake.types";
+import type { Caller, PublicIntake } from "../services/submit.service";
+import { ReportUploads } from "../services/uploads.service";
+import { readTicket, TICKET_HEADER } from "../utils/tickets.utils";
 import { reportFilesRoutes } from "./files.routes";
+import { failure, preflight, requireClientHeader } from "./uploads.http";
 
 const UPLOAD_PATH = "/public/media/report-files";
 

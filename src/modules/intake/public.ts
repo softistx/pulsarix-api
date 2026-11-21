@@ -1,6 +1,5 @@
 // What other modules may import from intake.
 
-export { purgeOrganisationFiles } from "./intake.files.storage";
 export {
   startFilesRetentionWorker,
   startReporterMailWorker,
@@ -11,3 +10,4 @@ export type {
   ClientReportFileDocument,
   ReportState,
 } from "./models";
+export { purgeOrganisationFiles } from "./services/files-storage.service";
