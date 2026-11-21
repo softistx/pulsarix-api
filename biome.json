@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!!**/dist", "!!**/generated", "!!schema.graphql"]
+    "includes": [
+      "**",
+      "!!**/dist",
+      "!!**/generated",
+      "!!schema.graphql",
+      "!!schema.public.graphql",
+      "!!operations/public"
+    ]
   },
   "formatter": {
     "enabled": true,
