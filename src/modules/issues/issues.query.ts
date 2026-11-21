@@ -3,7 +3,7 @@ import type { ObjectId } from "mongodb";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import type { IssueDocument, Priority } from "./issues.model";
-import type { IssuesMongo } from "./issues.service";
+import type { IssuesMongo } from "./issues.types";
 
 export interface IssueFilter {
   statusIds?: string[] | null;
