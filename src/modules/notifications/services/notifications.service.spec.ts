@@ -3,8 +3,8 @@ import { createMemoryMailer } from "@softistx/mail";
 import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import { subscribe } from "~/sse";
-import { tenancy } from "../../config/db";
-import type { NotificationsMongo } from "./services";
+import { tenancy } from "../../../config/db";
+import type { NotificationsMongo } from ".";
 import {
   DIGEST_DELAY_MS,
   type DigestDeps,
@@ -12,7 +12,7 @@ import {
   scheduleDigest,
   sendDigest,
   useDigestQueue,
-} from "./services";
+} from ".";
 
 const kit = authApp();
 

@@ -2,7 +2,7 @@ import type { Address, Mailer } from "@softistx/mail";
 import type { ObjectId } from "mongodb";
 import type { AppTenancy, CoreMongo, ModuleMongo } from "../../config/db";
 import type { Locale } from "../../i18n/locale";
-import type { IntakeLimits } from "./intake.limits.types";
+import type { IntakeLimits, Limiter } from "./intake.limits.types";
 import type { ClientReportDocument, ReportFileRole } from "./models";
 import type { FileTicket } from "./services/slots.service";
 import type { TicketClaims } from "./utils/tickets.utils";
@@ -129,3 +129,16 @@ export interface ReporterMailDeps {
 }
 
 export type ReporterMailOutcome = "sent" | "nothing" | "skipped";
+
+// What the submit helpers (utils/submit.utils.ts) ask of `PublicIntake`: its
+// shape, so the utils do not import the service.
+export interface SubmitPort {
+  deps: Pick<IntakeDeps, "mailer" | "from" | "uiOrigin">;
+  background(work: () => Promise<void>): void;
+  countRefusal(keyId: ObjectId, error: unknown): void;
+  limit<P>(
+    pick: (limits: IntakeLimits) => Limiter<P>,
+    params: P,
+    cost?: number,
+  ): Promise<void>;
+}

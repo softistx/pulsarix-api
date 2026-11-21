@@ -2,10 +2,10 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import { subscribe } from "~/sse";
-import { realtime } from "../../config/redis";
-import { backoff, writeConflict } from "../../core/shared/locked";
-import { registerIssueChange } from "../issues/public";
-import { STREAM_LIMITS } from "./activity.resolver-support";
+import { realtime } from "../../../config/redis";
+import { backoff, writeConflict } from "../../../core/shared/locked";
+import { registerIssueChange } from "../../issues/public";
+import { STREAM_LIMITS } from "../activity.resolver-support";
 
 const kit = authApp();
 

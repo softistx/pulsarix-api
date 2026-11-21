@@ -479,32 +479,37 @@ describe("moving issues", () => {
   });
 });
 
+async function listingFixture() {
+  const t = await withProject();
+  const label = await t.asOwner.call<{ createLabel: { id: string } }>(
+    CreateLabel,
+    { input: { projectId: t.project.id, name: "bug", colour: "#ff0000" } },
+  );
+  const lid = label.createLabel.id;
+  const a = await t.make("Alpha login", {
+    priority: "low",
+    assigneeId: t.owner.id,
+    labelIds: [lid],
+    dueDate: "2026-03-10T00:00:00Z",
+  });
+  await t.make("Beta export", {
+    priority: "urgent",
+    statusId: t.todo,
+    dueDate: "2026-03-01T00:00:00Z",
+  });
+  await t.make("Gamma [x]", {
+    priority: "high",
+    statusId: t.done,
+    parentId: a.id,
+  });
+  await t.make("Delta", {});
+  await t.asOwner.call(Watch, { id: a.id });
+  return { t, lid, a };
+}
+
 describe("listing issues", () => {
-  test("filters narrow, sorts order and pages follow by cursor", async () => {
-    const t = await withProject();
-    const label = await t.asOwner.call<{ createLabel: { id: string } }>(
-      CreateLabel,
-      { input: { projectId: t.project.id, name: "bug", colour: "#ff0000" } },
-    );
-    const lid = label.createLabel.id;
-    const a = await t.make("Alpha login", {
-      priority: "low",
-      assigneeId: t.owner.id,
-      labelIds: [lid],
-      dueDate: "2026-03-10T00:00:00Z",
-    });
-    await t.make("Beta export", {
-      priority: "urgent",
-      statusId: t.todo,
-      dueDate: "2026-03-01T00:00:00Z",
-    });
-    await t.make("Gamma [x]", {
-      priority: "high",
-      statusId: t.done,
-      parentId: a.id,
-    });
-    await t.make("Delta", {});
-    await t.asOwner.call(Watch, { id: a.id });
+  test("filters narrow the list", async () => {
+    const { t, lid, a } = await listingFixture();
 
     expect(await t.titles()).toEqual([
       "Alpha login",
@@ -539,6 +544,10 @@ describe("listing issues", () => {
     expect(
       await t.titles({ statusIds: [t.todo], priorities: ["low"] }),
     ).toEqual([]);
+  });
+
+  test("sorts order the list", async () => {
+    const { t } = await listingFixture();
 
     expect(
       await t.titles(undefined, { field: "title", direction: "desc" }),
@@ -554,6 +563,10 @@ describe("listing issues", () => {
         -2,
       ),
     ).toEqual(["Beta export", "Alpha login"]);
+  });
+
+  test("pages follow by cursor and bad paging input is refused", async () => {
+    const { t } = await listingFixture();
 
     const seen: string[] = [];
     let after: string | null = null;

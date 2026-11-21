@@ -16,6 +16,7 @@ import type { IssueDocument } from "../issues.model";
 import type { Changed, IsMember, IssuesMongo } from "../issues.types";
 import { issueChanged } from "../issues.usage";
 import { distinct, invalidField } from "../issues.validation";
+import { rankAfter } from "../rank";
 
 // The fields that name other records, checked against the issue's project.
 export interface ReferenceFields {
@@ -141,5 +142,19 @@ export class IssuesProject {
         await tx.db.issues.findById(current);
       current = next?.parentId ?? null;
     }
+  }
+
+  // The end of a status's column: the rank after its last issue.
+  async endOfColumn(
+    tx: IssuesMongo,
+    statusId: ObjectId,
+    except?: ObjectId,
+  ): Promise<string> {
+    const last = await tx.db.issues.findMany({
+      filter: { statusId, ...(except && { _id: { $ne: except } }) },
+      sort: { rank: -1 },
+      limit: 1,
+    });
+    return rankAfter(last[0]?.rank ?? null);
   }
 }

@@ -8,15 +8,11 @@ import type { IssuesMongo } from "../issues.types";
 import { invalidField } from "../issues.validation";
 import { rankBetween } from "../rank";
 import { MOVED, optionalId } from "../utils/fields.utils";
-import type { IssueCreation } from "./create.service";
 import type { IssuesProject } from "./issues-project.service";
 
 // The move of an issue to a place in a status's column.
 export class IssueMoves {
-  constructor(
-    private readonly project: IssuesProject,
-    private readonly creation: IssueCreation,
-  ) {}
+  constructor(private readonly project: IssuesProject) {}
 
   // Puts the issue in a status's column, right after `beforeId` and right
   // before `afterId` (the issues that end up above and below it; either or
@@ -102,7 +98,7 @@ export class IssueMoves {
       });
       rank = rankBetween(previous?.rank ?? null, below.rank);
     } else {
-      rank = await this.creation.endOfColumn(tx, statusId, issue._id);
+      rank = await this.project.endOfColumn(tx, statusId, issue._id);
     }
     if (rank === null) throw badPlacement();
     return rank;

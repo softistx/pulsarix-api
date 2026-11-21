@@ -22,6 +22,7 @@ import {
   defaultPublicState,
   publicStateOfStatus,
 } from "../projects.model";
+import { STATUSES_ORDER } from "../projects.search";
 import { type ProjectsMongo, statusIsUsed } from "../projects.usage";
 
 export interface CreateStatusInput {
@@ -47,7 +48,7 @@ export class StatusesService {
   list(projectId: string): Promise<StatusDocument[]> {
     return this.mongo.db.statuses.findMany({
       filter: { projectId: toObjectId(projectId) },
-      sort: { order: 1 },
+      ...STATUSES_ORDER,
     });
   }
 

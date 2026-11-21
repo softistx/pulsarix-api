@@ -399,8 +399,10 @@ describe("the pending files of a report", () => {
       }>(Pending, { projectId: w.kit.project.id })
     ).clientReports.nodes;
 
-  test("counts the slots whose bytes have not arrived, per report, and drops them once stored or expired", async () => {
-    const w = await setup();
+  const byId = (rows: Awaited<ReturnType<typeof pendingOf>>, id: string) =>
+    rows.find((row) => row.id === id);
+
+  async function submitWithSlots(w: Awaited<ReturnType<typeof setup>>) {
     const one = await w.kit.submit(
       goodReport({
         files: [
@@ -438,17 +440,25 @@ describe("the pending files of a report", () => {
         submitClientReport: { reportId: string };
       }
     ).submitClientReport.reportId;
+    return { sent, plain };
+  }
+
+  test("counts the slots whose bytes have not arrived, per report", async () => {
+    const w = await setup();
+    const { sent, plain } = await submitWithSlots(w);
 
     const before = await pendingOf(w);
-    const byId = (rows: typeof before, id: string) =>
-      rows.find((row) => row.id === id);
     expect(byId(before, sent.reportId)).toMatchObject({
       pendingFiles: 2,
       files: [],
     });
     expect(byId(before, plain)?.pendingFiles).toBe(0);
+  }, 120_000);
 
-    // One upload arrives: stored, no longer pending.
+  test("a stored upload is no longer pending", async () => {
+    const w = await setup();
+    const { sent } = await submitWithSlots(w);
+
     const [first] = sent.files;
     const answer = await w.kit.kit.app.fetch(
       new Request(
@@ -470,8 +480,12 @@ describe("the pending files of a report", () => {
     const during = await pendingOf(w);
     expect(byId(during, sent.reportId)).toMatchObject({ pendingFiles: 1 });
     expect(byId(during, sent.reportId)?.files).toHaveLength(1);
+  }, 120_000);
 
-    // The other slot expires: nothing is awaited any more.
+  test("an expired slot is dropped, and a viewer is refused", async () => {
+    const w = await setup();
+    const { sent } = await submitWithSlots(w);
+
     const mongo = (await tenancy.databaseOf(
       w.kit.organisation.id,
     )) as unknown as Parameters<typeof purgeReportFiles>[0];
@@ -552,8 +566,7 @@ describe("the pending files of a page of reports", () => {
 });
 
 describe("the reporter's own thumbnails", () => {
-  test("the status lists the files; the tracking token reads a picture's thumbnail only", async () => {
-    const w = await setup();
+  async function trackedFiles(w: Awaited<ReturnType<typeof setup>>) {
     const { token } = await reportWithFiles(w.kit);
     const tracked = await w.kit.track(token);
     const files = (
@@ -568,11 +581,17 @@ describe("the reporter's own thumbnails", () => {
         };
       }
     ).clientReportStatus.files;
+    const [picture, document] = files;
+    return { token, files, picture, document };
+  }
+
+  test("the status lists the files; the tracking token reads a picture's thumbnail", async () => {
+    const w = await setup();
+    const { token, files, picture } = await trackedFiles(w);
     expect(files.map((f) => [f.name, f.thumbnailUrl === null])).toEqual([
       ["screen.png", false],
       ["notes.pdf", true],
     ]);
-    const [picture, document] = files;
     expect(picture?.thumbnailUrl).toBe(`/public/tracking/files/${picture?.id}`);
 
     const thumb = await trackedRead(
@@ -595,8 +614,13 @@ describe("the reporter's own thumbnails", () => {
       stored?.previewUrl as string,
     );
     expect(bytes).toEqual(new Uint8Array(await preview.arrayBuffer()));
+  }, 120_000);
 
-    // A PDF has no thumbnail for the reporter, and no other size or route reads.
+  test("a PDF has no thumbnail for the reporter, and no other size or route reads", async () => {
+    const w = await setup();
+    const { token, picture, document } = await trackedFiles(w);
+    const [stored] = await inbox(w).then((r) => r[0]?.files as FileOut[]);
+
     expect(
       (
         await trackedRead(
@@ -616,8 +640,12 @@ describe("the reporter's own thumbnails", () => {
       ).status,
     ).toBe(404);
     expect((await w.read(null, (stored as FileOut).url)).status).toBe(401);
+  }, 120_000);
 
-    // UI server only, with the token.
+  test("the thumbnail is for the UI server only, with the token", async () => {
+    const w = await setup();
+    const { token, picture } = await trackedFiles(w);
+
     expect(
       (
         await trackedRead(w.kit, picture?.thumbnailUrl as string, token, {
@@ -698,6 +726,30 @@ describe("the reporter's own thumbnails", () => {
   }, 120_000);
 });
 
+async function putSlot(
+  w: Awaited<ReturnType<typeof setup>>,
+  ticket: { slot: string; ticket: string } | undefined,
+  type: string,
+  body: Uint8Array,
+) {
+  return w.kit.kit.app.fetch(
+    new Request(
+      `https://api.pulsarix.test/public/media/report-files/${ticket?.slot}`,
+      {
+        method: "PUT",
+        headers: {
+          "content-type": type,
+          "content-length": String(shot.length),
+          [TICKET_HEADER]: ticket?.ticket as string,
+          origin: w.kit.site,
+        },
+        body: body as unknown as BodyInit,
+        duplex: "half",
+      } as RequestInit,
+    ),
+  );
+}
+
 describe("the key counts its file traffic", () => {
   test("uploads and refusals by reason", async () => {
     const w = await setup();
@@ -726,39 +778,14 @@ describe("the key counts its file traffic", () => {
         submitClientReport: { files: { slot: string; ticket: string }[] };
       }
     ).submitClientReport.files[0];
-    const wrong = await w.kit.kit.app.fetch(
-      new Request(
-        `https://api.pulsarix.test/public/media/report-files/${ticket?.slot}`,
-        {
-          method: "PUT",
-          headers: {
-            "content-type": "image/jpeg",
-            "content-length": String(shot.length),
-            [TICKET_HEADER]: ticket?.ticket as string,
-            origin: w.kit.site,
-          },
-          body: shot as unknown as BodyInit,
-          duplex: "half",
-        } as RequestInit,
-      ),
-    );
+    const wrong = await putSlot(w, ticket, "image/jpeg", shot);
     expect(wrong.status).toBe(400);
     // The bytes are not a JPEG: the kind refuses them, and that is counted too.
-    const liar = await w.kit.kit.app.fetch(
-      new Request(
-        `https://api.pulsarix.test/public/media/report-files/${ticket?.slot}`,
-        {
-          method: "PUT",
-          headers: {
-            "content-type": "image/png",
-            "content-length": String(shot.length),
-            [TICKET_HEADER]: ticket?.ticket as string,
-            origin: w.kit.site,
-          },
-          body: new Uint8Array(shot.length) as unknown as BodyInit,
-          duplex: "half",
-        } as RequestInit,
-      ),
+    const liar = await putSlot(
+      w,
+      ticket,
+      "image/png",
+      new Uint8Array(shot.length),
     );
     expect(liar.status).toBe(415);
     await w.kit.intake.settled();

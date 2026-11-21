@@ -2,6 +2,7 @@ import { toObjectId } from "@softistx/mongo";
 import DataLoader from "dataloader";
 import { grouped } from "../../core/shared/ids";
 import type { LabelDocument, StatusDocument } from "./projects.model";
+import { LABELS_ORDER, STATUSES_ORDER } from "./projects.search";
 import type { ProjectsMongo } from "./projects.usage";
 
 // A project's statuses and labels, per request: the projects of one page ask
@@ -16,15 +17,14 @@ export function projectsLoaders(mongoOf: () => Promise<ProjectsMongo>) {
     statuses: new DataLoader<string, StatusDocument[]>(async (ids) => {
       const rows = await (await mongoOf()).db.statuses.findMany({
         filter: projectIn(ids),
-        sort: { order: 1 },
+        ...STATUSES_ORDER,
       });
       return grouped(ids, rows, (row) => row.projectId.toHexString());
     }),
     labels: new DataLoader<string, LabelDocument[]>(async (ids) => {
       const rows = await (await mongoOf()).db.labels.findMany({
         filter: projectIn(ids),
-        sort: { name: 1 },
-        collation: { locale: "en", strength: 2 },
+        ...LABELS_ORDER,
       });
       return grouped(ids, rows, (row) => row.projectId.toHexString());
     }),

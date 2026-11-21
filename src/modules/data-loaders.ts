@@ -2,8 +2,8 @@ import { can, requirePermission } from "../core/access";
 import type { Context } from "../http/context";
 import { intakeLoaders } from "./intake/data-loaders";
 import { projectsLoaders } from "./projects/projects.data-loader";
+import { scoped as timeScoped } from "./time/public";
 import { timeLoaders } from "./time/time.data-loader";
-import { scoped as timeScoped } from "./time/utils";
 
 // THE per-request loaders of the modules (DataLoader): built on first use for
 // a request's context, never shared between requests, so a loader's cache
