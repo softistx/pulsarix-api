@@ -23,8 +23,8 @@ import {
   TRACKING_HEADER,
 } from "../intake.http";
 import { normaliseOrigin } from "../rules/origins.rules";
-import { IDENTITY_HEADER } from "../services/identity.service";
-import type { Caller, PublicIntake } from "../services/submit.service";
+import type { Caller, PublicIntake } from "../services";
+import { IDENTITY_HEADER } from "../services";
 
 // The body /public/graphql reads: a report is at most 10 000 characters of
 // description plus a title and 2 KB of metadata.

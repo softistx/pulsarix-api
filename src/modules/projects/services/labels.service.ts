@@ -12,8 +12,8 @@ import {
   projectNotFound,
 } from "../projects.errors";
 import { colour, type LabelDocument } from "../projects.model";
-import { LABELS_ORDER } from "../projects.search";
 import { labelRemoved, type ProjectsMongo } from "../projects.usage";
+import { LABELS_ORDER } from "../projects.utils";
 
 export interface CreateLabelInput {
   projectId: string;

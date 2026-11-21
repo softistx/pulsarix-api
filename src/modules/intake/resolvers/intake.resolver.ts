@@ -1,48 +1,9 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { requirePermission, requireViewer } from "../../../core/access";
-import type { Context } from "../../../http/context";
+import { requirePermission } from "../../../core/access";
 import { dataLoaders } from "../../data-loaders";
-import { IssuesService } from "../../issues/public";
-import {
-  filePreviewUrl,
-  fileUrl,
-  releasedFilesOfIssue,
-} from "../services/files-team.service";
-import { WidgetKeysService } from "../services/keys.service";
-import { ReportsService } from "../services/reports.service";
+import { filePreviewUrl, fileUrl, releasedFilesOfIssue } from "../services";
 import { attachmentsOn } from "../utils/attachments.utils";
-
-// The key admin: `intake:manage`, and for a key's creation or rotation a
-// recent proof of identity (plan §11, "step-up for key creation").
-async function keysOf(ctx: Context, fresh = false) {
-  const { mongo, tenant, core } = await requirePermission(ctx, "intake:manage");
-  const viewer = requireViewer(ctx);
-  if (fresh) ctx.services.requireFresh(viewer);
-  return new WidgetKeysService(
-    core.as(viewer.id),
-    mongo,
-    tenant._id.toHexString(),
-  );
-}
-
-// The inbox: those who write issues triage.
-async function reportsOf(ctx: Context) {
-  const { mongo, tenant } = await requirePermission(ctx, "issue:write");
-  const viewerId = requireViewer(ctx).id;
-  const organisationId = tenant._id.toHexString();
-  return new ReportsService(
-    mongo,
-    new IssuesService(
-      mongo,
-      async (accountId) =>
-        (await ctx.services.roleOf(organisationId, accountId)) !== null,
-      viewerId,
-      organisationId,
-    ),
-    viewerId,
-    { organisationId },
-  );
-}
+import { keysOf, reportsOf } from "./support";
 
 export const intakeResolvers: Resolvers = {
   Query: {

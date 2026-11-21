@@ -10,4 +10,4 @@ export type {
   ClientReportFileDocument,
   ReportState,
 } from "./models";
-export { purgeOrganisationFiles } from "./services/files-storage.service";
+export { purgeOrganisationFiles } from "./services";

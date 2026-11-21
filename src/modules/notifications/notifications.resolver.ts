@@ -1,5 +1,5 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { scoped } from "./notifications.utils";
+import { scoped } from "./notifications.resolver-support";
 
 export const notificationsResolvers: Resolvers = {
   Query: {

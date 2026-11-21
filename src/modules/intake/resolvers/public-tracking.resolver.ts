@@ -5,7 +5,7 @@ import {
   trackingReopen,
   trackingReply,
   trackingResolve,
-} from "../services/tracking-actions.service";
+} from "../services";
 import { type PublicContext, withIsoTickets } from "./support";
 
 // The resolvers of the tracking page's calls (for the UI server): the

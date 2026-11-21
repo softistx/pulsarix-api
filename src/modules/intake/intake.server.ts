@@ -5,14 +5,14 @@ import { env } from "../../config/env";
 import { mailer } from "../../config/mail";
 import { realtime } from "../../config/redis";
 import type { Media } from "../attachments/public";
-import { purgeAllReportFiles } from "./services/files-retention.service";
-import { sendReporterMail } from "./services/reporter-mail.service";
-import { eraseAll } from "./services/retention.service";
 import {
+  eraseAll,
   type IntakeDeps,
   type IntakeLimits,
   PublicIntake,
-} from "./services/submit.service";
+  purgeAllReportFiles,
+  sendReporterMail,
+} from "./services";
 import { unsubscribeSecret } from "./utils/mail.utils";
 
 // The key the upload tickets are signed with: INTAKE_TICKET_SECRET, else a

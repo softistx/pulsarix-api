@@ -18,9 +18,12 @@ import {
   widgetKeys,
 } from "./models";
 import { intakeResolvers } from "./resolvers";
-import { followIssue } from "./services/closing.service";
-import { mailPublicReply, mailStateChange } from "./services/notify.service";
-import { clearClientWaiting } from "./services/waiting.service";
+import {
+  clearClientWaiting,
+  followIssue,
+  mailPublicReply,
+  mailStateChange,
+} from "./services";
 
 // A report follows its issue to its end (services/closing.service.ts).
 registerIssueChange(followIssue);

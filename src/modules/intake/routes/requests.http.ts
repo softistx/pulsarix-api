@@ -4,8 +4,8 @@ import { localeOfRequest } from "../../../i18n/locale";
 import { originNotAllowed } from "../intake.errors";
 import { answerOf, corsHeaders, respond, secure } from "../intake.http";
 import { normaliseOrigin } from "../rules/origins.rules";
-import { IDENTITY_HEADER } from "../services/identity.service";
-import type { Caller, PublicIntake } from "../services/submit.service";
+import type { Caller, PublicIntake } from "../services";
+import { IDENTITY_HEADER } from "../services";
 
 // What the identified reporter's two GET routes share (plan §19, A17): the
 // caller, the key of the query, the CORS preflight and the refusal. Both are

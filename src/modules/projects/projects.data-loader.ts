@@ -2,8 +2,8 @@ import { toObjectId } from "@softistx/mongo";
 import DataLoader from "dataloader";
 import { grouped } from "../../core/shared/ids";
 import type { LabelDocument, StatusDocument } from "./projects.model";
-import { LABELS_ORDER, STATUSES_ORDER } from "./projects.search";
 import type { ProjectsMongo } from "./projects.usage";
+import { LABELS_ORDER, STATUSES_ORDER } from "./projects.utils";
 
 // A project's statuses and labels, per request: the projects of one page ask
 // together, so a page is one read of each, not one per project. `mongoOf` runs

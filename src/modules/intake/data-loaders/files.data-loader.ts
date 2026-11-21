@@ -2,7 +2,7 @@ import DataLoader from "dataloader";
 import { grouped, idOrInvalid } from "../../../core/shared/ids";
 import type { IntakeMongo } from "../intake.types";
 import type { ClientReportFileDocument } from "../models";
-import { filesOfReports } from "../services/files-team.service";
+import { filesOfReports } from "../services";
 
 // The files of the reports of one page of the inbox, per request: keys are
 // report ids. `mongoOf` runs the inbox guard (once per batch).

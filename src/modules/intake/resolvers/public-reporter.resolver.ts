@@ -1,20 +1,16 @@
+import type { PublicIntake, Submitted } from "../services";
 import {
   eraseMyData,
   markRequestRead,
-  replyToRequest,
-  setRequestEmails,
-} from "../services/requests-actions.service";
-import {
   myRequests,
+  openSession,
   type RequestFilter,
-} from "../services/requests-list.service";
-import { requestOf } from "../services/requests-read.service";
-import { openSession } from "../services/requests-session.service";
-import {
   reopenRequest,
+  replyToRequest,
+  requestOf,
   resolveRequest,
-} from "../services/requests-settle.service";
-import type { PublicIntake, Submitted } from "../services/submit.service";
+  setRequestEmails,
+} from "../services";
 import { type PublicContext, withIsoTickets } from "./support";
 
 // The resolvers of the widget's calls: the key in the arguments, the reporter

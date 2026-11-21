@@ -41,6 +41,14 @@ describe("timeLoaders.spent", () => {
     expect(views[1]).toEqual({ status: "UNAVAILABLE" });
   });
 
+  test("an issue asked twice in a tick is sent once, and read again later", async () => {
+    const { reads: r, asked } = reads();
+    const { spent } = timeLoaders(r);
+    await Promise.all([spent.load("a"), spent.load("a")]);
+    await spent.load("a");
+    expect(asked).toEqual([["a"], ["a"]]);
+  });
+
   test("a viewer without time:read gets FORBIDDEN and no call", async () => {
     const { reads: r, asked } = reads({ totals: () => Promise.resolve(null) });
     const view = await timeLoaders(r).spent.load("a");

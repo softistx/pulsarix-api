@@ -1,7 +1,7 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { dataLoaders } from "../data-loaders";
 import { publicStateOfStatus } from "./projects.model";
-import { manager, reader } from "./projects.utils";
+import { manager, reader } from "./projects.resolver-support";
 
 export const projectsResolvers: Resolvers = {
   Query: {
