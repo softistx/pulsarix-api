@@ -20,11 +20,8 @@ import { type Base, type BaseOptions, createBase } from "./http/context";
 import { clientHeader } from "./http/csrf";
 import { graphqlPlugins } from "./http/graphql-plugins";
 import { schema } from "./http/schema";
-import { mediaPipeline } from "./modules/attachments/attachments.routes";
-import {
-  type Media,
-  useMedia,
-} from "./modules/attachments/attachments.storage";
+import { type Media, useMedia } from "./modules/attachments/attachments.store";
+import { mediaPipeline } from "./modules/attachments/routes";
 import { reportFilesReadRoutes } from "./modules/intake/intake.files.read";
 import { unsubscribeSecret } from "./modules/intake/intake.notify";
 import {

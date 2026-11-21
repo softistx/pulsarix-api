@@ -6,10 +6,15 @@ import {
   requireViewer,
 } from "../../core/access";
 import { dayIn, startOfDayIn } from "../../core/shared/days";
-import { assignedPage, DEFAULT_FIRST } from "./dashboard.assigned";
-import { dashboardParent } from "./dashboard.base";
-import { projectFigures, triageBacklog } from "./dashboard.figures";
-import { DEFAULT_LATEST, inboxOf } from "./dashboard.inbox";
+import {
+  assignedPage,
+  DEFAULT_FIRST,
+  DEFAULT_LATEST,
+  dashboardParent,
+  inboxOf,
+  projectFigures,
+  triageBacklog,
+} from "./services";
 
 export const dashboardResolvers: Resolvers = {
   Query: {

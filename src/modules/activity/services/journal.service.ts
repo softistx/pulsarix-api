@@ -1,33 +1,14 @@
-import { realtime } from "../../config/redis";
+import { realtime } from "../../../config/redis";
 import {
   type AfterCommit,
   runAfterCommit,
-} from "../../core/shared/after-commit";
-import type { CommentDocument } from "../comments/public";
-import type { IssueDocument } from "../issues/public";
-import type { IssueEventPayload } from "./activity.channels";
-import type { ActivityDocument, ActivityVerb } from "./activity.model";
+} from "../../../core/shared/after-commit";
+import type { CommentDocument } from "../../comments/public";
+import type { IssueDocument } from "../../issues/public";
+import type { ActivityVerb } from "../activity.model";
+import { activityRecorded } from "../activity.usage";
+import { eventOf } from "../activity.utils";
 import { type ActivityMongo, recordActivity } from "./activity.service";
-import { activityRecorded } from "./activity.usage";
-
-// The issue events go out after the commit, from the row the journal wrote.
-export const eventOf = (
-  organisationId: string,
-  activity: ActivityDocument,
-  issue: { statusId: string | null; rank: string | null },
-): IssueEventPayload => ({
-  organisationId,
-  activityId: activity.id,
-  verb: activity.verb,
-  projectId: activity.projectId.toHexString(),
-  issueId: activity.issueId?.toHexString() ?? "",
-  issueKey: activity.issueKey ?? "",
-  actorId: activity.actorId,
-  fields: activity.changes.map((change) => change.field),
-  statusId: issue.statusId,
-  rank: issue.rank,
-  at: activity.at.toISOString(),
-});
 
 // A change that touches the issue's own topic only (the board shows no
 // comments and no client replies): journalled inside the writing transaction,

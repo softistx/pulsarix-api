@@ -5,9 +5,9 @@ import {
 } from "../../core/shared/after-commit";
 import { registerCommentChange } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
-import { eventOf, journalOnIssue } from "./activity.events";
-import { recordActivity } from "./activity.service";
 import { activityRecorded } from "./activity.usage";
+import { eventOf } from "./activity.utils";
+import { journalOnIssue, recordActivity } from "./services";
 
 // An issue's change is journalled inside the writing transaction and
 // published to the board and to the issue's topic once it has committed.

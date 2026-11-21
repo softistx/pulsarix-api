@@ -1,7 +1,7 @@
 import {
   createMedia,
   type Media,
-} from "../modules/attachments/attachments.storage";
+} from "../modules/attachments/attachments.store";
 import { env } from "./env";
 
 // The file store of the server, or none: the media routes answer 503

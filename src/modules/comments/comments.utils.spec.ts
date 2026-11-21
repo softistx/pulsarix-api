@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mentionedIds } from "./mentions";
+import { mentionedIds } from "./comments.utils";
 
 describe("mention markers", () => {
   test("distinct ids in order of appearance", () => {

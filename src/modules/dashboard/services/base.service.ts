@@ -1,6 +1,6 @@
 import type { ObjectId } from "mongodb";
-import type { ModuleMongo } from "../../config/db";
-import type { ProjectDocument, StatusDocument } from "../projects/public";
+import type { ModuleMongo } from "../../../config/db";
+import type { ProjectDocument, StatusDocument } from "../../projects/public";
 
 export type DashboardMongo = ModuleMongo<"dashboard">;
 

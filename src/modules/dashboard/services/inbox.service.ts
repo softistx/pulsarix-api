@@ -1,6 +1,6 @@
-import { invalid } from "../../core/shared/errors";
-import { latestNotifications } from "../notifications/public";
-import type { DashboardParent } from "./dashboard.base";
+import { invalid } from "../../../core/shared/errors";
+import { latestNotifications } from "../../notifications/public";
+import type { DashboardParent } from "./base.service";
 
 export const DEFAULT_LATEST = 5;
 const MAX_LATEST = 20;
