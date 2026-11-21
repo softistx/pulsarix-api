@@ -2,10 +2,10 @@ import type { ObjectId } from "mongodb";
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
+import { dataLoaders } from "../data-loaders";
 import { IssuesService } from "../issues/public";
 import {
   filePreviewUrl,
-  filesOfReport,
   fileUrl,
   pendingCountsOf,
   releasedFilesOfIssue,
@@ -136,10 +136,8 @@ export const intakeResolvers: Resolvers = {
     },
     // Quarantined files are the inbox's: the field asks for the permission
     // the report's own queries ask for, whatever parent it comes from.
-    files: async (report, _, ctx) => {
-      const { mongo } = await requirePermission(ctx, "issue:write");
-      return filesOfReport(mongo, report._id);
-    },
+    files: (report, _, ctx) =>
+      dataLoaders(ctx).intake.files.load(report._id.toHexString()),
     pendingFiles: async (report, _, ctx) => {
       const { mongo } = await requirePermission(ctx, "issue:write");
       return pendingOf(ctx, mongo, report._id);

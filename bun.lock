@@ -31,6 +31,7 @@
         "@softistx/redis": "^0.24.1",
         "@softistx/s3": "^0.13.1",
         "@softistx/telemetry": "^0.5.0",
+        "dataloader": "^2.2.3",
         "graphql": "^17.0.2",
         "mongodb": "^7.9.1",
         "nodemailer": "^8",
