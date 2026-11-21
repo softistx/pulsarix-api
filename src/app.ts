@@ -23,12 +23,12 @@ import { schema } from "./http/schema";
 import { type Media, useMedia } from "./modules/attachments/attachments.store";
 import { mediaPipeline } from "./modules/attachments/routes";
 import { reportFilesReadRoutes } from "./modules/intake/intake.files.read";
-import { unsubscribeSecret } from "./modules/intake/intake.notify";
+import { unsubscribeSecret } from "./modules/intake/services/notify.service";
 import {
   serverIntake,
   serverTicketSecret,
 } from "./modules/intake/intake.server";
-import type { PublicIntake } from "./modules/intake/intake.submit";
+import type { PublicIntake } from "./modules/intake/services/submit.service";
 import { unsubscribeRoutes } from "./modules/intake/intake.unsubscribe";
 import { liveRequestRoutes } from "./modules/intake/routes/live.routes";
 import { publicRoutes } from "./modules/intake/routes/public-graphql.routes";

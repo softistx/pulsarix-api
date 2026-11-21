@@ -5,7 +5,7 @@ import { startTestRedis, type TestRedis } from "@softistx/redis/testing";
 import { goodReport, intakeKit } from "~/intake";
 import { coreMongo, tenancy } from "../../config/db";
 import { openRealtime, type Realtime } from "../../config/redis";
-import { type IntakeLimits, PublicIntake } from "./intake.submit";
+import { type IntakeLimits, PublicIntake } from "./services/submit.service";
 
 // The real limits over a real Redis server, found in the package cache or
 // $REDIS_BIN; skipped where there is none (building one takes minutes).

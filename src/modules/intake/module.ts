@@ -6,14 +6,14 @@ import {
 } from "../comments/public";
 import { registerIssueChange } from "../issues/public";
 import intakeTypeDefs from "./graphql/intake.graphqls" with { type: "text" };
-import { followIssue } from "./intake.closing";
+import { followIssue } from "./services/closing.service";
 import { clientMessages } from "./intake.comments";
 import {
   announceIssueChange,
   announcePublicReply,
 } from "./intake.live.handlers";
-import { mailPublicReply, mailStateChange } from "./intake.notify";
-import { clearClientWaiting } from "./intake.waiting";
+import { mailPublicReply, mailStateChange } from "./services/notify.service";
+import { clearClientWaiting } from "./services/waiting.service";
 import {
   clientReportFiles,
   clientReportMessages,

@@ -9,10 +9,10 @@ import {
   fileUrl,
   pendingCountsOf,
   releasedFilesOfIssue,
-} from "../intake.files.team";
-import { WidgetKeysService } from "../intake.keys";
-import { ReportsService } from "../intake.reports";
-import { publicStateLoaderOf } from "../intake.requests.state";
+} from "../services/files-team.service";
+import { WidgetKeysService } from "../services/keys.service";
+import { ReportsService } from "../services/reports.service";
+import { publicStateLoaderOf } from "../services/requests-state.service";
 import { attachmentsOn } from "../models";
 
 // The key admin: `intake:manage`, and for a key's creation or rotation a
