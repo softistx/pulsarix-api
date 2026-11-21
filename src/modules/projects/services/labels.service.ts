@@ -4,15 +4,15 @@ import {
   type FieldIssue,
   invalid,
   required,
-} from "../../core/shared/errors";
-import { retryWriteConflicts } from "../../core/shared/locked";
+} from "../../../core/shared/errors";
+import { retryWriteConflicts } from "../../../core/shared/locked";
 import {
   labelNameTaken,
   labelNotFound,
   projectNotFound,
-} from "./projects.errors";
-import { colour, type LabelDocument } from "./projects.model";
-import { labelRemoved, type ProjectsMongo } from "./projects.usage";
+} from "../projects.errors";
+import { colour, type LabelDocument } from "../projects.model";
+import { labelRemoved, type ProjectsMongo } from "../projects.usage";
 
 export interface CreateLabelInput {
   projectId: string;

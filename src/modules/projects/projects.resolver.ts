@@ -1,31 +1,6 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { requirePermission } from "../../core/access";
-import type { Context } from "../../http/context";
-import { LabelsService } from "./labels.service";
 import { publicStateOfStatus } from "./projects.model";
-import { ProjectsService } from "./projects.service";
-import { StatusesService } from "./statuses.service";
-
-// The services of the request's organisation, once the guard let the viewer in.
-async function scoped(
-  ctx: Context,
-  permission: "project:read" | "project:manage",
-) {
-  const { mongo, tenant } = await requirePermission(ctx, permission);
-  return {
-    projects: new ProjectsService(
-      mongo,
-      async (accountId) =>
-        (await ctx.services.roleOf(tenant._id.toHexString(), accountId)) !==
-        null,
-    ),
-    statuses: new StatusesService(mongo),
-    labels: new LabelsService(mongo),
-  };
-}
-
-const reader = (ctx: Context) => scoped(ctx, "project:read");
-const manager = (ctx: Context) => scoped(ctx, "project:manage");
+import { manager, reader } from "./projects.utils";
 
 export const projectsResolvers: Resolvers = {
   Query: {
