@@ -1,23 +1,7 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
-import { can, requirePermission, requireViewer } from "../../core/access";
-import type { Context } from "../../http/context";
-import { kindName, previewSize } from "./attachments.kinds";
-import { AttachmentsService } from "./attachments.service";
-
-type Permission = "attachment:read" | "attachment:write";
-
-async function scoped(ctx: Context, permission: Permission) {
-  const { mongo, tenant } = await requirePermission(ctx, permission);
-  const viewer = requireViewer(ctx);
-  return new AttachmentsService(
-    mongo,
-    viewer.id,
-    await can(ctx, "attachment:delete"),
-    tenant._id.toHexString(),
-  );
-}
-
-const urlOf = (key: string) => `/media/${kindName}/${key}`;
+import { previewSize } from "./attachments.kinds";
+import { scoped } from "./attachments.resolver-support";
+import { urlOf } from "./attachments.utils";
 
 export const attachmentsResolvers: Resolvers = {
   Query: {

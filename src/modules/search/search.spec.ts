@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { authApp, memberWith, ownerWithOrganisation } from "~/auth";
 import { codeOf } from "~/http";
 import type { MemberView } from "../../core/members";
-import { memberScore, searchMembers } from "./search.members";
+import { memberScore, searchMembers } from "./search.utils";
 
 const kit = authApp();
 

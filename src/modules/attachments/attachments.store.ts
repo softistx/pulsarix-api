@@ -5,7 +5,7 @@ import { kindName, previewSize } from "./attachments.kinds";
 
 // The one private bucket the files live in. The layout of a key
 // (`organisations/<id>/attachments/<key>[/<size>.webp]`) is @softistx/alxia-media's,
-// given the tenant prefix of attachments.routes.ts.
+// given the tenant prefix of routes/guard.routes.ts.
 // `list` is for the sweeps by prefix (an organisation's whole folder); the
 // routes need only what MediaBucket names.
 export interface Media {

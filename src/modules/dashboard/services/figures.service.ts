@@ -1,38 +1,6 @@
 import type { ObjectId } from "mongodb";
-import type { Base, DashboardParent } from "./dashboard.base";
-
-// 1 when the issue has a due date before `start` (the start of today), else 0.
-// A missing or null date is never late.
-export const lateOf = (start: Date) => ({
-  $cond: [
-    { $and: [{ $gt: ["$dueDate", null] }, { $lt: ["$dueDate", start] }] },
-    1,
-    0,
-  ],
-});
-
-const count = (test: object) => ({ $sum: { $cond: [test, 1, 0] } });
-
-// One pass over the open issues of the projects, per project. Everything it
-// reads (project, status, priority, due date) is in the
-// `issues_projectIdStatusIdPriorityDue` index, so no document is fetched.
-export const figuresPipeline = (
-  projectIds: ObjectId[],
-  openIds: ObjectId[],
-  triageIds: ObjectId[],
-  start: Date,
-) => [
-  { $match: { projectId: { $in: projectIds }, statusId: { $in: openIds } } },
-  {
-    $group: {
-      _id: "$projectId",
-      open: { $sum: 1 },
-      urgent: count({ $eq: ["$priorityLevel", 4] }),
-      late: { $sum: lateOf(start) },
-      triage: count({ $in: ["$statusId", triageIds] }),
-    },
-  },
-];
+import { figuresPipeline } from "../dashboard.utils";
+import type { Base, DashboardParent } from "./base.service";
 
 interface Row {
   _id: ObjectId;

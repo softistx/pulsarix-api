@@ -1,5 +1,5 @@
-import type { IssueDocument } from "../issues/public";
-import { issueKeyOf, ranked, type SearchMongo } from "./search.service";
+import type { IssueDocument } from "../../issues/public";
+import { issueKeyOf, ranked, type SearchMongo } from "../search.utils";
 
 // Issues by relevance: an exact key first, then the text index (title and key
 // weigh more than the description), then a substring of the title or key.

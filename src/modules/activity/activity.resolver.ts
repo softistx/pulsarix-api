@@ -1,6 +1,5 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission } from "../../core/access";
-import { ActivityService } from "./activity.service";
 import {
   openClientReportFiles,
   openClientReportMessages,
@@ -8,12 +7,9 @@ import {
   openIssueChanged,
   openNotifications,
   openProjectBoard,
-} from "./activity.subscriptions";
-
-const issueEvent = (event: { at: string; [key: string]: unknown }) => ({
-  ...event,
-  at: new Date(event.at),
-});
+} from "./activity.resolver-support";
+import { issueEvent } from "./activity.utils";
+import { ActivityService } from "./services";
 
 export const activityResolvers: Resolvers = {
   Query: {
