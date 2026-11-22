@@ -47,6 +47,7 @@ export function patchInput(
     ...(patch.estimateHours !== undefined && {
       estimateHours: patch.estimateHours,
     }),
+    ...(patch.points !== undefined && { points: patch.points }),
     ...(labels && {
       labelIds: [
         ...new Set(

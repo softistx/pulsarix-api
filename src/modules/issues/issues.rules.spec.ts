@@ -51,11 +51,28 @@ describe("breaksChildren", () => {
 });
 
 describe("progressOf", () => {
+  const of = (categories: string[], points: (number | null)[] = []) =>
+    categories.map((category, i) => ({ category, points: points[i] ?? null }));
+
   test("counts done children out of all, leaving the cancelled out", () => {
     expect(
-      progressOf(["done", "todo", "cancelled", "done", "inProgress"]),
-    ).toEqual({ done: 2, total: 4 });
-    expect(progressOf([])).toEqual({ done: 0, total: 0 });
-    expect(progressOf(["cancelled"])).toEqual({ done: 0, total: 0 });
+      progressOf(of(["done", "todo", "cancelled", "done", "inProgress"])),
+    ).toMatchObject({ done: 2, total: 4 });
+    expect(progressOf([])).toEqual({
+      done: 0,
+      total: 0,
+      points: 0,
+      pointsDone: 0,
+    });
+    expect(progressOf(of(["cancelled"], [5]))).toMatchObject({
+      total: 0,
+      points: 0,
+    });
+  });
+
+  test("sums the points of the children, and of the done ones", () => {
+    expect(
+      progressOf(of(["done", "todo", "cancelled", "done"], [3, 5, 13, null])),
+    ).toEqual({ done: 2, total: 3, points: 8, pointsDone: 3 });
   });
 });

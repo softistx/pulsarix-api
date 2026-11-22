@@ -4,7 +4,7 @@ export const kit = authApp();
 
 export const fields = `id projectId number key title description statusId priority
   assigneeId labelIds parentId startDate dueDate rank reporterId watcherIds
-  watching type progress { done total }`;
+  watching type points progress { done total points pointsDone }`;
 export const CreateProject = `mutation($input: CreateProjectInput!) {
   createProject(input: $input) { id key statuses { id name category } }
 }`;
@@ -49,7 +49,8 @@ export interface Issue {
   watcherIds: string[];
   watching: boolean;
   type: "epic" | "story" | "task" | "bug" | "subTask";
-  progress: { done: number; total: number };
+  points: number | null;
+  progress: { done: number; total: number; points: number; pointsDone: number };
 }
 export interface Project {
   id: string;

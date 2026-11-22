@@ -29,5 +29,13 @@ export const parentTypeInvalid = () =>
 export const parentRequired = () =>
   fail("issues.errors.parent-required", { status: 409, field: "parentId" });
 
+// Story points (plan §20.5): off the Fibonacci scale is 400, on an Epic or a
+// Sub-task 409; both on `points`.
+export const pointsOffScale = () =>
+  fail("issues.errors.points-off-scale", { status: 400, field: "points" });
+
+export const pointsNotAllowed = () =>
+  fail("issues.errors.points-not-allowed", { status: 409, field: "points" });
+
 export const typeBreaksChildren = () =>
   fail("issues.errors.type-breaks-children", { status: 409, field: "type" });

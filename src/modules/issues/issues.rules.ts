@@ -39,14 +39,24 @@ export function breaksChildren(
 }
 
 // The progress of an issue's children: the done ones out of all of them, the
-// cancelled ones left out of both counts.
-export function progressOf(categories: readonly string[]): {
+// cancelled ones left out of every count; `points` sums their story points
+// (an Epic's total) and `pointsDone` those of the done ones.
+export function progressOf(
+  children: readonly { category: string; points: number | null }[],
+): {
   done: number;
   total: number;
+  points: number;
+  pointsDone: number;
 } {
-  const counted = categories.filter((category) => category !== "cancelled");
+  const counted = children.filter((child) => child.category !== "cancelled");
+  const done = counted.filter((child) => child.category === "done");
+  const sum = (list: typeof counted) =>
+    list.reduce((total, child) => total + (child.points ?? 0), 0);
   return {
-    done: counted.filter((category) => category === "done").length,
+    done: done.length,
     total: counted.length,
+    points: sum(counted),
+    pointsDone: sum(done),
   };
 }

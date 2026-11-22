@@ -31,6 +31,7 @@ export type IssueSortField =
   | "number"
   | "title"
   | "priority"
+  | "points"
   | "dueDate"
   | "startDate"
   | "createdAt"
@@ -47,6 +48,7 @@ const orderBy = {
   number: "number",
   title: "title",
   priority: "priorityLevel",
+  points: "points",
   dueDate: "dueDate",
   startDate: "startDate",
   createdAt: "createdAt",

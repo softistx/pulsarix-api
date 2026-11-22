@@ -5,7 +5,7 @@ import type { IssuesMongo } from "./issues.types";
 
 // Fake collections whose `findMany` is a spy over fixed rows.
 function fake(
-  children: { parentId: ObjectId; statusId: ObjectId }[],
+  children: { parentId: ObjectId; statusId: ObjectId; points?: number }[],
   statuses: { id: string; category: string }[],
 ) {
   const calls = { issues: 0, statuses: 0 };
@@ -47,9 +47,9 @@ describe("issuesLoaders", () => {
 
   test("the progress of N issues is two reads and one guard", async () => {
     const children = [
-      { parentId: a, statusId: finished },
-      { parentId: a, statusId: open },
-      { parentId: a, statusId: dropped },
+      { parentId: a, statusId: finished, points: 3 },
+      { parentId: a, statusId: open, points: 5 },
+      { parentId: a, statusId: dropped, points: 8 },
     ];
     const { mongoOf, calls, guards } = fake(children, statuses);
     const { progress } = issuesLoaders(mongoOf);
@@ -59,8 +59,8 @@ describe("issuesLoaders", () => {
     ]);
     expect(calls).toEqual({ issues: 1, statuses: 1 });
     expect(guards()).toBe(1);
-    expect(first).toEqual({ done: 1, total: 2 });
-    expect(second).toEqual({ done: 0, total: 0 });
+    expect(first).toEqual({ done: 1, total: 2, points: 8, pointsDone: 3 });
+    expect(second).toEqual({ done: 0, total: 0, points: 0, pointsDone: 0 });
   });
 
   test("a refused guard rejects every issue of the batch", async () => {

@@ -144,12 +144,24 @@ describe("issue types and parent rules", () => {
     const read = await asOwner.call<{
       issue: { progress: { done: number; total: number } };
     }>(ByKey, { key: epic.key });
-    expect(read.issue.progress).toEqual({ done: 1, total: 2 });
+    expect(read.issue.progress).toMatchObject({ done: 1, total: 2 });
     const alone = await make("Alone");
     const own = await asOwner.call<{
-      issue: { progress: { done: number; total: number } };
+      issue: {
+        progress: {
+          done: number;
+          total: number;
+          points: number;
+          pointsDone: number;
+        };
+      };
     }>(ByKey, { key: alone.key });
-    expect(own.issue.progress).toEqual({ done: 0, total: 0 });
+    expect(own.issue.progress).toEqual({
+      done: 0,
+      total: 0,
+      points: 0,
+      pointsDone: 0,
+    });
   });
 
   test("a type change is in the activity", async () => {

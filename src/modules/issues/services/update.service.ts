@@ -1,8 +1,8 @@
 import { changesBetween } from "../../../core/shared/changes";
 import { invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
-import { issueNotFound } from "../issues.errors";
-import { type IssueDocument, typeOf } from "../issues.model";
+import { issueNotFound, pointsNotAllowed } from "../issues.errors";
+import { type IssueDocument, pointTypes, typeOf } from "../issues.model";
 import type {
   BulkUpdateIssueInput,
   BulkUpdateResult,
@@ -11,7 +11,12 @@ import type {
 } from "../issues.types";
 import { invalidField } from "../issues.validation";
 import { bulkIssues, updateIssues } from "../utils/checks.utils";
-import { optionalId, TRACKED, updatedFields } from "../utils/fields.utils";
+import {
+  isSet,
+  optionalId,
+  TRACKED,
+  updatedFields,
+} from "../utils/fields.utils";
 import { failureOf, labelChanges, patchInput } from "../utils/patch.utils";
 import type { IssuesProject } from "./issues-project.service";
 import type { IssueMoves } from "./move.service";
@@ -24,7 +29,7 @@ export class IssueUpdates {
   ) {}
 
   // A field left out stays as it is; null clears `assigneeId`, `parentId`,
-  // `startDate` and `dueDate`, and is refused for the others. The status
+  // `startDate`, `dueDate`, `estimateHours` and `points`, and is refused for the others. The status
   // changes by `moveIssue`.
   async update(id: string, input: UpdateIssueInput): Promise<IssueDocument> {
     const refused = updateIssues(input);
@@ -49,14 +54,27 @@ export class IssueUpdates {
         );
       }
       await this.checkTypeRules(tx, issue, input);
-      const updated = await tx.db.issues.update(
-        issue._id,
-        updatedFields(input, issue),
-      );
+      const updated = await tx.db.issues.update(issue._id, {
+        ...updatedFields(input, issue),
+        ...this.pointsFor(issue, input),
+      });
       const changes = changesBetween(issue, updated, TRACKED);
       if (changes.length > 0) await changed("updated", updated, changes);
       return updated;
     });
+  }
+
+  // Points follow the type the issue ends with: an Epic or a Sub-task carries
+  // none, so points given for one are refused (409) and a change to such a
+  // type clears the stored points (the activity records it, `points` being
+  // tracked). A null never needs a check.
+  private pointsFor(
+    issue: IssueDocument,
+    input: UpdateIssueInput,
+  ): { points?: null } {
+    if (pointTypes.includes(input.type ?? typeOf(issue))) return {};
+    if (isSet(input.points)) throw pointsNotAllowed();
+    return isSet(issue.points) ? { points: null } : {};
   }
 
   // The parent rules, for the pair the edit changes: a type given that is the
