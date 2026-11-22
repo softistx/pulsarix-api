@@ -1,5 +1,6 @@
 import type { Locale } from "./locale";
 import { intakeTexts } from "./texts.intake";
+import { issuesTexts } from "./texts.issues";
 
 // The text of every error code in each language (ICU messages, interpolating
 // the `params` of the refusal). English is the default, French is offered
@@ -7,6 +8,7 @@ import { intakeTexts } from "./texts.intake";
 export const texts: Record<Locale, Record<string, string>> = {
   en: {
     ...intakeTexts.en,
+    ...issuesTexts.en,
     "auth.errors.client-header-required":
       "The {header} header is required on every request.",
     "auth.errors.unauthenticated": "Sign in to continue.",
@@ -54,13 +56,6 @@ export const texts: Record<Locale, Record<string, string>> = {
     "projects.errors.label-not-found": "This label does not exist.",
     "projects.errors.label-name-taken":
       'This project already has a label named "{name}".',
-    "issues.errors.not-found": "This issue does not exist.",
-    "issues.errors.parent-cycle":
-      "An issue cannot be its own parent, nor the parent of one of its parents.",
-    "issues.errors.bad-placement":
-      "The issues named as neighbours must be in that status, in order.",
-    "issues.errors.project-archived":
-      "This project is archived: its issues, comments and files can no longer be changed. Unarchive it first.",
     "time.errors.not-linked":
       "This organisation is not linked to chronix: an admin links it first.",
     "time.errors.invalid-key": "chronix refused this link key.",
@@ -125,6 +120,7 @@ export const texts: Record<Locale, Record<string, string>> = {
   },
   fr: {
     ...intakeTexts.fr,
+    ...issuesTexts.fr,
     "auth.errors.client-header-required":
       "L'en-tête {header} est obligatoire sur chaque requête.",
     "auth.errors.unauthenticated": "Connectez-vous pour continuer.",
@@ -173,13 +169,6 @@ export const texts: Record<Locale, Record<string, string>> = {
     "projects.errors.label-not-found": "Ce libellé n'existe pas.",
     "projects.errors.label-name-taken":
       'Ce projet a déjà un libellé nommé "{name}".',
-    "issues.errors.not-found": "Ce ticket n'existe pas.",
-    "issues.errors.parent-cycle":
-      "Un ticket ne peut pas être son propre parent, ni le parent d'un de ses parents.",
-    "issues.errors.bad-placement":
-      "Les tickets voisins doivent être dans ce statut, dans l'ordre.",
-    "issues.errors.project-archived":
-      "Ce projet est archivé : ses tickets, commentaires et fichiers ne peuvent plus être modifiés. Désarchivez-le d'abord.",
     "time.errors.not-linked":
       "Cette organisation n'est pas reliée à chronix : un administrateur doit d'abord la relier.",
     "time.errors.invalid-key": "chronix a refusé cette clé de liaison.",

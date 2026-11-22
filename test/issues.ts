@@ -4,7 +4,7 @@ export const kit = authApp();
 
 export const fields = `id projectId number key title description statusId priority
   assigneeId labelIds parentId startDate dueDate rank reporterId watcherIds
-  watching`;
+  watching type progress { done total }`;
 export const CreateProject = `mutation($input: CreateProjectInput!) {
   createProject(input: $input) { id key statuses { id name category } }
 }`;
@@ -48,6 +48,8 @@ export interface Issue {
   startDate: string | null;
   watcherIds: string[];
   watching: boolean;
+  type: "epic" | "story" | "task" | "bug" | "subTask";
+  progress: { done: number; total: number };
 }
 export interface Project {
   id: string;
@@ -111,6 +113,7 @@ export async function listingFixture() {
   );
   const lid = label.createLabel.id;
   const a = await t.make("Alpha login", {
+    type: "epic",
     priority: "low",
     assigneeId: t.owner.id,
     labelIds: [lid],

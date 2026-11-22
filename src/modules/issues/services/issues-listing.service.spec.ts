@@ -26,6 +26,8 @@ describe("listing issues", () => {
     expect(await t.titles({ labelIds: [lid] })).toEqual(["Alpha login"]);
     expect(await t.titles({ parentId: a.id })).toEqual(["Gamma [x]"]);
     expect(await t.titles({ rootsOnly: true })).toHaveLength(3);
+    expect(await t.titles({ types: ["epic"] })).toEqual(["Alpha login"]);
+    expect(await t.titles({ types: ["task"] })).toHaveLength(3);
     expect(await t.titles({ reporterId: t.owner.id })).toHaveLength(4);
     expect(await t.titles({ watching: true })).toEqual(["Alpha login"]);
     expect(await t.titles({ text: "EXPORT" })).toEqual(["Beta export"]);
