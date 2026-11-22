@@ -74,7 +74,7 @@ permission: every signed-in account holds it (`src/core/access/account.ts`).
 
 Inviting, changing a role, removing a member and enrolling a second factor also ask for a recent
 proof of identity (10 minutes; 403 `auth.errors.step-up-required`, then `requestStepUp` /
-`confirmStepUp`).
+`confirmStepUp`). Reading the pending invitations asks for none.
 
 ## Mail links
 

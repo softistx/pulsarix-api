@@ -122,4 +122,17 @@ describe("sign-up, invite, accept, role change", () => {
       ),
     ).toBe("auth.errors.step-up-required");
   });
+
+  test("listing the pending invitations needs no recent proof", async () => {
+    const { owner, organisation } = await ownerWithOrganisation(kit);
+    const asOwner = kit.client(owner.token, { organisation: organisation.id });
+    await asOwner.call(Invite, {
+      input: { email: uniqueEmail("listed"), name: "Listed", role: "member" },
+    });
+    kit.clock.advance(11 * 60 * 1000);
+    const listed = await asOwner.call<{ invitations: { id: string }[] }>(
+      `{ invitations(status: PENDING) { id } }`,
+    );
+    expect(listed.invitations).toHaveLength(1);
+  });
 });
