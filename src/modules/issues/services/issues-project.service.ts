@@ -11,8 +11,17 @@ import {
 import { idOrInvalid } from "../../../core/shared/ids";
 import { retryWriteConflicts } from "../../../core/shared/locked";
 import { lockProject, type ProjectDocument } from "../../projects/public";
-import { issueNotFound, parentCycle, projectArchived } from "../issues.errors";
-import type { IssueDocument } from "../issues.model";
+import {
+  issueNotFound,
+  parentCycle,
+  parentNotAllowed,
+  parentRequired,
+  parentTypeInvalid,
+  projectArchived,
+  typeBreaksChildren,
+} from "../issues.errors";
+import { type IssueDocument, type IssueType, typeOf } from "../issues.model";
+import { breaksChildren, parentRefusal } from "../issues.rules";
 import type { Changed, IsMember, IssuesMongo } from "../issues.types";
 import { issueChanged } from "../issues.usage";
 import { distinct, invalidField } from "../issues.validation";
@@ -127,6 +136,37 @@ export class IssuesProject {
       issues.push(invalidField("dueDate"));
     }
     if (issues.length > 0) throw invalid(issues);
+  }
+
+  // The parent rules for an issue of `type` under `parentId` (null for none):
+  // 409 with the rule that refuses it. The parent exists in the project (see
+  // `checkReferences`, which runs first).
+  async checkParentRules(
+    tx: IssuesMongo,
+    type: IssueType,
+    parentId: ObjectId | null,
+  ): Promise<void> {
+    const parent = parentId ? await tx.db.issues.findById(parentId) : null;
+    const refusal = parentRefusal(type, parent ? typeOf(parent) : null);
+    if (refusal === "parent-not-allowed") throw parentNotAllowed();
+    if (refusal === "parent-type-invalid") throw parentTypeInvalid();
+    if (refusal === "parent-required") throw parentRequired();
+  }
+
+  // An issue that becomes `to` keeps links with its children that are fine;
+  // 409 `type-breaks-children` when it would break one.
+  async checkChildrenRules(
+    tx: IssuesMongo,
+    issueId: ObjectId,
+    from: IssueType,
+    to: IssueType,
+  ): Promise<void> {
+    const children = await tx.db.issues.findMany({
+      filter: { parentId: issueId },
+    });
+    if (breaksChildren(from, to, children.map(typeOf))) {
+      throw typeBreaksChildren();
+    }
   }
 
   // The parent chain of `parentId` must not come back to the issue.

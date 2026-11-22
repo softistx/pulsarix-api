@@ -1,7 +1,12 @@
 import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
 import type { FieldChange } from "../../core/shared/changes";
-import type { IssueDocument, Priority, PriorityOrigin } from "./issues.model";
+import type {
+  IssueDocument,
+  IssueType,
+  Priority,
+  PriorityOrigin,
+} from "./issues.model";
 import type { IssueChange } from "./issues.usage";
 
 export type IssuesMongo = ModuleMongo<"issues">;
@@ -12,6 +17,8 @@ export type IsMember = (accountId: string) => Promise<boolean>;
 export interface CreateIssueInput {
   projectId: string;
   title: string;
+  // Defaults to `task`.
+  type?: IssueType | null;
   description?: string | null;
   statusId?: string | null;
   priority?: Priority | null;
@@ -31,6 +38,7 @@ export interface CreateIssueInput {
 
 export interface UpdateIssueInput {
   title?: string | null;
+  type?: IssueType | null;
   description?: string | null;
   priority?: Priority | null;
   assigneeId?: string | null;

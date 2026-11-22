@@ -4,6 +4,7 @@ import {
   type IssueDocument,
   type Priority,
   priorityLevel,
+  typeOf,
 } from "../issues.model";
 import type { CreateIssueInput, UpdateIssueInput } from "../issues.types";
 import { distinct } from "../issues.validation";
@@ -12,6 +13,7 @@ import { distinct } from "../issues.validation";
 // and the rank.
 export const TRACKED = [
   "title",
+  "type",
   "description",
   "priority",
   "assigneeId",
@@ -55,6 +57,7 @@ export function newIssue(
     number: place.number,
     key: place.key,
     title: input.title.trim(),
+    type: input.type ?? ("task" as const),
     description: input.description?.trim() ?? "",
     statusId: place.statusId,
     priority: level,
@@ -78,6 +81,9 @@ export function updatedFields(input: UpdateIssueInput, issue: IssueDocument) {
   const title = input.title?.trim();
   return {
     ...(title && { title }),
+    // A type equal to the effective one (a legacy issue reads as a task) is no change.
+    ...(isSet(input.type) &&
+      input.type !== typeOf(issue) && { type: input.type }),
     ...(isSet(input.description) && { description: input.description.trim() }),
     ...(isSet(input.priority) && {
       priority: input.priority,

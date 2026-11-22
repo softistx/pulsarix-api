@@ -3,13 +3,14 @@ import type { ObjectId } from "mongodb";
 import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { escapeRegex } from "../../core/shared/regex";
-import type { IssueDocument, Priority } from "./issues.model";
+import type { IssueDocument, IssueType, Priority } from "./issues.model";
 import type { IssuesMongo } from "./issues.types";
 
 export interface IssueFilter {
   statusIds?: string[] | null;
   categories?: string[] | null;
   priorities?: Priority[] | null;
+  types?: IssueType[] | null;
   assigneeId?: string | null;
   unassigned?: boolean | null;
   labelIds?: string[] | null;
@@ -63,6 +64,10 @@ const MAX_PAGE = 100;
 const ids = (given: string[], path: string): ObjectId[] =>
   given.map((id) => idOrInvalid(id, path));
 
+// An issue stored before the types has none: it is a task (`null` matches it).
+const typesIn = (types: IssueType[]): (IssueType | null)[] =>
+  types.includes("task") ? [...types, null] : types;
+
 const range = (from?: Date | null, to?: Date | null) =>
   from || to
     ? { ...(from && { $gte: from }), ...(to && { $lte: to }) }
@@ -108,6 +113,7 @@ export async function listIssues(
     projectId,
     ...(statusIds && { statusId: { $in: statusIds } }),
     ...(f.priorities && { priority: { $in: f.priorities } }),
+    ...(f.types && f.types.length > 0 && { type: { $in: typesIn(f.types) } }),
     ...(f.assigneeId && { assigneeId: f.assigneeId }),
     ...(f.unassigned && !f.assigneeId && { assigneeId: null }),
     ...(f.labelIds &&

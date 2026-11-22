@@ -15,7 +15,7 @@ import {
 describe("updating issues", () => {
   test("fields left out stay; null clears the optional ones and is refused for the rest", async () => {
     const { asOwner, make, owner } = await withProject();
-    const parent = await make("Parent");
+    const parent = await make("Parent", { type: "epic" });
     const child = await make("Child", {
       assigneeId: owner.id,
       parentId: parent.id,
@@ -72,9 +72,9 @@ describe("updating issues", () => {
 
   test("a parent may not loop back; deleting a parent frees its children", async () => {
     const { asOwner, make, project } = await withProject();
-    const a = await make("A");
-    const b = await make("B", { parentId: a.id });
-    const c = await make("C", { parentId: b.id });
+    const a = await make("A", { type: "epic" });
+    const b = await make("B", { type: "story", parentId: a.id });
+    const c = await make("C", { type: "subTask", parentId: b.id });
     for (const [id, parentId] of [
       [a.id, a.id],
       [a.id, c.id],

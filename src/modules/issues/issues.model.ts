@@ -10,6 +10,11 @@ import { accountId, actors } from "../../core/shared/actors";
 export const priority = z.enum(["none", "low", "medium", "high", "urgent"]);
 export type Priority = z.infer<typeof priority>;
 
+// The kind of an issue (plan §20.3): one set for every project. Parent rules
+// are in issues.rules.ts.
+export const issueType = z.enum(["epic", "story", "task", "bug", "subTask"]);
+export type IssueType = z.infer<typeof issueType>;
+
 // What a reporter did to the issue's requests (plan §19), shown to the team.
 export const clientMarker = z.enum(["resolved", "reopened", "deleted"]);
 export type ClientMarker = z.infer<typeof clientMarker>;
@@ -46,6 +51,8 @@ export const issues = defineCollection({
     // Rich text, kept as the client sends it.
     description: z.string().max(50_000).default(""),
     statusId: objectId(),
+    // Issues stored before the types lack it: read `type ?? "task"` (typeOf).
+    type: issueType.optional(),
     priority: priority.default("none"),
     priorityLevel: z.number().int().min(0).max(4).default(0),
     // Issues stored before widget v3 lack it: read it as `team`.
@@ -87,6 +94,7 @@ export const issues = defineCollection({
       name: "issues_projectIdStatusIdRank",
     },
     { key: { parentId: 1 }, name: "issues_parentId" },
+    { key: { projectId: 1, type: 1 }, name: "issues_projectIdType" },
     // The "client replied" filter of the issue list.
     {
       key: { projectId: 1, clientWaiting: 1 },
@@ -115,6 +123,10 @@ export const issues = defineCollection({
   ],
 });
 export type IssueDocument = ReadDocumentOf<typeof issues>;
+
+// The type of a stored issue: one stored before the types is a task.
+export const typeOf = (issue: { type?: IssueType | undefined }): IssueType =>
+  issue.type ?? "task";
 
 // The last number given in a project: the next issue is the one after it.
 // Written only under the project's lock, so two issues never share a number.

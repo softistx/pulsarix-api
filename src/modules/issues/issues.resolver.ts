@@ -1,5 +1,7 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requireViewer } from "../../core/access";
+import { dataLoaders } from "../data-loaders";
+import { typeOf } from "./issues.model";
 import { listIssues } from "./issues.query";
 import { scoped } from "./issues.resolver-support";
 
@@ -37,6 +39,9 @@ export const issuesResolvers: Resolvers = {
     id: (issue) => issue.id,
     projectId: (issue) => issue.projectId.toHexString(),
     statusId: (issue) => issue.statusId.toHexString(),
+    type: (issue) => typeOf(issue),
+    progress: (issue, _, ctx) =>
+      dataLoaders(ctx).issues.progress.load(issue.id),
     priorityOrigin: (issue) => issue.priorityOrigin ?? "team",
     labelIds: (issue) => issue.labelIds.map((id) => id.toHexString()),
     parentId: (issue) => issue.parentId?.toHexString() ?? null,

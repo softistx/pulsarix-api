@@ -20,6 +20,7 @@ export function createIssues(input: CreateIssueInput): FieldIssue[] {
 export function updateIssues(input: UpdateIssueInput): FieldIssue[] {
   const issues: FieldIssue[] = required(input, [
     "title",
+    "type",
     "description",
     "priority",
     "labelIds",
