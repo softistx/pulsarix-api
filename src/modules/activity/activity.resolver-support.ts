@@ -139,3 +139,13 @@ export const openClientReportMessages = async (
     holds,
   );
 };
+
+// Every request of the organisation, for those who triage: the organisation's
+// whole inbox, whatever the project.
+export const openRequests = async (ctx: Context) => {
+  const { organisationId, holds } = await open(ctx, "issue:write");
+  return bounded(
+    realtime.channels.requestsChanged.stream(organisationId),
+    holds,
+  );
+};

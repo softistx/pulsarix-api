@@ -20,6 +20,11 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.key-not-found": "This widget key does not exist.",
     "intake.errors.not-found": "This report does not exist.",
     "intake.errors.report-decided": "This report has been decided already.",
+    "intake.errors.link-exists": "This report is already linked to that issue.",
+    "intake.errors.last-link":
+      "A decided report keeps at least one linked issue.",
+    "intake.errors.issue-other-project":
+      "That issue belongs to another project than the report.",
     "intake.errors.invalid-origin":
       '"{origin}" is not an origin: use https://host[:port], with no path.',
     "intake.errors.file-unsupported-type":
@@ -69,6 +74,11 @@ export const intakeTexts: Record<Locale, Record<string, string>> = {
     "intake.errors.key-not-found": "Cette clé de widget n'existe pas.",
     "intake.errors.not-found": "Ce signalement n'existe pas.",
     "intake.errors.report-decided": "Ce signalement a déjà été traité.",
+    "intake.errors.link-exists": "Ce signalement est déjà lié à cette tâche.",
+    "intake.errors.last-link":
+      "Un signalement traité garde au moins une tâche liée.",
+    "intake.errors.issue-other-project":
+      "Cette tâche appartient à un autre projet que le signalement.",
     "intake.errors.invalid-origin":
       "« {origin} » n'est pas une origine : utilisez https://hôte[:port], sans chemin.",
     "intake.errors.file-unsupported-type":

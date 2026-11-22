@@ -1,16 +1,29 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { requirePermission } from "../../../core/access";
 import { dataLoaders } from "../../data-loaders";
-import { filePreviewUrl, fileUrl, releasedFilesOfIssue } from "../services";
+import {
+  countRequests,
+  filePreviewUrl,
+  fileUrl,
+  listRequests,
+  releasedFilesOfIssue,
+  replyToClientRequest,
+  requestById,
+  teamThread,
+} from "../services";
 import { attachmentsOn } from "../utils/attachments.utils";
-import { keysOf, reportsOf } from "./support";
+import { keysOf, reportsOf, triageOf } from "./support";
 
 export const intakeResolvers: Resolvers = {
   Query: {
     widgetKeys: async (_, { projectId }, ctx) =>
       (await keysOf(ctx)).list(projectId),
-    clientReports: async (_, { projectId, state, first, after }, ctx) =>
-      (await reportsOf(ctx)).list(projectId, state, first, after),
+    clientReports: async (_, args, ctx) =>
+      listRequests((await triageOf(ctx)).mongo, args),
+    clientReportCounts: async (_, { projectId }, ctx) =>
+      countRequests((await triageOf(ctx)).mongo, projectId),
+    clientReport: async (_, { id }, ctx) =>
+      requestById((await triageOf(ctx)).mongo, id),
     issueClientReportFiles: async (_, { issueId }, ctx) => {
       const { mongo } = await requirePermission(ctx, "attachment:read");
       return releasedFilesOfIssue(mongo, issueId);
@@ -30,8 +43,21 @@ export const intakeResolvers: Resolvers = {
       (await reportsOf(ctx)).accept(id),
     declineClientReport: async (_, { id, reason }, ctx) =>
       (await reportsOf(ctx)).decline(id, reason),
+    createIssuesFromClientReport: async (_, { id, issues }, ctx) =>
+      (await reportsOf(ctx)).createIssues(id, issues),
+    unlinkClientReport: async (_, { id, issueId }, ctx) =>
+      (await reportsOf(ctx)).unlink(id, issueId),
     linkClientReport: async (_, { id, issueId }, ctx) =>
       (await reportsOf(ctx)).link(id, issueId),
+    replyToClientReport: async (_, { id, input }, ctx) => {
+      const { mongo, viewerId, organisationId } = await triageOf(ctx);
+      return replyToClientRequest(
+        mongo,
+        { viewerId, organisationId },
+        id,
+        input.body,
+      );
+    },
   },
   WidgetKey: {
     projectId: (key) => key.projectId.toHexString(),
@@ -44,9 +70,21 @@ export const intakeResolvers: Resolvers = {
         .map(([reason, count]) => ({ reason, count }))
         .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
   },
+  Issue: {
+    waitingClients: (issue, _, ctx) =>
+      dataLoaders(ctx).intake.waitingClients.load(issue.id),
+    clientReports: (issue, _, ctx) =>
+      dataLoaders(ctx).intake.issueReports.load(issue.id),
+  },
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,
+    issueIds: async (report, _, ctx) =>
+      (await dataLoaders(ctx).intake.links.load(report._id.toHexString())).map(
+        (issue) => issue.id,
+      ),
+    issues: (report, _, ctx) =>
+      dataLoaders(ctx).intake.links.load(report._id.toHexString()),
     // Reports stored before widget v3 lack these (see declineReasonShown).
     impact: (report) => report.impact ?? null,
     type: (report) => report.type ?? null,
@@ -61,6 +99,8 @@ export const intakeResolvers: Resolvers = {
     // the report's own queries ask for, whatever parent it comes from.
     files: (report, _, ctx) =>
       dataLoaders(ctx).intake.files.load(report._id.toHexString()),
+    thread: async (report, _, ctx) =>
+      teamThread((await triageOf(ctx)).mongo, report),
     pendingFiles: (report, _, ctx) =>
       dataLoaders(ctx).intake.pending.load(report._id.toHexString()),
   },

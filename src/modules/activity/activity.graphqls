@@ -91,6 +91,24 @@ type ClientReportMessageEvent {
   at: DateTime!
 }
 
+"What changed on a client request."
+enum ClientRequestChange {
+  "A new request."
+  NEW
+  "A reporter wrote in a request's thread."
+  MESSAGE
+  "A decision, a link, a reply of the team or its issues settling."
+  STATE
+}
+
+"A client request of the organisation changed, in any project."
+type RequestsEvent {
+  reportId: ID!
+  projectId: ID!
+  kind: ClientRequestChange!
+  at: DateTime!
+}
+
 type Query {
   """
   The journal of a project or of one issue (exactly one of `projectId` and
@@ -125,6 +143,8 @@ type Subscription {
   clientReportReceived(projectId: ID!): ClientReportEvent!
   "A file of a client report of a project was stored. Needs `issue:write`; 404 `projects.errors.not-found`."
   clientReportFileReceived(projectId: ID!): ClientReportFileEvent!
+  "Every change on the client requests of the organisation, whatever the project: a new request, a message, a state change. Needs `issue:write`."
+  requestsChanged: RequestsEvent!
   "A reporter wrote in the thread of a client report of a project. Needs `issue:write`; 404 `projects.errors.not-found`."
   clientReportMessageReceived(projectId: ID!): ClientReportMessageEvent!
 }

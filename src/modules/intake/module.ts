@@ -13,6 +13,7 @@ import {
 } from "./intake.live.handlers";
 import {
   clientReportFiles,
+  clientReportLinks,
   clientReportMessages,
   clientReports,
   widgetKeys,
@@ -56,7 +57,12 @@ export const intakeModule = defineModule({
     "attachments",
   ],
   coreCollections: { widgetKeys },
-  collections: { clientReportFiles, clientReportMessages, clientReports },
+  collections: {
+    clientReportFiles,
+    clientReportLinks,
+    clientReportMessages,
+    clientReports,
+  },
   typeDefs: [intakeTypeDefs],
   resolvers: intakeResolvers as never,
   // Keys are managed by admins; the inbox is worked with `issue:write`.
@@ -74,6 +80,9 @@ export const intakeModule = defineModule({
     "key-not-found",
     "not-found",
     "report-decided",
+    "link-exists",
+    "last-link",
+    "issue-other-project",
     "invalid-origin",
     "file-unsupported-type",
     "file-undecodable",

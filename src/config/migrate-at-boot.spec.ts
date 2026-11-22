@@ -24,9 +24,11 @@ describe("migrateAtBoot", () => {
   test("migrates an organisation that predates a migration", async () => {
     const { organisation } = await ownerWithOrganisation(kit);
     const db = dbOf(await tenancy.databaseOf(organisation.id));
-    await db
-      .collection("nxgt_migrations")
-      .deleteOne({ _id: "2026-11-21-issue-types" as never });
+    await db.collection("nxgt_migrations").deleteMany({
+      _id: {
+        $in: ["2026-11-21-issue-types", "2026-11-22-request-links"] as never[],
+      },
+    });
     const _id = new ObjectId();
     await db.collection("issues").insertOne(
       {

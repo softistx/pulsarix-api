@@ -123,3 +123,23 @@ export const reporterRequestChanged = defineChannel({
   fallback: "local",
   onNoLocalReader: "drop",
 });
+
+// `organisation.requests`: something changed on a client request of the
+// organisation, whatever its project (A25): a new request, a message of its
+// reporter, a state change (a decision, a link, a reply of the team, its
+// issues settling). It names the request and nothing else; the stream's
+// reader refetches. Keyed by the organisation, so the guard of the stream
+// (`issue:write`) is what limits who hears it.
+export const requestsChanged = defineChannel({
+  name: "organisation.requests",
+  schema: z.object({
+    organisationId: z.string(),
+    projectId: z.string(),
+    reportId: z.string(),
+    kind: z.enum(["new", "message", "state"]),
+    at: z.string(),
+  }),
+  key: (event) => event.organisationId,
+  fallback: "local",
+  onNoLocalReader: "drop",
+});

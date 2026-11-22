@@ -1,3 +1,4 @@
+import type { AnyDb } from "../../../config/db";
 import { changesBetween } from "../../../core/shared/changes";
 import { issueNotFound } from "../issues.errors";
 import type { IssueDocument } from "../issues.model";
@@ -46,6 +47,15 @@ export class IssuesService {
 
   create(input: CreateIssueInput): Promise<IssueDocument> {
     return this.creation.create(input);
+  }
+
+  // Several issues of one project, all or nothing; `prepare` runs first in the
+  // same transaction.
+  createMany(
+    inputs: CreateIssueInput[],
+    prepare?: (tx: AnyDb) => Promise<void>,
+  ): Promise<IssueDocument[]> {
+    return this.creation.createMany(inputs, prepare);
   }
 
   update(id: string, input: UpdateIssueInput): Promise<IssueDocument> {

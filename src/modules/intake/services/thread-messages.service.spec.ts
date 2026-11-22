@@ -8,12 +8,7 @@ import {
   Link,
   world,
 } from "~/thread";
-import {
-  markRead,
-  ownedReport,
-  unreadCount,
-  unreadCounts,
-} from "./thread.service";
+import { markRead, ownedReport, unreadCounts } from "./thread.service";
 
 describe("the request thread", () => {
   test("two reports on one issue each see the public reply, never the other's messages", async () => {
@@ -128,19 +123,29 @@ describe("the request thread", () => {
     const b = await w.host.file("bob");
     const owned = async (sub: string, id: string) =>
       ownedReport(w.mongo, w.reporter(sub), id);
-    expect(await unreadCount(w.mongo, await owned("ada", a))).toBe(2);
+    expect(
+      (await unreadCounts(w.mongo, [await owned("ada", a)])).get(a) ?? 0,
+    ).toBe(2);
     // Not linked, no issue: nothing to read.
-    expect(await unreadCount(w.mongo, await owned("bob", b))).toBe(0);
+    expect(
+      (await unreadCounts(w.mongo, [await owned("bob", b)])).get(b) ?? 0,
+    ).toBe(0);
     await w.kit.asOwner.call(Link, { id: b, issueId });
     const reports = [await owned("ada", a), await owned("bob", b)];
     expect((await unreadCounts(w.mongo, reports)).get(b)).toBe(0);
 
     await markRead(w.mongo, reports[0] as never, new Date());
-    expect(await unreadCount(w.mongo, await owned("ada", a))).toBe(0);
+    expect(
+      (await unreadCounts(w.mongo, [await owned("ada", a)])).get(a) ?? 0,
+    ).toBe(0);
     w.kit.kit.clock.advance(1_000);
     await w.comment(issueId, "three", true);
-    expect(await unreadCount(w.mongo, await owned("ada", a))).toBe(1);
-    expect(await unreadCount(w.mongo, await owned("bob", b))).toBe(1);
+    expect(
+      (await unreadCounts(w.mongo, [await owned("ada", a)])).get(a) ?? 0,
+    ).toBe(1);
+    expect(
+      (await unreadCounts(w.mongo, [await owned("bob", b)])).get(b) ?? 0,
+    ).toBe(1);
     // The cursor never moves back.
     const read = await owned("ada", a);
     await markRead(w.mongo, read, new Date(0));

@@ -91,6 +91,61 @@ type ClientReportMetadata {
   value: String!
 }
 
+"What the inbox keeps. Every field narrows; none given lists them all."
+input ClientReportFilter {
+  states: [ClientReportState!]
+  types: [ClientReportType!]
+  "Words of the title or the description."
+  text: String @constraint(maxLength: 200)
+  "True: only the requests the reporter waits on; false: only the others."
+  clientWaiting: Boolean
+}
+
+type ClientReportCounts {
+  new: Int!
+  accepted: Int!
+  declined: Int!
+  closed: Int!
+  "Requests the reporter waits on, whatever their state."
+  clientWaiting: Int!
+  total: Int!
+}
+
+"Where a thread entry comes from."
+enum ClientReportThreadSource {
+  "A message the reporter sent."
+  REPORTER
+  "A reply the team wrote on the request itself."
+  TEAM_REPLY
+  "A public comment on one of the issues the request is linked to."
+  ISSUE_COMMENT
+}
+
+type ClientReportThreadEntry {
+  id: ID!
+  source: ClientReportThreadSource!
+  body: String!
+  at: DateTime!
+  "The team member who wrote it; null for the reporter."
+  authorId: ID
+  "The issue a comment is on; null for the other sources."
+  issueId: ID
+  "The files of a reporter message."
+  files: [ClientReportFile!]!
+}
+
+input ReplyToClientReportInput {
+  body: String! @constraint(minLength: 1, maxLength: 5000)
+}
+
+"One issue to make from a report."
+input NewIssueFromReportInput {
+  title: String! @constraint(minLength: 1, maxLength: 200)
+  "Defaults from the report's type: bug, story for a suggestion, else task."
+  type: IssueType
+  parentId: ID
+}
+
 """
 A report a reader sent through the widget. Everything in it is text from a
 stranger: show it as plain text, never as markup or links.
@@ -103,8 +158,15 @@ type ClientReport {
   "Null if none was given, or once erased (90 days after the report is closed or declined)."
   email: String
   state: ClientReportState!
-  "The issue an acceptance made, or the one the report was linked to. Several reports may share one."
+  "The first issue the report was linked to. Use `issueIds` or `issues`."
   issueId: ID
+    @deprecated(
+      reason: "A report may be linked to several issues: use issueIds."
+    )
+  "Every issue the report is linked to, in the order they were linked. Several reports may share one issue."
+  issueIds: [ID!]!
+  "The issues the report is linked to, in the order they were linked. Needs `issue:write`."
+  issues: [Issue!]!
   "What the reporter said about the impact, if anything."
   impact: ClientReportImpact
   "What the reporter said it is, if anything."
@@ -147,6 +209,12 @@ type ClientReport {
   `issue:write`, like `files`.
   """
   pendingFiles: Int!
+  """
+  The conversation, oldest first (the newest 200): the reporter's messages,
+  the team's replies on this request and the public comments of its issues,
+  each with its source. Internal comments never. Needs `issue:write`. Ask for it on one request, not on a list page.
+  """
+  thread: [ClientReportThreadEntry!]!
   createdAt: DateTime!
 }
 
@@ -208,16 +276,30 @@ type Query {
   """
   widgetKeys(projectId: ID!): [WidgetKey!]!
   """
-  The project's client reports, newest first, paged by cursor (`first` 1 to
-  100, default 50), optionally of one `state`. Needs `issue:write` (those who
-  triage). 404 `projects.errors.not-found`.
+  The client requests of the organisation, or of one project (`projectId`),
+  paged by cursor (`first` 1 to 100, default 50). Requests the reporter waits
+  on and new ones come first, then the others, each group newest first.
+  `filter` narrows by states, types, text (title or description) and
+  `clientWaiting`; `state` is the former single-state filter. Erased requests
+  are left out. A request that changes group between two pages (a reply, a
+  decision) may be skipped or seen twice. A former plain-id `after` starts
+  again from the first page. Needs
+  `issue:write` (those who triage). 404 `projects.errors.not-found`.
   """
   clientReports(
-    projectId: ID!
-    state: ClientReportState
+    projectId: ID
+    filter: ClientReportFilter
+    state: ClientReportState @deprecated(reason: "Use filter.states.")
     first: Int = 50
     after: String
   ): ClientReportConnection!
+  "How many requests are in each state, of the organisation or of one project (erased ones left out). Needs `issue:write`. 404 `projects.errors.not-found`."
+  clientReportCounts(projectId: ID): ClientReportCounts!
+  """
+  One request with its thread, context and issues. Needs `issue:write`. The
+  same 404 `intake.errors.not-found` for an unknown or erased request.
+  """
+  clientReport(id: ID!): ClientReport
   """
   The files released to an issue from its client report (the report was
   accepted), oldest first: show them as "from the client report", apart from
@@ -257,10 +339,27 @@ type Mutation {
   revokeWidgetKey(id: ID!): ID!
   """
   Accepts a new report: an issue is made from it in the project's Triage
-  status, linked both ways, and its files are released to the issue. Needs `issue:write`. 409
+  status, linked both ways, and its files are released to the issue. A shortcut
+  for `createIssuesFromClientReport` with one issue. Needs `issue:write`. 409
   `intake.errors.report-decided`; 404 `intake.errors.not-found`.
   """
   acceptClientReport(id: ID!): ClientReport!
+    @deprecated(reason: "Use createIssuesFromClientReport.")
+  """
+  Accepts a new report (or adds to an accepted one) and makes 1 to 10 issues
+  from it in one transaction, all or nothing. Each issue lands in the
+  project's Triage status, linked to the report, with the report's text; its
+  type defaults from the report's type (bug, story for a suggestion, else
+  task). The report's files are released to the issues. Needs `issue:write`.
+  400 `validation.errors.invalid-input` (`issues`, not 1 to 10) and the
+  creation's own refusals; 409 `intake.errors.report-decided`
+  (declined or closed), 409 `issues.errors.project-archived`; 404
+  `intake.errors.not-found`.
+  """
+  createIssuesFromClientReport(
+    id: ID!
+    issues: [NewIssueFromReportInput!]! @constraint(minItems: 1, maxItems: 10)
+  ): ClientReport!
   """
   Declines a new report with a reason. The reporter reads the reason
   (`declineReasonPublic` is true), so write it for them. Its files stay
@@ -275,10 +374,37 @@ type Mutation {
   Accepts a new report into an issue of the same project that already exists
   (a duplicate): no issue is made, the report follows the issue (its closing
   and reopening) and its files are released to it. Several reports may share
-  one issue. Needs `issue:write`. 409 `intake.errors.report-decided`, 409
-  `issues.errors.project-archived`; 404 `intake.errors.not-found` (report) or
-  `issues.errors.not-found` (issue); 400 `validation.errors.invalid-input`
-  (`issueId`, an issue of another project).
+  one issue; a report may link several. On an accepted report it only adds a
+  link. Needs `issue:write`. 409 `intake.errors.report-decided` (declined or
+  closed), 409 `intake.errors.link-exists`, 409
+  `intake.errors.issue-other-project`, 409 `issues.errors.project-archived`;
+  404 `intake.errors.not-found` (report) or `issues.errors.not-found` (issue).
   """
   linkClientReport(id: ID!, issueId: ID!): ClientReport!
+  """
+  Removes the link between a report and an issue. The report keeps at least
+  one: 409 `intake.errors.last-link` for the last. Needs `issue:write`. 404
+  `intake.errors.not-found` (report, or an issue it is not linked to).
+  """
+  unlinkClientReport(id: ID!, issueId: ID!): ClientReport!
+  """
+  Answers one request: the reply is shown to its reporter in their thread and
+  e-mailed like a public reply, and the request stops waiting on the team. It
+  reaches that request only, not the others linked to the same issue. Needs
+  `issue:write`. 404 `intake.errors.not-found`; 409
+  `intake.errors.request-declined` for a declined request; 400
+  `validation.errors.invalid-input` (empty or over 5000 characters).
+  """
+  replyToClientReport(id: ID!, input: ReplyToClientReportInput!): ClientReport!
+}
+
+extend type Issue {
+  """
+  How many requests linked to the issue still wait on the team: not resolved,
+  not declined, not erased (a request linked to several issues counts on each
+  of them until its own state settles).
+  """
+  waitingClients: Int!
+  "The requests linked to the issue (not erased ones), oldest first. Needs `issue:write`."
+  clientReports: [ClientReport!]!
 }

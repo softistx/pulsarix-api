@@ -7,8 +7,9 @@ import { exhausted } from "../../../core/shared/errors";
 import { retryWriteConflicts } from "../../../core/shared/locked";
 import { journalOnIssue } from "../../activity/public";
 import { reopenExpired, requestDeclined } from "../intake.errors";
-import { announceChanged } from "../intake.live";
+import { announceChanged, announceRequests, requestsOf } from "../intake.live";
 import type { ClientReportDocument } from "../models";
+import { eachLinkedIssue } from "./linked-reports.service";
 import { markIssue } from "./markers.service";
 import { derivePublicState, mappedStateOf } from "./public-state.service";
 import {
@@ -20,7 +21,7 @@ import {
 import type { Scope } from "./requests-session.service";
 import type { IntakeMongo, PublicIntake } from "./submit.service";
 import { ownedReport } from "./thread.service";
-import { refreshIssueWaiting } from "./waiting.service";
+import { refreshLinkedIssuesWaiting } from "./waiting.service";
 
 // "Mark as resolved" and "Reopen": the reporter settles their request.
 
@@ -42,32 +43,34 @@ async function settle(
       session.mongo.transaction(async (tx) => {
         later = [];
         await tx.db.clientReports.update(report._id, patch);
-        if (report.issueId) {
-          const issue = await tx.db.issues.findById(report.issueId);
-          if (issue) {
-            await markIssue(
-              tx,
-              issue._id,
-              verb === "clientResolved" ? "resolved" : "reopened",
-            );
-            await refreshIssueWaiting(tx, issue._id);
-            later.push(
-              await journalOnIssue(tx, {
-                issue,
-                organisationId: session.organisationId,
-                actorId: SYSTEM_ACTOR,
-                verb,
-                comment: null,
-              }),
-            );
-          }
-        }
+        // Every issue the request is linked to is told (A24).
+        await eachLinkedIssue(tx, report, async (issue) => {
+          await markIssue(
+            tx,
+            issue._id,
+            verb === "clientResolved" ? "resolved" : "reopened",
+          );
+          later.push(
+            await journalOnIssue(tx, {
+              issue,
+              organisationId: session.organisationId,
+              actorId: SYSTEM_ACTOR,
+              verb,
+              comment: null,
+            }),
+          );
+        });
+        await refreshLinkedIssuesWaiting(tx, report);
         return undefined;
       }),
     exhausted,
   );
   later.push(
     announceChanged(session.organisationId, [report], () => intake.now()),
+    announceRequests(
+      requestsOf(session.organisationId, [report], "state"),
+      () => intake.now(),
+    ),
   );
   await runAfterCommit(later);
 }
@@ -96,7 +99,7 @@ export async function resolveReport(
   report: ClientReportDocument,
 ): Promise<RequestSummary> {
   if (report.state === "declined") throw requestDeclined();
-  const mapped = await mappedStateOf(session.mongo, report.issueId);
+  const mapped = await mappedStateOf(session.mongo, report);
   if (derivePublicState(report, mapped) !== "resolved") {
     await settleLimit(intake, session);
     await settle(intake, session, report, "clientResolved", {
@@ -125,7 +128,7 @@ export async function reopenReport(
   report: ClientReportDocument,
 ): Promise<RequestSummary> {
   if (report.state === "declined") throw requestDeclined();
-  const mapped = await mappedStateOf(session.mongo, report.issueId);
+  const mapped = await mappedStateOf(session.mongo, report);
   const state = derivePublicState(report, mapped);
   if (state === "resolved") {
     if (!canReopenAt(settledAt(report, state), intake.now())) {

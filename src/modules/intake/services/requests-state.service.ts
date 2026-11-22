@@ -1,7 +1,10 @@
 import type { ObjectId } from "mongodb";
-import { type PublicState, publicStateOfStatus } from "../../projects/public";
+import type { PublicState } from "../../projects/public";
 import type { ClientReportDocument } from "../models";
-import { derivePublicState } from "./public-state.service";
+import { combineMapped } from "../rules/client-state.rules";
+import { timesByHexId } from "../utils/times.utils";
+import { linkedIssueIds, linksOf } from "./linked-reports.service";
+import { derivePublicState, mappedStatesOf } from "./public-state.service";
 import type { IntakeMongo } from "./submit.service";
 
 // The public state and the unread count of many reports at once (plan §19):
@@ -13,75 +16,84 @@ export async function publicStatesOf(
   mongo: IntakeMongo,
   reports: readonly ClientReportDocument[],
 ): Promise<Map<string, PublicState>> {
-  const issueIds = [
-    ...new Set(
-      reports.flatMap((report) =>
-        report.issueId ? [report.issueId.toHexString()] : [],
-      ),
-    ),
-  ];
-  const issues = issueIds.length
-    ? await mongo.db.issues.findMany({
-        filter: { _id: { $in: reports.flatMap((r) => r.issueId ?? []) } },
-        limit: issueIds.length,
-      })
-    : [];
-  const statusIds = [...new Set(issues.map((i) => i.statusId.toHexString()))];
-  const statuses = statusIds.length
-    ? await mongo.db.statuses.findMany({
-        filter: { _id: { $in: issues.map((issue) => issue.statusId) } },
-        limit: statusIds.length,
-      })
-    : [];
-  const mappedOfStatus = new Map(
-    statuses.map((status) => [status.id, publicStateOfStatus(status)]),
-  );
-  const mappedOfIssue = new Map(
-    issues.map((issue) => [
-      issue.id,
-      mappedOfStatus.get(issue.statusId.toHexString()) ?? null,
-    ]),
-  );
+  const linked = await linkedIssueIds(mongo, reports);
+  const mapped = await mappedStatesOf(mongo, [...linked.values()].flat());
   return new Map(
     reports.map((report) => [
       report.id,
       derivePublicState(
         report,
-        report.issueId
-          ? (mappedOfIssue.get(report.issueId.toHexString()) ?? null)
-          : null,
+        combineMapped(
+          (linked.get(report.id) ?? []).map(
+            (id) => mapped.get(id.toHexString()) ?? null,
+          ),
+        ),
       ),
     ]),
   );
 }
 
-// The team's public replies each report has not read: those after its read
-// cursor (and after its link, for a linked report), counted in memory from the
-// public comments of all the issues in one read.
+// The team's replies each report has not read: public comments of every issue
+// it is linked to after its read cursor (and after the link), and the replies
+// written on its page after the cursor. Counted in memory from one read of the
+// comments' dates and one of the replies'.
 export async function unreadOf(
   mongo: IntakeMongo,
   reports: readonly ClientReportDocument[],
 ): Promise<Map<string, number>> {
   const counts = new Map(reports.map((report) => [report.id, 0]));
-  const linked = reports.filter((report) => report.issueId);
-  if (linked.length === 0) return counts;
-  const issueIds: ObjectId[] = linked.flatMap((report) => report.issueId ?? []);
-  const rows = (await mongo.db.comments.raw
-    .aggregate([
-      { $match: { issueId: { $in: issueIds }, public: true } },
-      { $group: { _id: "$issueId", times: { $push: "$createdAt" } } },
-    ])
-    .toArray()) as { _id: ObjectId; times: Date[] }[];
-  const timesOf = new Map(
-    rows.map((row) => [row._id.toHexString(), row.times]),
+  if (reports.length === 0) return counts;
+  const links = await linksOf(mongo, reports);
+  const issueIds: ObjectId[] = [...links.values()].flatMap((own) =>
+    own.map((link) => link.issueId),
   );
-  for (const report of linked) {
-    const since = Math.max(
-      report.linkedAt?.getTime() ?? 0,
-      report.reporterReadAt?.getTime() ?? 0,
+  const [commentTimes, replyTimes] = await Promise.all([
+    timesOf(
+      mongo.db.comments.raw,
+      { issueId: { $in: issueIds }, public: true },
+      "$issueId",
+    ),
+    timesOf(
+      mongo.db.clientReportMessages.raw,
+      {
+        reportId: { $in: reports.map((report) => report._id) },
+        side: "team",
+        erasedAt: null,
+      },
+      "$reportId",
+    ),
+  ]);
+  for (const report of reports) {
+    const read = report.reporterReadAt?.getTime() ?? 0;
+    const after = (times: Date[] | undefined, from: number) =>
+      (times ?? []).filter((at) => at.getTime() > from).length;
+    const comments = (links.get(report.id) ?? []).reduce(
+      (sum, link) =>
+        sum +
+        after(
+          commentTimes.get(link.issueId.toHexString()),
+          Math.max(link.since?.getTime() ?? 0, read),
+        ),
+      0,
     );
-    const times = timesOf.get(report.issueId?.toHexString() ?? "") ?? [];
-    counts.set(report.id, times.filter((at) => at.getTime() > since).length);
+    counts.set(report.id, comments + after(replyTimes.get(report.id), read));
   }
   return counts;
+}
+
+// The creation dates of the matching rows, grouped by `key` (hex id).
+export async function timesOf(
+  collection: {
+    aggregate: (pipeline: object[]) => { toArray: () => Promise<unknown[]> };
+  },
+  match: object,
+  key: string,
+): Promise<Map<string, Date[]>> {
+  const rows = (await collection
+    .aggregate([
+      { $match: match },
+      { $group: { _id: key, times: { $push: "$createdAt" } } },
+    ])
+    .toArray()) as { _id: ObjectId; times: Date[] }[];
+  return timesByHexId(rows);
 }

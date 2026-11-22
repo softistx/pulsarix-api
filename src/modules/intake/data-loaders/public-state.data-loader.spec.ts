@@ -14,6 +14,8 @@ function fake() {
   const reads = { issues: 0, statuses: 0 };
   const mongo = {
     db: {
+      // No link rows: a report falls back to its `issueId`, the first link.
+      clientReportLinks: { findMany: () => Promise.resolve([]) },
       issues: {
         findMany: () => {
           reads.issues++;

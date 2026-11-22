@@ -54,6 +54,17 @@ export const reportNotFound = () =>
 export const reportDecided = () =>
   fail("intake.errors.report-decided", { status: 409 });
 
+// 409: the report is already linked to that issue.
+export const linkExists = () =>
+  fail("intake.errors.link-exists", { status: 409 });
+
+// 409: a decided report keeps at least one link; the last one cannot go.
+export const lastLink = () => fail("intake.errors.last-link", { status: 409 });
+
+// 409: the issue is in another project than the report's.
+export const issueOtherProject = () =>
+  fail("intake.errors.issue-other-project", { status: 409 });
+
 // An origin of the allow-list that is not `scheme://host[:port]`.
 export const invalidOrigin = (origin: string) =>
   fail("intake.errors.invalid-origin", {
