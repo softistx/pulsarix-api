@@ -13,7 +13,7 @@ import {
   reportNotFound,
   requestDeclined,
 } from "../intake.errors";
-import { announceRequests, requestsOf } from "../intake.live";
+import { announcePosted } from "../intake.live";
 import {
   type ClientReportDocument,
   MAX_MESSAGE,
@@ -106,32 +106,6 @@ export async function postMessage(
   if (!posted) throw new Error("the message was not posted");
   announcePosted(intake, organisationId, report, posted.messageId);
   return posted;
-}
-
-// After the commit: the organisation's triage stream and the message's
-// subscribers are told, in the background (a failure never fails the post).
-function announcePosted(
-  intake: PublicIntake,
-  organisationId: string,
-  report: ClientReportDocument,
-  messageId: string,
-): void {
-  intake.background(
-    announceRequests(requestsOf(organisationId, [report], "message"), () =>
-      intake.now(),
-    ),
-  );
-  const publish = intake.deps.publishMessage;
-  if (!publish) return;
-  intake.background(async () => {
-    await publish({
-      organisationId,
-      projectId: report.projectId.toHexString(),
-      reportId: report.id,
-      messageId,
-      at: intake.now().toISOString(),
-    });
-  });
 }
 
 // What the transaction writes the message from.

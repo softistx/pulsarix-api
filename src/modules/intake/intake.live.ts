@@ -1,6 +1,7 @@
 import { realtime } from "../../config/redis";
 import type { AfterCommit } from "../../core/shared/after-commit";
 import type { ClientReportDocument } from "./models";
+import type { PublicIntake } from "./services/submit.service";
 
 // Tells the live streams of identified reporters that some of their requests
 // changed (plan §19, A17): once a transaction has committed, one event per
@@ -70,3 +71,29 @@ export const requestsOf = (
     reportId: report.id,
     kind,
   }));
+
+// After the commit: the organisation's triage stream and the message's
+// subscribers are told, in the background (a failure never fails the post).
+export function announcePosted(
+  intake: PublicIntake,
+  organisationId: string,
+  report: ClientReportDocument,
+  messageId: string,
+): void {
+  intake.background(
+    announceRequests(requestsOf(organisationId, [report], "message"), () =>
+      intake.now(),
+    ),
+  );
+  const publish = intake.deps.publishMessage;
+  if (!publish) return;
+  intake.background(async () => {
+    await publish({
+      organisationId,
+      projectId: report.projectId.toHexString(),
+      reportId: report.id,
+      messageId,
+      at: intake.now().toISOString(),
+    });
+  });
+}

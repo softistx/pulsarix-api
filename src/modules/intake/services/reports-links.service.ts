@@ -140,13 +140,13 @@ export class ReportLinks {
             sort: { _id: 1 },
             limit: 1,
           });
-          const first = left[0];
-          if (!first) throw lastLink();
+          const next = left[0];
+          if (!next) throw lastLink();
           await tx.db.clientReportLinks.hardDelete(gone._id);
           // Written every time: two unlinks racing on different links then
           // conflict on the report and the second one sees the first.
           await tx.db.clientReports.update(report._id, {
-            issueId: first.issueId,
+            issueId: next.issueId,
           });
           // The issues left may all be settled: the request then closes.
           const ids = (await linkedIssueIds(tx, [report])).get(report.id);
