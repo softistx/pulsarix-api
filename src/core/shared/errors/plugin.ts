@@ -30,7 +30,7 @@ function rewritten<T extends Errored>(result: T): T | undefined {
   return { ...result, errors: changed };
 }
 
-// A graxia plugin (src/app.ts): @constraint refusals (@nxgt/graphql-
+// A graxia plugin (src/app.ts): @constraint refusals (@softistx/graphql-
 // validation's BAD_USER_INPUT) and variables that cannot be coerced leave as
 // every other invalid input does, and a janus outage as
 // `auth.errors.unavailable` (503), not masked as a 500. It rewrites the
