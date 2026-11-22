@@ -97,7 +97,17 @@ to the UI, so no router changes.
 
 ## Migrations
 
-There is no migration script; the schema is synced in two places.
+There is no migration script; the schema is synced in two places, and the data migrations
+(`src/core/migrations`) run on every organisation database at boot.
+
+- **Data migrations at every boot.** `src/server.ts` calls `migrateAtBoot`
+  (`src/config/migrate-at-boot.ts`) after the core sync and before the API listens:
+  `tenancy.migrateTenants`, which syncs then migrates each organisation database under the
+  library's lock and records each id in the database's `nxgt_migrations`. Every organisation is
+  visited; any failure is logged with its database and the process exits 1, so the container never
+  turns healthy over a half-migrated organisation. A new organisation is migrated by `provision`.
+  The migrations only grow (AGENTS.md); the first, `2026-11-21-issue-types`, types the issues
+  stored before the types (Task, Bug by a "Bug" label, Sub-task by a parent).
 
 - **The core database at every boot.** `src/server.ts` calls `syncCoreAtBoot`
   (`src/config/core-sync.ts`) before the API listens: `coreMongo.sync()` (the
@@ -116,8 +126,8 @@ There is no migration script; the schema is synced in two places.
   `yes` or `on`; off in production when unset; the compose file sets it):
   validators and indexes are created on first use. For that the app user holds
   `readWriteAnyDatabase` and `dbAdminAnyDatabase` (the backup user holds `backup`
-  only). `tenancy.sync()` (which also loops over every organisation) is not called at
-  boot, as it would open every organisation database. A collection option MongoDB
+  only). `tenancy.sync()` is not called at boot; `migrateAtBoot` visits every organisation
+  database anyway (it syncs each one before migrating it). A collection option MongoDB
   cannot change in place makes the boot sync throw: the API then exits 1 until it is fixed by hand.
   The dashboard query adds two `issues` indexes (`issues_projectIdStatusIdPriorityDue`,
   `issues_assigneeIdStatusId`): each organisation builds them on its first request after the
