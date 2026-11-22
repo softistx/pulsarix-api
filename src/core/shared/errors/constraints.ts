@@ -1,5 +1,5 @@
-import type { ValidationIssue } from "@nxgt/graphql-validation";
-import { inputPath } from "@nxgt/graphql-validation";
+import type { ValidationIssue } from "@softistx/graphql-validation";
+import { inputPath } from "@softistx/graphql-validation";
 import { GraphQLError, type GraphQLErrorOptions, Kind } from "graphql";
 import type { ErrorCode } from "../../../i18n/codes";
 import type { Params } from "../../../i18n/params";
@@ -69,7 +69,7 @@ function constraintIssues(error: GraphQLError): ConstraintIssue[] | undefined {
 // The variable a request-level coercion error is about. graphql-js raises it
 // from `getVariableValues`, before any resolver runs: it has no `path`, and its
 // `nodes` hold the variable's definition. Its `extensions.code` is absent, or
-// `INVALID_SCALAR` when a scalar of @nxgt/graphql-scalars refused the value
+// `INVALID_SCALAR` when a scalar of @softistx/graphql-scalars refused the value
 // (whose `scalar` and `reason` could name the cause; the issue stays the
 // generic `invalid`). Found by that structure, never by its English message.
 // (The nested path inside the variable, `filter.from`, is only in the message,
