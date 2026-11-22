@@ -1,5 +1,6 @@
 import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../../config/db";
+import type { IssueDocument } from "../../issues/public";
 import type { ClientReportDocument } from "../models";
 
 type LinkMongo = ModuleMongo<"intake">;
@@ -129,4 +130,18 @@ export async function reportsOfIssues(
     for (const id of own) found.get(id)?.push(report);
   }
   return found;
+}
+
+// Runs `each` on every live issue a request is linked to, in link order (the
+// one loop the settling, the messages and the retention share).
+export async function eachLinkedIssue(
+  tx: LinkMongo & ModuleMongo<"issues">,
+  report: Pick<ClientReportDocument, "_id" | "id" | "issueId">,
+  each: (issue: IssueDocument) => Promise<void>,
+): Promise<void> {
+  const linked = (await linkedIssueIds(tx, [report])).get(report.id);
+  for (const issueId of linked ?? []) {
+    const issue = await tx.db.issues.findById(issueId);
+    if (issue) await each(issue);
+  }
 }

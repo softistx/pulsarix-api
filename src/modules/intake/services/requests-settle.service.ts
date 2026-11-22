@@ -9,7 +9,7 @@ import { journalOnIssue } from "../../activity/public";
 import { reopenExpired, requestDeclined } from "../intake.errors";
 import { announceChanged, announceRequests, requestsOf } from "../intake.live";
 import type { ClientReportDocument } from "../models";
-import { linkedIssueIds } from "./linked-reports.service";
+import { eachLinkedIssue } from "./linked-reports.service";
 import { markIssue } from "./markers.service";
 import { derivePublicState, mappedStateOf } from "./public-state.service";
 import {
@@ -44,10 +44,7 @@ async function settle(
         later = [];
         await tx.db.clientReports.update(report._id, patch);
         // Every issue the request is linked to is told (A24).
-        const linked = (await linkedIssueIds(tx, [report])).get(report.id);
-        for (const issueId of linked ?? []) {
-          const issue = await tx.db.issues.findById(issueId);
-          if (!issue) continue;
+        await eachLinkedIssue(tx, report, async (issue) => {
           await markIssue(
             tx,
             issue._id,
@@ -62,7 +59,7 @@ async function settle(
               comment: null,
             }),
           );
-        }
+        });
         await refreshLinkedIssuesWaiting(tx, report);
         return undefined;
       }),

@@ -13,7 +13,7 @@ import {
   reportNotFound,
   requestDeclined,
 } from "../intake.errors";
-import { announceRequests, requestsOf } from "../intake.live";
+import { announcePosted } from "../intake.live";
 import {
   type ClientReportDocument,
   MAX_MESSAGE,
@@ -22,7 +22,7 @@ import {
 import { checkFiles, type DeclaredFile } from "../rules/files-input.rules";
 import { attachmentsOn } from "../utils/attachments.utils";
 import { stripControl } from "../utils/text.utils";
-import { linkedIssueIds } from "./linked-reports.service";
+import { eachLinkedIssue } from "./linked-reports.service";
 import { type FileTicket, reserveSlots, ticketExpiry } from "./slots.service";
 import type { IntakeMongo, PublicIntake } from "./submit.service";
 import { refreshLinkedIssuesWaiting } from "./waiting.service";
@@ -103,43 +103,27 @@ export async function postMessage(
     exhausted,
   );
   await runAfterCommit(later);
-  const publish = intake.deps.publishMessage;
-  if (posted) {
-    intake.background(
-      announceRequests(requestsOf(organisationId, [report], "message"), () =>
-        intake.now(),
-      ),
-    );
-  }
-  if (publish && posted) {
-    const messageId = posted.messageId;
-    intake.background(async () => {
-      await publish({
-        organisationId,
-        projectId: report.projectId.toHexString(),
-        reportId: report.id,
-        messageId,
-        at: intake.now().toISOString(),
-      });
-    });
-  }
   if (!posted) throw new Error("the message was not posted");
+  announcePosted(intake, organisationId, report, posted.messageId);
   return posted;
+}
+
+// What the transaction writes the message from.
+interface MessageWrite {
+  intake: PublicIntake;
+  key: WidgetKeyDocument;
+  report: ClientReportDocument;
+  body: string;
+  files: ReturnType<typeof checkFiles>;
+  expiresAt: Date;
+  tracking: boolean;
 }
 
 // The transaction's writes: the message, its file slots, the report's flag, the
 // issue's flag and the journal entry. `later` is for after the commit.
 async function writeMessage(
   tx: MessageMongo,
-  w: {
-    intake: PublicIntake;
-    key: WidgetKeyDocument;
-    report: ClientReportDocument;
-    body: string;
-    files: ReturnType<typeof checkFiles>;
-    expiresAt: Date;
-    tracking: boolean;
-  },
+  w: MessageWrite,
 ): Promise<{ posted: Posted; later: AfterCommit[] }> {
   const { intake, key, report, body, files, expiresAt, tracking } = w;
   const later: AfterCommit[] = [];
@@ -173,10 +157,7 @@ async function writeMessage(
   await tx.db.clientReports.update(report._id, { clientWaiting: true });
   // Every issue the request is linked to waits for the team and journals it.
   await refreshLinkedIssuesWaiting(tx, current);
-  const linked = (await linkedIssueIds(tx, [current])).get(current.id);
-  for (const issueId of linked ?? []) {
-    const issue = await tx.db.issues.findById(issueId);
-    if (!issue) continue;
+  await eachLinkedIssue(tx, current, async (issue) => {
     later.push(
       await journalOnIssue(tx, {
         issue,
@@ -186,6 +167,6 @@ async function writeMessage(
         comment: null,
       }),
     );
-  }
+  });
   return { posted: { messageId: message.id, files: tickets }, later };
 }

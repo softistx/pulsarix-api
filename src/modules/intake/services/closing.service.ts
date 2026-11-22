@@ -87,19 +87,7 @@ export async function followIssue(
       await tx.db.clientReports.update(report._id, { issueId: rest[0] });
     }
     if (deleted && rest.length === 0) closing.push(report);
-    if (report.state === "new" || report.state === "declined") continue;
-    const settled = await allSettled(tx, change, rest);
-    if (settled && report.state === "accepted") {
-      await tx.db.clientReports.update(report._id, {
-        state: "closed",
-        closedAt: new Date(),
-      });
-    } else if (!settled && report.state === "closed" && !report.erasedAt) {
-      await tx.db.clientReports.update(report._id, {
-        state: "accepted",
-        closedAt: null,
-      });
-    }
+    await settleReport(tx, report, rest, change);
   }
   if (closing.length > 0) {
     await tx.db.clientReportFiles.updateMany(
@@ -112,17 +100,42 @@ export async function followIssue(
   }
 }
 
+// Closes an accepted request whose links are all settled, and accepts a closed
+// one again when a link is live (unless its data is erased). `change` is the
+// issue change in flight, if any: that issue is taken as it left it.
+export async function settleReport(
+  tx: ClosingMongo,
+  report: ClientReportDocument,
+  issueIds: readonly ObjectId[],
+  change?: IssueChange,
+): Promise<void> {
+  if (report.state === "new" || report.state === "declined") return;
+  const settled = await allSettled(tx, change, issueIds);
+  if (settled && report.state === "accepted") {
+    await tx.db.clientReports.update(report._id, {
+      state: "closed",
+      closedAt: new Date(),
+    });
+  } else if (!settled && report.state === "closed" && !report.erasedAt) {
+    await tx.db.clientReports.update(report._id, {
+      state: "accepted",
+      closedAt: null,
+    });
+  }
+}
+
 // Whether every issue a request is linked to is done or cancelled (the
 // changed one as the change left it); a request with no issue left is.
 async function allSettled(
   tx: ClosingMongo,
-  change: IssueChange,
+  change: IssueChange | undefined,
   issueIds: readonly ObjectId[],
 ): Promise<boolean> {
   for (const id of issueIds) {
-    const issue = id.equals(change.issue._id)
-      ? change.issue
-      : await tx.db.issues.findById(id);
+    const issue =
+      change && id.equals(change.issue._id)
+        ? change.issue
+        : await tx.db.issues.findById(id);
     if (issue && !(await isSettled(tx, issue))) return false;
   }
   return true;

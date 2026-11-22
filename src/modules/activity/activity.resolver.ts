@@ -9,7 +9,7 @@ import {
   openProjectBoard,
   openRequests,
 } from "./activity.resolver-support";
-import { issueEvent } from "./activity.utils";
+import { issueEvent, requestsEvent } from "./activity.utils";
 import { ActivityService } from "./services";
 
 export const activityResolvers: Resolvers = {
@@ -52,11 +52,7 @@ export const activityResolvers: Resolvers = {
     },
     requestsChanged: {
       subscribe: (_, __, ctx) => openRequests(ctx),
-      resolve: ((event: { kind: string; at: string }) => ({
-        ...event,
-        kind: event.kind.toUpperCase(),
-        at: new Date(event.at),
-      })) as never,
+      resolve: requestsEvent,
     },
     clientReportMessageReceived: {
       subscribe: (_, { projectId }, ctx) =>
