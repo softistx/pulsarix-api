@@ -351,10 +351,16 @@ type ClientReport {
   id: ID!
   """What the reporter said about the impact, if anything."""
   impact: ClientReportImpact
+  """The first issue the report was linked to. Use `issueIds` or `issues`."""
+  issueId: ID @deprecated(reason: "A report may be linked to several issues: use issueIds.")
   """
-  The issue an acceptance made, or the one the report was linked to. Several reports may share one.
+  Every issue the report is linked to, in the order they were linked. Several reports may share one issue.
   """
-  issueId: ID
+  issueIds: [ID!]!
+  """
+  The issues the report is linked to, in the order they were linked. Needs `issue:write`.
+  """
+  issues: [Issue!]!
   """
   When the report was linked to an existing issue; null if it made its own or none.
   """
@@ -1001,10 +1007,11 @@ type Member {
 type Mutation {
   """
   Accepts a new report: an issue is made from it in the project's Triage
-  status, linked both ways, and its files are released to the issue. Needs `issue:write`. 409
+  status, linked both ways, and its files are released to the issue. A shortcut
+  for `createIssuesFromClientReport` with one issue. Needs `issue:write`. 409
   `intake.errors.report-decided`; 404 `intake.errors.not-found`.
   """
-  acceptClientReport(id: ID!): ClientReport!
+  acceptClientReport(id: ID!): ClientReport! @deprecated(reason: "Use createIssuesFromClientReport.")
   """
   Accepts an invitation with the token of its link (`/invitations/accept`):
   makes or finds the account of the invitation's e-mail, gives it the
@@ -1086,6 +1093,18 @@ type Mutation {
   (on `parentId`).
   """
   createIssue(input: CreateIssueInput!): Issue!
+  """
+  Accepts a new report (or adds to an accepted one) and makes 1 to 10 issues
+  from it in one transaction, all or nothing. Each issue lands in the
+  project's Triage status, linked to the report, with the report's text; its
+  type defaults from the report's type (bug, story for a suggestion, else
+  task). The report's files are released to the issues. Needs `issue:write`.
+  400 `validation.errors.invalid-input` (`issues`, not 1 to 10) and the
+  creation's own refusals; 409 `intake.errors.report-decided`
+  (declined or closed), 409 `issues.errors.project-archived`; 404
+  `intake.errors.not-found`.
+  """
+  createIssuesFromClientReport(id: ID!, issues: [NewIssueFromReportInput!]! @constraint(minItems: 1, maxItems: 10)): ClientReport!
   """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
   createLabel(input: CreateLabelInput!): Label!
   """
@@ -1194,10 +1213,11 @@ type Mutation {
   Accepts a new report into an issue of the same project that already exists
   (a duplicate): no issue is made, the report follows the issue (its closing
   and reopening) and its files are released to it. Several reports may share
-  one issue. Needs `issue:write`. 409 `intake.errors.report-decided`, 409
-  `issues.errors.project-archived`; 404 `intake.errors.not-found` (report) or
-  `issues.errors.not-found` (issue); 400 `validation.errors.invalid-input`
-  (`issueId`, an issue of another project).
+  one issue; a report may link several. On an accepted report it only adds a
+  link. Needs `issue:write`. 409 `intake.errors.report-decided` (declined or
+  closed), 409 `intake.errors.link-exists`, 409
+  `intake.errors.issue-other-project`, 409 `issues.errors.project-archived`;
+  404 `intake.errors.not-found` (report) or `issues.errors.not-found` (issue).
   """
   linkClientReport(id: ID!, issueId: ID!): ClientReport!
   """
@@ -1347,6 +1367,12 @@ type Mutation {
   Forgets the key. Entries and references stay in chronix. Needs `time:manage` and a fresh session.
   """
   unlinkChronix: TimeLink!
+  """
+  Removes the link between a report and an issue. The report keeps at least
+  one: 409 `intake.errors.last-link` for the last. Needs `issue:write`. 404
+  `intake.errors.not-found` (report, or an issue it is not linked to).
+  """
+  unlinkClientReport(id: ID!, issueId: ID!): ClientReport!
   """Removes the viewer from the watchers; repeatable. Needs `issue:write`."""
   unwatchIssue(id: ID!): Issue!
   """
@@ -1408,6 +1434,16 @@ scalar NegativeFloat
 
 """An integer from -2147483648 to -1."""
 scalar NegativeInt
+
+"""One issue to make from a report."""
+input NewIssueFromReportInput {
+  parentId: ID
+  title: String! @constraint(minLength: 1, maxLength: 200)
+  """
+  Defaults from the report's type: bug, story for a suggestion, else task.
+  """
+  type: IssueType
+}
 
 """A string that is not empty and not only white space."""
 scalar NonEmptyString

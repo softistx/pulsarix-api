@@ -30,6 +30,10 @@ export const intakeResolvers: Resolvers = {
       (await reportsOf(ctx)).accept(id),
     declineClientReport: async (_, { id, reason }, ctx) =>
       (await reportsOf(ctx)).decline(id, reason),
+    createIssuesFromClientReport: async (_, { id, issues }, ctx) =>
+      (await reportsOf(ctx)).createIssues(id, issues),
+    unlinkClientReport: async (_, { id, issueId }, ctx) =>
+      (await reportsOf(ctx)).unlink(id, issueId),
     linkClientReport: async (_, { id, issueId }, ctx) =>
       (await reportsOf(ctx)).link(id, issueId),
   },
@@ -47,6 +51,12 @@ export const intakeResolvers: Resolvers = {
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,
+    issueIds: async (report, _, ctx) =>
+      (await dataLoaders(ctx).intake.links.load(report._id.toHexString())).map(
+        (issue) => issue.id,
+      ),
+    issues: (report, _, ctx) =>
+      dataLoaders(ctx).intake.links.load(report._id.toHexString()),
     // Reports stored before widget v3 lack these (see declineReasonShown).
     impact: (report) => report.impact ?? null,
     type: (report) => report.type ?? null,

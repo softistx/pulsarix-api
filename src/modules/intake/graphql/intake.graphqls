@@ -91,6 +91,14 @@ type ClientReportMetadata {
   value: String!
 }
 
+"One issue to make from a report."
+input NewIssueFromReportInput {
+  title: String! @constraint(minLength: 1, maxLength: 200)
+  "Defaults from the report's type: bug, story for a suggestion, else task."
+  type: IssueType
+  parentId: ID
+}
+
 """
 A report a reader sent through the widget. Everything in it is text from a
 stranger: show it as plain text, never as markup or links.
@@ -103,8 +111,15 @@ type ClientReport {
   "Null if none was given, or once erased (90 days after the report is closed or declined)."
   email: String
   state: ClientReportState!
-  "The issue an acceptance made, or the one the report was linked to. Several reports may share one."
+  "The first issue the report was linked to. Use `issueIds` or `issues`."
   issueId: ID
+    @deprecated(
+      reason: "A report may be linked to several issues: use issueIds."
+    )
+  "Every issue the report is linked to, in the order they were linked. Several reports may share one issue."
+  issueIds: [ID!]!
+  "The issues the report is linked to, in the order they were linked. Needs `issue:write`."
+  issues: [Issue!]!
   "What the reporter said about the impact, if anything."
   impact: ClientReportImpact
   "What the reporter said it is, if anything."
@@ -257,10 +272,27 @@ type Mutation {
   revokeWidgetKey(id: ID!): ID!
   """
   Accepts a new report: an issue is made from it in the project's Triage
-  status, linked both ways, and its files are released to the issue. Needs `issue:write`. 409
+  status, linked both ways, and its files are released to the issue. A shortcut
+  for `createIssuesFromClientReport` with one issue. Needs `issue:write`. 409
   `intake.errors.report-decided`; 404 `intake.errors.not-found`.
   """
   acceptClientReport(id: ID!): ClientReport!
+    @deprecated(reason: "Use createIssuesFromClientReport.")
+  """
+  Accepts a new report (or adds to an accepted one) and makes 1 to 10 issues
+  from it in one transaction, all or nothing. Each issue lands in the
+  project's Triage status, linked to the report, with the report's text; its
+  type defaults from the report's type (bug, story for a suggestion, else
+  task). The report's files are released to the issues. Needs `issue:write`.
+  400 `validation.errors.invalid-input` (`issues`, not 1 to 10) and the
+  creation's own refusals; 409 `intake.errors.report-decided`
+  (declined or closed), 409 `issues.errors.project-archived`; 404
+  `intake.errors.not-found`.
+  """
+  createIssuesFromClientReport(
+    id: ID!
+    issues: [NewIssueFromReportInput!]! @constraint(minItems: 1, maxItems: 10)
+  ): ClientReport!
   """
   Declines a new report with a reason. The reporter reads the reason
   (`declineReasonPublic` is true), so write it for them. Its files stay
@@ -275,10 +307,17 @@ type Mutation {
   Accepts a new report into an issue of the same project that already exists
   (a duplicate): no issue is made, the report follows the issue (its closing
   and reopening) and its files are released to it. Several reports may share
-  one issue. Needs `issue:write`. 409 `intake.errors.report-decided`, 409
-  `issues.errors.project-archived`; 404 `intake.errors.not-found` (report) or
-  `issues.errors.not-found` (issue); 400 `validation.errors.invalid-input`
-  (`issueId`, an issue of another project).
+  one issue; a report may link several. On an accepted report it only adds a
+  link. Needs `issue:write`. 409 `intake.errors.report-decided` (declined or
+  closed), 409 `intake.errors.link-exists`, 409
+  `intake.errors.issue-other-project`, 409 `issues.errors.project-archived`;
+  404 `intake.errors.not-found` (report) or `issues.errors.not-found` (issue).
   """
   linkClientReport(id: ID!, issueId: ID!): ClientReport!
+  """
+  Removes the link between a report and an issue. The report keeps at least
+  one: 409 `intake.errors.last-link` for the last. Needs `issue:write`. 404
+  `intake.errors.not-found` (report, or an issue it is not linked to).
+  """
+  unlinkClientReport(id: ID!, issueId: ID!): ClientReport!
 }
