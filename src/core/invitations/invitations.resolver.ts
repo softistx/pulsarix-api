@@ -1,12 +1,12 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
 import { idOrInvalid } from "../shared/ids";
 import { throttleIp } from "../shared/throttle";
-import { managerServices } from "./invitations.utils";
+import { managerServices, readerServices } from "./invitations.utils";
 
 export const invitationsResolvers: Resolvers = {
   Query: {
     invitations: async (_, { status }, ctx) =>
-      (await managerServices(ctx)).list(status),
+      (await readerServices(ctx)).list(status),
   },
   Mutation: {
     inviteMember: async (_, { input }, ctx) =>
