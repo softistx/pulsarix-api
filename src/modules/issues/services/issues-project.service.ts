@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { AnyDb } from "../../../config/db";
 import {
   type AfterCommit,
   runAfterCommit,
@@ -68,7 +69,7 @@ export class IssuesProject {
   async inProject<T>(
     projectId: ObjectId,
     work: (
-      tx: IssuesMongo,
+      tx: IssuesMongo & AnyDb,
       project: ProjectDocument,
       changed: Changed,
     ) => Promise<T>,
@@ -95,7 +96,9 @@ export class IssuesProject {
               })),
             );
           };
-          return work(tx as IssuesMongo, project, changed);
+          // The transaction holds every collection of the organisation: widened
+          // once, here, for the callers that run other modules' handlers.
+          return work(tx as IssuesMongo & AnyDb, project, changed);
         }),
       exhausted,
     );

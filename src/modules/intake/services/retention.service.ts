@@ -1,7 +1,7 @@
 import type { AppTenancy, ModuleMongo } from "../../../config/db";
 import { SYSTEM_ACTOR } from "../../../core/shared/actors";
 import type { ClientReportDocument } from "../models";
-import { linkedIssueIds } from "./linked-reports.service";
+import { eachLinkedIssue } from "./linked-reports.service";
 import { markIssue } from "./markers.service";
 import { refreshLinkedIssuesWaiting } from "./waiting.service";
 
@@ -67,8 +67,9 @@ export async function eraseReport(
   // of them "data erased" (A24).
   await refreshLinkedIssuesWaiting(as, report);
   if (mark) {
-    const linked = (await linkedIssueIds(as, [report])).get(report.id);
-    for (const issueId of linked ?? []) await markIssue(as, issueId, "deleted");
+    await eachLinkedIssue(as, report, (issue) =>
+      markIssue(as, issue._id, "deleted"),
+    );
   }
 }
 

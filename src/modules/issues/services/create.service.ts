@@ -36,7 +36,7 @@ export class IssueCreation {
     }
     const projectId = idOrInvalid(first.projectId, "projectId");
     return this.project.inProject(projectId, async (tx, project, changed) => {
-      await prepare?.(tx as unknown as AnyDb);
+      await prepare?.(tx);
       const made: IssueDocument[] = [];
       for (const input of inputs) {
         made.push(await this.createIn(tx, project, changed, input));

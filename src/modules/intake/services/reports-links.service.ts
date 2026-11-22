@@ -18,7 +18,8 @@ import {
 } from "../intake.errors";
 import type { IntakeMongo } from "../intake.types";
 import type { ClientReportDocument } from "../models";
-import { isSettled } from "./closing.service";
+import { isSettled, settleReport } from "./closing.service";
+import { linkedIssueIds } from "./linked-reports.service";
 import { prefillOf } from "./prefill.service";
 import { claimReport } from "./report-claim.service";
 import { refreshIssueWaiting } from "./waiting.service";
@@ -129,23 +130,27 @@ export class ReportLinks {
             idOrInvalid(id, "id"),
           );
           if (!report) throw reportNotFound();
-          const links = await tx.db.clientReportLinks.findMany({
-            filter: { reportId: report._id },
-            sort: { _id: 1 },
-            limit: 100,
+          const gone = await tx.db.clientReportLinks.findFirst({
+            reportId: report._id,
+            issueId: issue,
           });
-          const gone = links.find((link) => link.issueId.equals(issue));
           if (!gone) throw reportNotFound();
-          if (links.length < 2) throw lastLink();
+          const left = await tx.db.clientReportLinks.findMany({
+            filter: { reportId: report._id, _id: { $ne: gone._id } },
+            sort: { _id: 1 },
+            limit: 1,
+          });
+          const first = left[0];
+          if (!first) throw lastLink();
           await tx.db.clientReportLinks.hardDelete(gone._id);
           // Written every time: two unlinks racing on different links then
           // conflict on the report and the second one sees the first.
-          const first = links.find((link) => link !== gone);
-          if (first) {
-            await tx.db.clientReports.update(report._id, {
-              issueId: first.issueId,
-            });
-          }
+          await tx.db.clientReports.update(report._id, {
+            issueId: first.issueId,
+          });
+          // The issues left may all be settled: the request then closes.
+          const ids = (await linkedIssueIds(tx, [report])).get(report.id);
+          await settleReport(tx, report, ids ?? []);
           if (report.clientWaiting === true) {
             await refreshIssueWaiting(tx, issue);
           }

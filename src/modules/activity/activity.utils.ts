@@ -1,3 +1,4 @@
+import type { ClientRequestChange } from "@/generated/graphql/resolvers";
 import type { IssueEventPayload } from "./activity.channels";
 import type { ActivityDocument } from "./activity.model";
 
@@ -23,5 +24,19 @@ export const eventOf = (
 // A stored event as the subscription answers it: its time is a date.
 export const issueEvent = (event: { at: string; [key: string]: unknown }) => ({
   ...event,
+  at: new Date(event.at),
+});
+
+// A triage-stream event as the subscription answers it: its kind in capitals,
+// its time a date.
+export const requestsEvent = (event: {
+  reportId: string;
+  projectId: string;
+  kind: string;
+  at: string;
+}) => ({
+  reportId: event.reportId,
+  projectId: event.projectId,
+  kind: event.kind.toUpperCase() as ClientRequestChange,
   at: new Date(event.at),
 });
