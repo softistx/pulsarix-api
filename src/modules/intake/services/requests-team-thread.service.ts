@@ -34,7 +34,7 @@ export async function requestById(
   id: string,
 ): Promise<ClientReportDocument> {
   const report = await mongo.db.clientReports.findById(idOrInvalid(id, "id"));
-  if (!report) throw reportNotFound();
+  if (!report || report.erasedAt) throw reportNotFound();
   return report;
 }
 

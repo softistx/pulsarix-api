@@ -69,8 +69,12 @@ function world(
       }: {
         filter: { $or: Record<string, unknown>[] };
       }) => {
-        const ids = (filter.$or[0]?.["_id"] as { $in: ObjectId[] }).$in;
-        const issueId = filter.$or[1]?.["issueId"] as ObjectId;
+        const [byLink, byIssue] = filter.$or as [
+          { _id: { $in: ObjectId[] } },
+          { issueId: ObjectId },
+        ];
+        const ids = byLink._id.$in;
+        const issueId = byIssue.issueId;
         return Promise.resolve(
           reports.filter(
             (r) =>

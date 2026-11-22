@@ -144,5 +144,8 @@ export const openClientReportMessages = async (
 // whole inbox, whatever the project.
 export const openRequests = async (ctx: Context) => {
   const { organisationId, holds } = await open(ctx, "issue:write");
-  return bounded(realtime.channels.requestsChanged.stream(organisationId), holds);
+  return bounded(
+    realtime.channels.requestsChanged.stream(organisationId),
+    holds,
+  );
 };

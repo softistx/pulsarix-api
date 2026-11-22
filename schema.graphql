@@ -387,7 +387,7 @@ type ClientReport {
   """
   The conversation, oldest first (the newest 200): the reporter's messages,
   the team's replies on this request and the public comments of its issues,
-  each with its source. Internal comments never. Needs `issue:write`.
+  each with its source. Internal comments never. Needs `issue:write`. Ask for it on one request, not on a list page.
   """
   thread: [ClientReportThreadEntry!]!
   title: String!
