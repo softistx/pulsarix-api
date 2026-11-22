@@ -16,6 +16,40 @@ export async function isSettled(
   return status?.category === "done" || status?.category === "cancelled";
 }
 
+// A created issue gets its link at once (see `followIssue`).
+async function linkCreated(
+  tx: ClosingMongo,
+  change: IssueChange,
+): Promise<void> {
+  // The issue and its link to the report are written together: a created issue
+  // always has its link (`clientReportLinks`), and the report's `issueId`, the
+  // deprecated first link, is set when it has none.
+  const reportId = change.issue.clientReportId;
+  if (reportId) {
+    const issueId = change.issue._id;
+    const linked = await tx.db.clientReportLinks.exists({
+      reportId,
+      issueId,
+    });
+    if (!linked) {
+      await tx.db.clientReportLinks.create({
+        reportId,
+        issueId,
+        linkedAt: new Date(),
+        linkedBy: change.actorId,
+      });
+    }
+    const current = await tx.db.clientReports.findById(reportId);
+    const report = current?.issueId
+      ? current
+      : await tx.db.clientReports.update(reportId, { issueId });
+    // A reporter who wrote while the report was new is still waiting.
+    if (report?.clientWaiting === true) {
+      await refreshIssueWaiting(tx, issueId);
+    }
+  }
+}
+
 // Every report follows its linked issues (A23, A24; all in the report's
 // project, so their writes are serialised by the project's lock: two of them
 // settling at once never both see the other open): when all of them are done,
@@ -28,34 +62,8 @@ export async function followIssue(
   tx: ClosingMongo,
   change: IssueChange,
 ): Promise<undefined> {
-  // The issue and its link to the report are written together: a created issue
-  // always has its link (`clientReportLinks`), and the report's `issueId`, the
-  // deprecated first link, is set when it has none.
   if (change.verb === "created") {
-    const reportId = change.issue.clientReportId;
-    if (reportId) {
-      const issueId = change.issue._id;
-      const linked = await tx.db.clientReportLinks.exists({
-        reportId,
-        issueId,
-      });
-      if (!linked) {
-        await tx.db.clientReportLinks.create({
-          reportId,
-          issueId,
-          linkedAt: new Date(),
-          linkedBy: change.actorId,
-        });
-      }
-      const current = await tx.db.clientReports.findById(reportId);
-      const report = current?.issueId
-        ? current
-        : await tx.db.clientReports.update(reportId, { issueId });
-      // A reporter who wrote while the report was new is still waiting.
-      if (report?.clientWaiting === true) {
-        await refreshIssueWaiting(tx, issueId);
-      }
-    }
+    await linkCreated(tx, change);
     return;
   }
   const deleted = change.verb === "deleted";
@@ -78,7 +86,7 @@ export async function followIssue(
     if (deleted && report.issueId?.equals(change.issue._id) && rest[0]) {
       await tx.db.clientReports.update(report._id, { issueId: rest[0] });
     }
-    if (rest.length === 0) closing.push(report);
+    if (deleted && rest.length === 0) closing.push(report);
     if (report.state === "new" || report.state === "declined") continue;
     const settled = await allSettled(tx, change, rest);
     if (settled && report.state === "accepted") {
