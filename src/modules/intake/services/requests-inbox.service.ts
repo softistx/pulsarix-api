@@ -98,7 +98,9 @@ export async function countRequests(
   projectId: string | null | undefined,
 ): Promise<RequestCounts> {
   const project = await projectOf(mongo, projectId);
-  const match = project ? { projectId: project } : {};
+  const match = project
+    ? { projectId: project, erasedAt: null }
+    : { erasedAt: null };
   const rows = (await mongo.db.clientReports.raw
     .aggregate([
       { $match: match },

@@ -1,7 +1,5 @@
 import type { ObjectId } from "mongodb";
 import type { Locale } from "../../../i18n/locale";
-import type { ReportPage } from "../intake.types";
-import type { ClientReportDocument } from "../models";
 import { pageUrlOf, type SubmittedReport } from "../rules/submit-input.rules";
 import { stripControl } from "./text.utils";
 
@@ -69,20 +67,5 @@ export function newReportFields(input: {
     decidedAt: null,
     closedAt: null,
     erasedAt: null,
-  };
-}
-
-// A page of the inbox from `limit + 1` rows read: the cursor is the last row.
-export function pageOf(
-  found: ClientReportDocument[],
-  limit: number,
-): ReportPage {
-  const nodes = found.slice(0, limit);
-  const last = nodes.at(-1);
-  const hasNextPage = found.length > limit;
-  return {
-    nodes,
-    endCursor: hasNextPage && last ? last.id : null,
-    hasNextPage,
   };
 }

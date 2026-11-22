@@ -3,6 +3,7 @@ import { memberWith } from "~/auth";
 import { codeOf } from "~/http";
 import { Decline } from "~/requests";
 import { Counts, Inbox, One, type Page, Reply, setup } from "~/requests-team";
+import { eraseReport } from "./retention.service";
 
 describe("the organisation-wide inbox", () => {
   test("lists every project, waiting and new first, paged and filtered", async () => {
@@ -86,5 +87,26 @@ describe("the organisation-wide inbox", () => {
       total: 3,
     });
     expect(await counts(other.id)).toMatchObject({ declined: 1, total: 1 });
+  });
+
+  test("an erased request is left out of the list and the counts; a plain-id cursor starts again", async () => {
+    const { w, ada, bob, cy } = await setup();
+    const report = await w.mongo.db.clientReports.findById(
+      (await w.mongo.db.clientReports.findFirst({ title: "By bob" }))
+        ?._id as never,
+    );
+    await eraseReport(w.mongo, report as NonNullable<typeof report>);
+    const page = await w.kit.asOwner.call<Page>(Inbox, {});
+    expect(page.clientReports.nodes.map((r) => r.id)).toEqual([cy, ada]);
+    expect(page.clientReports.nodes.map((r) => r.id)).not.toContain(bob);
+    const counts = (
+      await w.kit.asOwner.call<{ clientReportCounts: { total: number } }>(
+        Counts,
+        {},
+      )
+    ).clientReportCounts;
+    expect(counts.total).toBe(2);
+    const old = await w.kit.asOwner.call<Page>(Inbox, { after: ada });
+    expect(old.clientReports.nodes.map((r) => r.id)).toEqual([cy, ada]);
   });
 });

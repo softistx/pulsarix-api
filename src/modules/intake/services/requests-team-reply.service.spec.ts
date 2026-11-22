@@ -12,6 +12,7 @@ import {
   type Thread,
 } from "~/requests-team";
 import { subscribe } from "~/sse";
+import { eraseReport } from "./retention.service";
 
 describe("a team reply", () => {
   test("reaches only its request, clears the wait and counts as unread", async () => {
@@ -68,6 +69,25 @@ describe("a team reply", () => {
     await w.kit.asOwner.call(Decline, { id: cy, reason: "No" });
     expect(codeOf(await reply(cy, "Hello"))).toBe(
       "intake.errors.request-declined",
+    );
+  });
+
+  test("a reply to an erased request is the same 404", async () => {
+    const { w, bob } = await setup();
+    const report = await w.mongo.db.clientReports.findFirst({
+      title: "By bob",
+    });
+    await eraseReport(w.mongo, report as NonNullable<typeof report>);
+    expect(
+      codeOf(
+        await w.kit.asOwner.attempt(Reply, {
+          id: bob,
+          input: { body: "Hello" },
+        }),
+      ),
+    ).toBe("intake.errors.not-found");
+    expect(codeOf(await w.kit.asOwner.attempt(One, { id: bob }))).toBe(
+      "intake.errors.not-found",
     );
   });
 

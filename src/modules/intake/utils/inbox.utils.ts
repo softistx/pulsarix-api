@@ -33,7 +33,8 @@ export function inboxFilter(
   projectId: ObjectId | null,
   filter: InboxFilter | null | undefined,
 ): Record<string, unknown>[] {
-  const all: Record<string, unknown>[] = [];
+  // Erased requests are gone from the inbox and its counts.
+  const all: Record<string, unknown>[] = [{ erasedAt: null }];
   if (projectId) all.push({ projectId });
   if (filter?.states?.length) all.push({ state: { $in: [...filter.states] } });
   if (filter?.types?.length) all.push({ type: { $in: [...filter.types] } });
@@ -58,6 +59,9 @@ export function parseCursor(after: string | null | undefined): {
   id: ObjectId | null;
 } {
   if (!after) return { group: "a", id: null };
+  // The former cursor (a plain id): an inbox left open during the deploy
+  // starts again from the first page.
+  if (/^[0-9a-f]{24}$/.test(after)) return { group: "a", id: null };
   const match = /^([ab]):([0-9a-f]{24})$/.exec(after);
   if (!match) {
     throw invalid([{ path: "after", code: "validation.errors.invalid" }]);

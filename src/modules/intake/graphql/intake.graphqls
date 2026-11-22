@@ -280,7 +280,10 @@ type Query {
   paged by cursor (`first` 1 to 100, default 50). Requests the reporter waits
   on and new ones come first, then the others, each group newest first.
   `filter` narrows by states, types, text (title or description) and
-  `clientWaiting`; `state` is the former single-state filter. Needs
+  `clientWaiting`; `state` is the former single-state filter. Erased requests
+  are left out. A request that changes group between two pages (a reply, a
+  decision) may be skipped or seen twice. A former plain-id `after` starts
+  again from the first page. Needs
   `issue:write` (those who triage). 404 `projects.errors.not-found`.
   """
   clientReports(
@@ -290,7 +293,7 @@ type Query {
     first: Int = 50
     after: String
   ): ClientReportConnection!
-  "How many requests are in each state, of the organisation or of one project. Needs `issue:write`. 404 `projects.errors.not-found`."
+  "How many requests are in each state, of the organisation or of one project (erased ones left out). Needs `issue:write`. 404 `projects.errors.not-found`."
   clientReportCounts(projectId: ID): ClientReportCounts!
   """
   One request with its thread, context and issues. Needs `issue:write`. The

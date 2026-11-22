@@ -110,16 +110,8 @@ export async function readThread(
     .map(({ order: _order, ...entry }) => entry);
 }
 
-// The team's replies the reporter has not read: those after their read cursor
-// (and after each link), comments and replies written on the request's page.
-export async function unreadCount(
-  mongo: IntakeMongo,
-  report: ClientReportDocument,
-): Promise<number> {
-  return (await unreadOf(mongo, [report])).get(report.id) ?? 0;
-}
-
-// The same for several reports at once, keyed by report id.
+// The team's replies the reporter has not read, for several reports at once
+// (those after their read cursor and after each link), keyed by report id.
 export const unreadCounts = unreadOf;
 
 // The reporter read their thread up to now (never backwards).
