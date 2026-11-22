@@ -20,6 +20,7 @@ import {
   openMongo,
 } from "@softistx/mongo";
 import type { Membership } from "../core/access";
+import { migrations } from "../core/migrations";
 import { organisationRegistry } from "../core/tenancy";
 import { modules } from "../modules/registry";
 import { autoSyncOf } from "./auto-sync";
@@ -94,6 +95,9 @@ export function tenancyOf(
     core: coreMongo,
     registry: organisationRegistry(coreMongo),
     modules: list,
+    // The data migrations of every organisation database (src/core/migrations),
+    // run by `provision` and by `migrateTenants` at boot.
+    migrations: [...migrations],
     // `own` is typed for another module list; the store only needs a cache.
     databases: (own ?? databases) as typeof databases,
     membership: (organisationId, accountId) =>
