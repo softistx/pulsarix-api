@@ -2,10 +2,10 @@
 # Bun bundles the app and its dependencies into dist/server.js (the SDL files are
 # imported as text by the module manifests): the image holds dist/ and the one
 # two packages the bundle leaves out, @napi-rs/canvas and pdfjs-dist. No TypeScript, no other
-# node_modules. Pinned to Bun 1.4.4 exactly, moved together with ci.yml's
+# node_modules. Pinned to Bun 1.4.5 exactly, moved together with ci.yml's
 # setup-bun and @types/bun.
 
-FROM oven/bun:1.4.4 AS build
+FROM oven/bun:1.4.5 AS build
 WORKDIR /app
 # The in-memory Mongo and Redis are for the specs only: no binary download.
 ENV MONGOMS_DISABLE_POSTINSTALL=1 REDISMS_DISABLE_POSTINSTALL=1
@@ -32,7 +32,7 @@ RUN mkdir /native && cd /native \
 # falls back to, so fontconfig plus one font keeps non-embedded fonts legible.
 # The musl builds exist too; moving to Alpine saves about 80 MB and is one line
 # here plus the fonts package, with the check below as the guard.
-FROM oven/bun:1.4.4-slim
+FROM oven/bun:1.4.5-slim
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apt-get update \
