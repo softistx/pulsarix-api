@@ -5,6 +5,7 @@ import type { CommentChangeHandler } from "../../comments/public";
 import type { IssueChangeHandler } from "../../issues/public";
 import type { IntakeMongo, ReporterMailQueue } from "../intake.types";
 import { type Mailable, wantsMail } from "../utils/mail.utils";
+import { reportsOfIssue } from "./linked-reports.service";
 
 // The reporter's e-mails (plan §19, A19). A public reply of the team, or a
 // change of the public state of the request, schedules one job per report
@@ -59,9 +60,9 @@ async function mailable(
   issueId: ObjectId,
   organisationId: string,
 ) {
-  const reports = await mongo.db.clientReports.findMany({
-    filter: { issueId, email: { $ne: null }, erasedAt: null },
-    limit: 100,
+  const reports = await reportsOfIssue(mongo, issueId, {
+    email: { $ne: null },
+    erasedAt: null,
   });
   const due = reports.filter(wantsMail);
   return due.length > 0

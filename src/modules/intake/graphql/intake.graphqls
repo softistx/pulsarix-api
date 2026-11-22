@@ -321,3 +321,14 @@ type Mutation {
   """
   unlinkClientReport(id: ID!, issueId: ID!): ClientReport!
 }
+
+extend type Issue {
+  """
+  How many requests linked to the issue still wait on the team: not resolved,
+  not declined, not erased (a request linked to several issues counts on each
+  of them until its own state settles).
+  """
+  waitingClients: Int!
+  "The requests linked to the issue (not erased ones), oldest first. Needs `issue:write`."
+  clientReports: [ClientReport!]!
+}

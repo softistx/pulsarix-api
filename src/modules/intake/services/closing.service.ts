@@ -1,5 +1,8 @@
+import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../../config/db";
 import type { IssueChange } from "../../issues/public";
+import type { ClientReportDocument } from "../models";
+import { linkedIssueIds, reportsOfIssue } from "./linked-reports.service";
 import { refreshIssueWaiting } from "./waiting.service";
 
 type ClosingMongo = ModuleMongo<"intake"> & ModuleMongo<"issues">;
@@ -13,10 +16,11 @@ export async function isSettled(
   return status?.category === "done" || status?.category === "cancelled";
 }
 
-// Every report follows its issue, the ones linked to it as duplicates (A15)
-// as well as the one it was made from: when the issue is done, cancelled or
-// deleted, the reports are closed (the settling date starts the 90 days of
-// the retention); when the issue is moved back to live work, they are
+// Every report follows its linked issues (A23, A24; all in the report's
+// project, so their writes are serialised by the project's lock: two of them
+// settling at once never both see the other open): when all of them are done,
+// cancelled or deleted, the report is closed (the settling date starts the 90
+// days of the retention); when one of them is moved back to live work, it is
 // accepted again, unless their personal data is already erased. Runs inside
 // the issue's transaction (registered in module.ts). On creation it also sets
 // the report's `issueId`.
@@ -54,48 +58,29 @@ export async function followIssue(
     }
     return;
   }
-  // A deleted issue takes its links with it.
-  if (change.verb === "deleted") {
+  const deleted = change.verb === "deleted";
+  const reports = await reportsOfIssue(tx, change.issue._id);
+  // A deleted issue takes its links with it; a request keeps the earliest
+  // link left as its first one.
+  if (deleted) {
     await tx.db.clientReportLinks.hardDeleteMany({ issueId: change.issue._id });
   }
-  const pointing = await tx.db.clientReports.findMany({
-    filter: { issueId: change.issue._id },
-    limit: 10_000,
-  });
-  // A request with another link left keeps it as its first link and stays
-  // open (closing by links is the client-state slice's).
-  const reports = [];
-  for (const report of pointing) {
-    const next =
-      change.verb === "deleted"
-        ? (
-            await tx.db.clientReportLinks.findMany({
-              filter: { reportId: report._id },
-              sort: { _id: 1 },
-              limit: 1,
-            })
-          )[0]
-        : undefined;
-    if (next) {
-      await tx.db.clientReports.update(report._id, { issueId: next.issueId });
-    } else reports.push(report);
-  }
   if (reports.length === 0) return;
-  const deleted = change.verb === "deleted";
-  // The issue is gone, and so are the files on it: their records carry a
-  // removal date, and the files retention job removes them with their objects.
-  if (deleted) {
-    await tx.db.clientReportFiles.updateMany(
-      {
-        reportId: { $in: reports.map((report) => report._id) },
-        state: { $in: ["released", "quarantined"] },
-      },
-      { expiresAt: new Date() },
-    );
-  }
-  const settled = deleted || (await isSettled(tx, change.issue));
+  // The issue is gone, and so are the files on a request that has no other
+  // issue: their records carry a removal date, and the files retention job
+  // removes them with their objects.
+  const closing: ClientReportDocument[] = [];
   for (const report of reports) {
+    const ids = (await linkedIssueIds(tx, [report])).get(report.id) ?? [];
+    const rest = deleted
+      ? ids.filter((id) => !id.equals(change.issue._id))
+      : ids;
+    if (deleted && report.issueId?.equals(change.issue._id) && rest[0]) {
+      await tx.db.clientReports.update(report._id, { issueId: rest[0] });
+    }
+    if (rest.length === 0) closing.push(report);
     if (report.state === "new" || report.state === "declined") continue;
+    const settled = await allSettled(tx, change, rest);
     if (settled && report.state === "accepted") {
       await tx.db.clientReports.update(report._id, {
         state: "closed",
@@ -108,4 +93,29 @@ export async function followIssue(
       });
     }
   }
+  if (closing.length > 0) {
+    await tx.db.clientReportFiles.updateMany(
+      {
+        reportId: { $in: closing.map((report) => report._id) },
+        state: { $in: ["released", "quarantined"] },
+      },
+      { expiresAt: new Date() },
+    );
+  }
+}
+
+// Whether every issue a request is linked to is done or cancelled (the
+// changed one as the change left it); a request with no issue left is.
+async function allSettled(
+  tx: ClosingMongo,
+  change: IssueChange,
+  issueIds: readonly ObjectId[],
+): Promise<boolean> {
+  for (const id of issueIds) {
+    const issue = id.equals(change.issue._id)
+      ? change.issue
+      : await tx.db.issues.findById(id);
+    if (issue && !(await isSettled(tx, issue))) return false;
+  }
+  return true;
 }

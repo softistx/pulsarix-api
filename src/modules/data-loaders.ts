@@ -20,6 +20,7 @@ function build(ctx: Context) {
     ),
     intake: intakeLoaders(
       async () => (await requirePermission(ctx, "issue:write")).mongo,
+      async () => (await requirePermission(ctx, "issue:read")).mongo,
     ),
     time: timeLoaders({
       totals: async () =>

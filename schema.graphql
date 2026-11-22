@@ -750,6 +750,10 @@ type Issue {
   """The client report it was accepted from, if any."""
   clientReportId: ID
   """
+  The requests linked to the issue (not erased ones), oldest first. Needs `issue:write`.
+  """
+  clientReports: [ClientReport!]!
+  """
   A reporter wrote last on one of its client reports and no public reply has
   answered since: the "client reply" indicator.
   """
@@ -788,6 +792,12 @@ type Issue {
   """An issue stored before the types reads as `task`."""
   type: IssueType!
   updatedAt: DateTime!
+  """
+  How many requests linked to the issue still wait on the team: not resolved,
+  not declined, not erased (a request linked to several issues counts on each
+  of them until its own state settles).
+  """
+  waitingClients: Int!
   watcherIds: [ID!]!
   """Whether the viewer watches it."""
   watching: Boolean!

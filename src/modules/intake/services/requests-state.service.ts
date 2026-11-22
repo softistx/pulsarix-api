@@ -1,7 +1,9 @@
 import type { ObjectId } from "mongodb";
-import { type PublicState, publicStateOfStatus } from "../../projects/public";
+import type { PublicState } from "../../projects/public";
 import type { ClientReportDocument } from "../models";
-import { derivePublicState } from "./public-state.service";
+import { combineMapped } from "../rules/client-state.rules";
+import { linkedIssueIds } from "./linked-reports.service";
+import { derivePublicState, mappedStatesOf } from "./public-state.service";
 import type { IntakeMongo } from "./submit.service";
 
 // The public state and the unread count of many reports at once (plan §19):
@@ -13,43 +15,18 @@ export async function publicStatesOf(
   mongo: IntakeMongo,
   reports: readonly ClientReportDocument[],
 ): Promise<Map<string, PublicState>> {
-  const issueIds = [
-    ...new Set(
-      reports.flatMap((report) =>
-        report.issueId ? [report.issueId.toHexString()] : [],
-      ),
-    ),
-  ];
-  const issues = issueIds.length
-    ? await mongo.db.issues.findMany({
-        filter: { _id: { $in: reports.flatMap((r) => r.issueId ?? []) } },
-        limit: issueIds.length,
-      })
-    : [];
-  const statusIds = [...new Set(issues.map((i) => i.statusId.toHexString()))];
-  const statuses = statusIds.length
-    ? await mongo.db.statuses.findMany({
-        filter: { _id: { $in: issues.map((issue) => issue.statusId) } },
-        limit: statusIds.length,
-      })
-    : [];
-  const mappedOfStatus = new Map(
-    statuses.map((status) => [status.id, publicStateOfStatus(status)]),
-  );
-  const mappedOfIssue = new Map(
-    issues.map((issue) => [
-      issue.id,
-      mappedOfStatus.get(issue.statusId.toHexString()) ?? null,
-    ]),
-  );
+  const linked = await linkedIssueIds(mongo, reports);
+  const mapped = await mappedStatesOf(mongo, [...linked.values()].flat());
   return new Map(
     reports.map((report) => [
       report.id,
       derivePublicState(
         report,
-        report.issueId
-          ? (mappedOfIssue.get(report.issueId.toHexString()) ?? null)
-          : null,
+        combineMapped(
+          (linked.get(report.id) ?? []).map(
+            (id) => mapped.get(id.toHexString()) ?? null,
+          ),
+        ),
       ),
     ]),
   );
