@@ -17,8 +17,13 @@ async function organisationDb() {
 
 // Makes the migration pending again, as on a database that predates it.
 const ISSUE_TYPES = "2026-11-21-issue-types";
+// The later migrations are forgotten too: one cannot be pending before an
+// applied one.
+const REQUEST_LINKS = "2026-11-22-request-links";
 const forget = (db: ReturnType<typeof dbOf>) =>
-  db.collection("nxgt_migrations").deleteOne({ _id: ISSUE_TYPES as never });
+  db
+    .collection("nxgt_migrations")
+    .deleteMany({ _id: { $in: [ISSUE_TYPES, REQUEST_LINKS] as never[] } });
 
 const now = new Date();
 const base = (projectId: ObjectId, number: number) => ({
@@ -113,7 +118,10 @@ describe("issue-types", () => {
     const before = await db.collection("labels").find().toArray();
 
     const result = await migrate(db, migrations);
-    expect(result.applied.map((a) => a.id)).toEqual([ISSUE_TYPES]);
+    expect(result.applied.map((a) => a.id)).toEqual([
+      ISSUE_TYPES,
+      REQUEST_LINKS,
+    ]);
 
     const after = await typesOf(db, docs);
     expect(after["plain"]?.["type"]).toBe("task");

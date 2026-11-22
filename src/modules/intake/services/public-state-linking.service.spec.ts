@@ -5,6 +5,7 @@ import { intakeKit } from "~/intake";
 import {
   AddComment,
   accept,
+  Decline,
   IssueOf,
   type IssueOut,
   Link,
@@ -117,32 +118,17 @@ describe("linkClientReport", () => {
     ) as unknown as IntakeMongo;
     // The issue is settled right after the claim commits, by a write the
     // claim could not see (no change hook runs for it): only a re-read finds it.
-    const reports = real.db.clientReports;
-    const claimed = new Proxy(reports, {
+    const mongo = new Proxy(real, {
       get(target, property) {
-        if (property !== "update") {
-          const value = Reflect.get(target, property, target);
-          return typeof value === "function" ? value.bind(target) : value;
-        }
-        return async (...given: Parameters<typeof reports.update>) => {
-          const result = await reports.update(...given);
-          if ((given[1] as { state?: string }).state === "accepted") {
+        if (property === "transaction") {
+          return async (work: Parameters<typeof real.transaction>[0]) => {
+            const result = await real.transaction(work);
             await real.db.issues.raw.updateOne(
               { _id: new ObjectId(issueId) },
               { $set: { statusId: new ObjectId(done) } },
             );
-          }
-          return result;
-        };
-      },
-    });
-    const mongo = new Proxy(real, {
-      get(target, property) {
-        if (property === "db") {
-          return new Proxy(target.db, {
-            get: (db, name) =>
-              name === "clientReports" ? claimed : Reflect.get(db, name, db),
-          });
+            return result;
+          };
         }
         const value = Reflect.get(target, property, target);
         return typeof value === "function" ? value.bind(target) : value;
@@ -153,13 +139,20 @@ describe("linkClientReport", () => {
     expect(linked.state).toBe("closed");
   });
 
-  test("only a new report links, to an issue of its own project", async () => {
+  test("a declined report links nothing, an accepted one links once, to an issue of its own project", async () => {
     const kit = await intakeKit();
     const first = await send(kit);
     const issueId = (await accept(kit, first)).acceptClientReport
       .issueId as string;
-    const decided = await kit.asOwner.attempt(Link, { id: first, issueId });
-    expect(codeOf(decided)).toBe("intake.errors.report-decided");
+    // An accepted report already linked to that issue.
+    expect(
+      codeOf(await kit.asOwner.attempt(Link, { id: first, issueId })),
+    ).toBe("intake.errors.link-exists");
+    const declined = await send(kit);
+    await kit.asOwner.call(Decline, { id: declined, reason: "No" });
+    expect(
+      codeOf(await kit.asOwner.attempt(Link, { id: declined, issueId })),
+    ).toBe("intake.errors.report-decided");
     const fresh = await send(kit);
     expect(
       codeOf(

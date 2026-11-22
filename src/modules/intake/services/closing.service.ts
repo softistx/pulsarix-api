@@ -24,25 +24,62 @@ export async function followIssue(
   tx: ClosingMongo,
   change: IssueChange,
 ): Promise<undefined> {
-  // The issue and the report's pointer to it are written together: a created
-  // issue always has its report's `issueId` set (accepting a report, services/reports.service.ts).
+  // The issue and its link to the report are written together: a created issue
+  // always has its link (`clientReportLinks`), and the report's `issueId`, the
+  // deprecated first link, is set when it has none.
   if (change.verb === "created") {
     const reportId = change.issue.clientReportId;
     if (reportId) {
-      const report = await tx.db.clientReports.update(reportId, {
-        issueId: change.issue._id,
+      const issueId = change.issue._id;
+      const linked = await tx.db.clientReportLinks.exists({
+        reportId,
+        issueId,
       });
+      if (!linked) {
+        await tx.db.clientReportLinks.create({
+          reportId,
+          issueId,
+          linkedAt: new Date(),
+          linkedBy: change.actorId,
+        });
+      }
+      const current = await tx.db.clientReports.findById(reportId);
+      const report = current?.issueId
+        ? current
+        : await tx.db.clientReports.update(reportId, { issueId });
       // A reporter who wrote while the report was new is still waiting.
-      if (report.clientWaiting === true) {
-        await refreshIssueWaiting(tx, change.issue._id);
+      if (report?.clientWaiting === true) {
+        await refreshIssueWaiting(tx, issueId);
       }
     }
     return;
   }
-  const reports = await tx.db.clientReports.findMany({
+  // A deleted issue takes its links with it.
+  if (change.verb === "deleted") {
+    await tx.db.clientReportLinks.hardDeleteMany({ issueId: change.issue._id });
+  }
+  const pointing = await tx.db.clientReports.findMany({
     filter: { issueId: change.issue._id },
     limit: 10_000,
   });
+  // A request with another link left keeps it as its first link and stays
+  // open (closing by links is the client-state slice's).
+  const reports = [];
+  for (const report of pointing) {
+    const next =
+      change.verb === "deleted"
+        ? (
+            await tx.db.clientReportLinks.findMany({
+              filter: { reportId: report._id },
+              sort: { _id: 1 },
+              limit: 1,
+            })
+          )[0]
+        : undefined;
+    if (next) {
+      await tx.db.clientReports.update(report._id, { issueId: next.issueId });
+    } else reports.push(report);
+  }
   if (reports.length === 0) return;
   const deleted = change.verb === "deleted";
   // The issue is gone, and so are the files on it: their records carry a
