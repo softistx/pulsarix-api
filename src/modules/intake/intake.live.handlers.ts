@@ -1,8 +1,9 @@
 import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
+import { runAfterCommit } from "../../core/shared/after-commit";
 import type { CommentChangeHandler } from "../comments/public";
 import type { IssueChangeHandler } from "../issues/public";
-import { announceChanged } from "./intake.live";
+import { announceChanged, announceRequests, requestsOf } from "./intake.live";
 import { reportsOfIssue } from "./services/linked-reports.service";
 
 // What the team does that a reporter's open stream must hear (plan §19, A17):
@@ -17,12 +18,15 @@ async function announceIssue(
   issueId: ObjectId,
   organisationId: string,
 ) {
-  const reports = await reportsOfIssue(mongo, issueId, {
-    reporterKey: { $ne: null },
-  });
-  return reports.length > 0
-    ? announceChanged(organisationId, reports)
-    : undefined;
+  const reports = await reportsOfIssue(mongo, issueId);
+  const reporters = reports.filter((report) => report.reporterKey !== null);
+  const tell = [
+    announceRequests(requestsOf(organisationId, reports, "state")),
+    ...(reporters.length > 0
+      ? [announceChanged(organisationId, reporters)]
+      : []),
+  ];
+  return reports.length > 0 ? () => runAfterCommit(tell) : undefined;
 }
 
 export const announcePublicReply: CommentChangeHandler = async (

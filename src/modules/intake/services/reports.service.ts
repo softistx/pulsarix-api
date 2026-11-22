@@ -2,12 +2,10 @@ import { runAfterCommit } from "../../../core/shared/after-commit";
 import { invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
 import type { IssuesService } from "../../issues/public";
-import { projectNotFound } from "../../projects/public";
 import { reportNotFound } from "../intake.errors";
-import { announceChanged } from "../intake.live";
-import type { IntakeMongo, ReportPage } from "../intake.types";
-import type { ClientReportDocument, ReportState } from "../models";
-import { pageOf } from "../utils/reports.utils";
+import { announceChanged, announceRequests, requestsOf } from "../intake.live";
+import type { IntakeMongo } from "../intake.types";
+import type { ClientReportDocument } from "../models";
 import { releaseFiles } from "./files-team.service";
 import { scheduleReporterMails } from "./notify.service";
 import { prefillOf } from "./prefill.service";
@@ -40,41 +38,15 @@ export class ReportsService {
     });
   }
 
-  async list(
-    projectId: string,
-    state: ReportState | null | undefined,
-    first: number | null | undefined,
-    after?: string | null,
-  ): Promise<ReportPage> {
-    const limit = first ?? 50;
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PAGE) {
-      throw invalid([
-        { path: "first", code: "validation.errors.out-of-range" },
-      ]);
-    }
-    const project = idOrInvalid(projectId, "projectId");
-    if (!(await this.mongo.db.projects.exists({ _id: project }))) {
-      throw projectNotFound();
-    }
-    const cursor = after ? idOrInvalid(after, "after") : null;
-    const found = await this.mongo.db.clientReports.findMany({
-      filter: {
-        projectId: project,
-        ...(state && { state }),
-        ...(cursor && { _id: { $lt: cursor } }),
-      },
-      sort: { _id: -1 },
-      limit: limit + 1,
-    });
-    return pageOf(found, limit);
-  }
-
   // The reporter's stream hears that their request was decided.
   private async told(
     report: ClientReportDocument,
   ): Promise<ClientReportDocument> {
     await runAfterCommit([
       announceChanged(this.options.organisationId ?? "", [report]),
+      announceRequests(
+        requestsOf(this.options.organisationId ?? "", [report], "state"),
+      ),
       // A decline, an acceptance or a link may change the public state: the
       // reporter's e-mail follows (services/notify.service.ts).
       scheduleReporterMails(this.options.organisationId ?? "", [report]),

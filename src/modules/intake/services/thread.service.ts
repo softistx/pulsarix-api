@@ -2,6 +2,8 @@ import { ObjectId } from "mongodb";
 import { withoutMarkers } from "../../comments/public";
 import { reportNotFound } from "../intake.errors";
 import type { ClientReportDocument } from "../models";
+import { publicCommentsOf } from "./replies.service";
+import { unreadOf } from "./requests-state.service";
 import type { IntakeMongo } from "./submit.service";
 
 // The reporter's side of a request (plan §19, A16): the thread of one report,
@@ -51,26 +53,6 @@ export interface ThreadEntry {
 
 export const MAX_THREAD = 200;
 
-// The comments of the report's issue that belong to its thread: the team's
-// public ones, from the report's link on when it was linked to an existing
-// issue (it never sees what was said before). Internal comments never.
-export const publicFilter = (
-  report: ClientReportDocument,
-  after?: Date | null,
-) => {
-  const from = [report.linkedAt, after].filter(
-    (date) => date !== undefined && date !== null,
-  );
-  const since = from.length
-    ? new Date(Math.max(...from.map((date) => date.getTime())))
-    : null;
-  return {
-    issueId: report.issueId as ObjectId,
-    public: true as const,
-    ...(since && { createdAt: { $gt: since } }),
-  };
-};
-
 // The thread, oldest first: the reporter's messages and the team's public
 // comments, at most `MAX_THREAD` of the newest. An erased message is left out.
 export async function readThread(
@@ -93,18 +75,15 @@ export async function readThread(
         sort: { _id: 1 },
       })
     : [];
-  const replies = report.issueId
-    ? await mongo.db.comments.findMany({
-        filter: publicFilter(report),
-        sort: { _id: -1 },
-        limit: MAX_THREAD,
-      })
-    : [];
+  const replies = await publicCommentsOf(mongo, report, {
+    newest: true,
+    limit: MAX_THREAD,
+  });
   const entries: Array<ThreadEntry & { order: string }> = [
     ...messages.map((message) => ({
       order: message.id,
       id: message.id,
-      from: "reporter" as const,
+      from: message.side,
       body: message.body,
       at: message.createdAt,
       files: files
@@ -131,26 +110,17 @@ export async function readThread(
     .map(({ order: _order, ...entry }) => entry);
 }
 
-// The team's public replies the reporter has not read: those after their read
-// cursor (and after the link, for a linked report).
+// The team's replies the reporter has not read: those after their read cursor
+// (and after each link), comments and replies written on the request's page.
 export async function unreadCount(
   mongo: IntakeMongo,
   report: ClientReportDocument,
 ): Promise<number> {
-  if (!report.issueId) return 0;
-  return mongo.db.comments.count(publicFilter(report, report.reporterReadAt));
+  return (await unreadOf(mongo, [report])).get(report.id) ?? 0;
 }
 
 // The same for several reports at once, keyed by report id.
-export async function unreadCounts(
-  mongo: IntakeMongo,
-  reports: readonly ClientReportDocument[],
-): Promise<Map<string, number>> {
-  const counts = await Promise.all(
-    reports.map((report) => unreadCount(mongo, report)),
-  );
-  return new Map(reports.map((report, i) => [report.id, counts[i] ?? 0]));
-}
+export const unreadCounts = unreadOf;
 
 // The reporter read their thread up to now (never backwards).
 export async function markRead(

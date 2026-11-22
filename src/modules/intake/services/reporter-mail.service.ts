@@ -14,7 +14,7 @@ import type { ClientReportDocument } from "../models";
 import { clip, hostPageLink, wantsMail } from "../utils/mail.utils";
 import { openTrackingToken } from "./identity.service";
 import { publicStateOf } from "./public-state.service";
-import { publicFilter } from "./thread.service";
+import { repliesOf } from "./replies.service";
 
 // The most replies one e-mail reads out; the rest are counted.
 export const MAIL_LISTED = 5;
@@ -37,13 +37,10 @@ export async function sendReporterMail(
   if (!report?.email || !wantsMail(report)) return "skipped";
   const email = report.email;
 
-  const replies = report.issueId
-    ? await mongo.db.comments.findMany({
-        filter: publicFilter(report, report.mailedThrough),
-        sort: { _id: 1 },
-        limit: MAIL_FETCH,
-      })
-    : [];
+  const replies = await repliesOf(mongo, report, {
+    after: report.mailedThrough,
+    limit: MAIL_FETCH,
+  });
   const state = await publicStateOf(mongo, report);
   const changed = state !== (report.mailedState ?? "received");
   if (replies.length === 0 && !changed) return "nothing";

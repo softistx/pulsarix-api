@@ -91,6 +91,53 @@ type ClientReportMetadata {
   value: String!
 }
 
+"What the inbox keeps. Every field narrows; none given lists them all."
+input ClientReportFilter {
+  states: [ClientReportState!]
+  types: [ClientReportType!]
+  "Words of the title or the description."
+  text: String @constraint(maxLength: 200)
+  "True: only the requests the reporter waits on; false: only the others."
+  clientWaiting: Boolean
+}
+
+type ClientReportCounts {
+  new: Int!
+  accepted: Int!
+  declined: Int!
+  closed: Int!
+  "Requests the reporter waits on, whatever their state."
+  clientWaiting: Int!
+  total: Int!
+}
+
+"Where a thread entry comes from."
+enum ClientReportThreadSource {
+  "A message the reporter sent."
+  REPORTER
+  "A reply the team wrote on the request itself."
+  TEAM_REPLY
+  "A public comment on one of the issues the request is linked to."
+  ISSUE_COMMENT
+}
+
+type ClientReportThreadEntry {
+  id: ID!
+  source: ClientReportThreadSource!
+  body: String!
+  at: DateTime!
+  "The team member who wrote it; null for the reporter."
+  authorId: ID
+  "The issue a comment is on; null for the other sources."
+  issueId: ID
+  "The files of a reporter message."
+  files: [ClientReportFile!]!
+}
+
+input ReplyToClientReportInput {
+  body: String! @constraint(minLength: 1, maxLength: 5000)
+}
+
 "One issue to make from a report."
 input NewIssueFromReportInput {
   title: String! @constraint(minLength: 1, maxLength: 200)
@@ -162,6 +209,12 @@ type ClientReport {
   `issue:write`, like `files`.
   """
   pendingFiles: Int!
+  """
+  The conversation, oldest first (the newest 200): the reporter's messages,
+  the team's replies on this request and the public comments of its issues,
+  each with its source. Internal comments never. Needs `issue:write`.
+  """
+  thread: [ClientReportThreadEntry!]!
   createdAt: DateTime!
 }
 
@@ -223,16 +276,27 @@ type Query {
   """
   widgetKeys(projectId: ID!): [WidgetKey!]!
   """
-  The project's client reports, newest first, paged by cursor (`first` 1 to
-  100, default 50), optionally of one `state`. Needs `issue:write` (those who
-  triage). 404 `projects.errors.not-found`.
+  The client requests of the organisation, or of one project (`projectId`),
+  paged by cursor (`first` 1 to 100, default 50). Requests the reporter waits
+  on and new ones come first, then the others, each group newest first.
+  `filter` narrows by states, types, text (title or description) and
+  `clientWaiting`; `state` is the former single-state filter. Needs
+  `issue:write` (those who triage). 404 `projects.errors.not-found`.
   """
   clientReports(
-    projectId: ID!
-    state: ClientReportState
+    projectId: ID
+    filter: ClientReportFilter
+    state: ClientReportState @deprecated(reason: "Use filter.states.")
     first: Int = 50
     after: String
   ): ClientReportConnection!
+  "How many requests are in each state, of the organisation or of one project. Needs `issue:write`. 404 `projects.errors.not-found`."
+  clientReportCounts(projectId: ID): ClientReportCounts!
+  """
+  One request with its thread, context and issues. Needs `issue:write`. The
+  same 404 `intake.errors.not-found` for an unknown or erased request.
+  """
+  clientReport(id: ID!): ClientReport
   """
   The files released to an issue from its client report (the report was
   accepted), oldest first: show them as "from the client report", apart from
@@ -320,6 +384,15 @@ type Mutation {
   `intake.errors.not-found` (report, or an issue it is not linked to).
   """
   unlinkClientReport(id: ID!, issueId: ID!): ClientReport!
+  """
+  Answers one request: the reply is shown to its reporter in their thread and
+  e-mailed like a public reply, and the request stops waiting on the team. It
+  reaches that request only, not the others linked to the same issue. Needs
+  `issue:write`. 404 `intake.errors.not-found`; 409
+  `intake.errors.request-declined` for a declined request; 400
+  `validation.errors.invalid-input` (empty or over 5000 characters).
+  """
+  replyToClientReport(id: ID!, input: ReplyToClientReportInput!): ClientReport!
 }
 
 extend type Issue {

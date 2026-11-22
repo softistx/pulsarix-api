@@ -52,3 +52,13 @@ export async function reportsOf(ctx: Context) {
     { organisationId },
   );
 }
+
+// The inbox's reads: the permission, the database and who asks.
+export async function triageOf(ctx: Context) {
+  const { mongo, tenant } = await requirePermission(ctx, "issue:write");
+  return {
+    mongo,
+    viewerId: requireViewer(ctx).id,
+    organisationId: tenant._id.toHexString(),
+  };
+}

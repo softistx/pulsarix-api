@@ -5,6 +5,7 @@ import { issueNotFound } from "../../issues/public";
 import { fileKindName, pdfSize, previewSize } from "../intake.files.kinds";
 import type { IntakeMongo } from "../intake.types";
 import type { ClientReportFileDocument } from "../models";
+import { reportsOfIssue } from "./linked-reports.service";
 
 // What the team reads of a report's files (A13). A file is listed once its
 // bytes are stored: `quarantined` until its report is decided, `released` once
@@ -52,18 +53,21 @@ export async function pendingCountsOf(
   return counts;
 }
 
-// The files released to an issue from its report, oldest first; none for an
-// issue that came from no report.
+// The files released to an issue from its reports (every request linked to
+// it, A24), oldest first; none for an issue that came from no report.
 export async function releasedFilesOfIssue(
   mongo: IntakeMongo & ModuleMongo<"issues">,
   issueId: string,
 ): Promise<ClientReportFileDocument[]> {
   const id = idOrInvalid(issueId, "issueId");
   if (!(await mongo.db.issues.exists({ _id: id }))) throw issueNotFound();
-  const report = await mongo.db.clientReports.findFirst({ issueId: id });
-  if (!report) return [];
+  const reports = await reportsOfIssue(mongo, id);
+  if (reports.length === 0) return [];
   return mongo.db.clientReportFiles.findMany({
-    filter: { reportId: report._id, state: "released" },
+    filter: {
+      reportId: { $in: reports.map((report) => report._id) },
+      state: "released",
+    },
     sort: { _id: 1 },
   });
 }
