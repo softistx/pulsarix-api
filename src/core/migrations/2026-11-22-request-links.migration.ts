@@ -14,12 +14,11 @@ export const requestLinks = defineMigration({
   id: "2026-11-22-request-links",
   async up({ db, session }) {
     const inSession = session === undefined ? {} : { session };
-    const reports = await db
+    const reports = db
       .collection("clientReports")
-      .find({ issueId: { $ne: null } }, inSession)
-      .toArray();
+      .find({ issueId: { $ne: null } }, inSession);
     const links = db.collection("clientReportLinks");
-    for (const report of reports) {
+    for await (const report of reports) {
       const at =
         report["linkedAt"] ?? report["decidedAt"] ?? report["createdAt"];
       const by = report["decidedBy"] ?? SYSTEM;

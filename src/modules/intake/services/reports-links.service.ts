@@ -85,12 +85,7 @@ export class ReportLinks {
       })),
       async (tx) => {
         if (report.state === "new") {
-          await claimReport(
-            tx as unknown as IntakeMongo,
-            this.viewerId,
-            report,
-            "accepted",
-          );
+          await claimReport(tx, this.viewerId, report, "accepted");
         }
       },
     );
@@ -124,7 +119,8 @@ export class ReportLinks {
   // Removes one link; the request keeps at least one. `issueId` follows the
   // earliest link left.
   async unlink(id: string, issueId: string): Promise<ClientReportDocument> {
-    await this.host.byId(id);
+    const first = await this.host.byId(id);
+    await assertProjectWritable(this.mongo, first.projectId);
     const issue = idOrInvalid(issueId, "issueId");
     await retryWriteConflicts(
       () =>

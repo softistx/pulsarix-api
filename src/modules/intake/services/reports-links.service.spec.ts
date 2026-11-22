@@ -16,6 +16,7 @@ const CreateIssues = `mutation($id: ID!, $issues: [NewIssueFromReportInput!]!) {
     id state issueId issueIds issues { id type title }
   }
 }`;
+const ArchiveProject = `mutation($id: ID!) { archiveProject(id: $id) { id archivedAt } }`;
 const Unlink = `mutation($id: ID!, $issueId: ID!) {
   unlinkClientReport(id: $id, issueId: $issueId) { id state issueId issueIds }
 }`;
@@ -165,6 +166,56 @@ describe("linkClientReport and unlinkClientReport", () => {
     const refused = results.map((r) => codeOf(r)).filter(Boolean);
     // One unlink wins; the other is refused (last link) after its retry.
     expect(refused).toEqual(["intake.errors.last-link"]);
+  });
+
+  test("deleting the first issue keeps the request open on its other link", async () => {
+    const kit = await intakeKit();
+    const id = await send(kit);
+    const { createIssuesFromClientReport: made } = await kit.asOwner.call<Made>(
+      CreateIssues,
+      {
+        id,
+        issues: [{ title: "One" }, { title: "Two" }],
+      },
+    );
+    const [one, two] = made.issueIds as [string, string];
+    await kit.asOwner.call(`mutation($id: ID!) { deleteIssue(id: $id) }`, {
+      id: one,
+    });
+    const after = await kit.asOwner
+      .call<{
+        unlinkClientReport: {
+          state: string;
+          issueId: string;
+          issueIds: string[];
+        };
+      }>(Unlink, { id, issueId: two })
+      .catch(() => null);
+    // The last link cannot go; the report is read through its state instead.
+    expect(after).toBeNull();
+    const report = await reportOf(kit, id);
+    expect(report.state).toBe("accepted");
+    expect(report.issueId).toBe(two);
+  });
+
+  test("an archived project refuses link and unlink", async () => {
+    const kit = await intakeKit();
+    const id = await send(kit);
+    const { createIssuesFromClientReport: made } = await kit.asOwner.call<Made>(
+      CreateIssues,
+      {
+        id,
+        issues: [{ title: "One" }, { title: "Two" }],
+      },
+    );
+    const [one] = made.issueIds as [string, string];
+    await kit.asOwner.call(ArchiveProject, { id: kit.project.id });
+    expect(
+      codeOf(await kit.asOwner.attempt(Unlink, { id, issueId: one })),
+    ).toBe("issues.errors.project-archived");
+    expect(codeOf(await kit.asOwner.attempt(Link, { id, issueId: one }))).toBe(
+      "issues.errors.project-archived",
+    );
   });
 
   test("an issue of another project is refused and the report stays new", async () => {
