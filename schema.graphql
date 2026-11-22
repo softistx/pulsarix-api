@@ -914,6 +914,10 @@ input IssueFilter {
   dueBefore: DateTime
   """The issues carrying ANY of these labels."""
   labelIds: [ID!]
+  """
+  Only the Stories, Tasks and Bugs with no Epic (the roadmap's No Epic row); `types` narrows them, `parentId` wins.
+  """
+  noEpic: Boolean
   """The children of this issue."""
   parentId: ID
   priorities: [IssuePriority!]
@@ -1857,6 +1861,12 @@ type Query {
   """
   projects(includeArchived: Boolean = false): [Project!]!
   """
+  The Epics of a project with their date range and progress, and the No Epic
+  row. A constant number of reads, whatever the number of Epics. Needs
+  `issue:read`. 400 `validation.errors.invalid-input` (`projectId`).
+  """
+  roadmap(projectId: ID!): Roadmap!
+  """
   Searches issues (title, key, description), projects (key, name, description)
   and members (name, e-mail) of the request's organisation, ranked best match
   first, at most `first` per kind (1 to 50, default 10). `kinds` defaults to
@@ -1906,6 +1916,38 @@ type RequestsEvent {
   kind: ClientRequestChange!
   projectId: ID!
   reportId: ID!
+}
+
+"""The roadmap of a project: its Epics on a time axis."""
+type Roadmap {
+  """
+  The Epics that have a start or an end (their own or derived), the cancelled ones left out.
+  """
+  epics: [RoadmapRow!]!
+  """
+  The Stories, Tasks and Bugs with no Epic, as one row; list them with `issues(filter: { noEpic: true })`.
+  """
+  noEpic: RoadmapRow!
+  """The Epics with no date at all, listed apart."""
+  undated: [RoadmapRow!]!
+}
+
+"""
+One line of the roadmap: an Epic, or the issues that have no Epic (`epic` is
+null). Its dates are its own when it has them, else derived from its children
+(the earliest start or due date, the latest due date; the cancelled ones left
+out): `startDerived` and `endDerived` say which. `progress` counts its
+children, in issues and in story points.
+"""
+type RoadmapRow {
+  """The Epic is in a `done` status (always false for the No Epic row)."""
+  done: Boolean!
+  end: DateTime
+  endDerived: Boolean!
+  epic: Issue
+  progress: IssueProgress!
+  start: DateTime
+  startDerived: Boolean!
 }
 
 """

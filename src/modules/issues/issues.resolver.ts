@@ -13,6 +13,8 @@ export const issuesResolvers: Resolvers = {
     },
     issue: async (_, { key }, ctx) =>
       (await scoped(ctx, "issue:read")).issues.byKey(key),
+    roadmap: async (_, { projectId }, ctx) =>
+      (await scoped(ctx, "issue:read")).roadmap.of(projectId),
   },
   Mutation: {
     createIssue: async (_, { input }, ctx) =>
