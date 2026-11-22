@@ -5,6 +5,7 @@ import {
   type ReadDocumentOf,
 } from "@softistx/mongo";
 import { z } from "zod";
+import { accountId } from "../../../core/shared/actors";
 
 // What a reporter may write in one message of their request thread.
 export const MAX_MESSAGE = 5_000;
@@ -16,11 +17,17 @@ export const MAX_MESSAGE = 5_000;
 // read-only `source: CLIENT` comment of the issue (comments.sources.ts); it is
 // not stored a second time. `erasedAt` is stamped when the reporter's data is
 // erased: the body is then emptied and the message leaves both threads.
+// `side` is who wrote it: the reporter (the default, and every message stored
+// before A25) or the team, in a reply written on that request's page (A25):
+// a team message reaches that request's reporter only, never the team's
+// `source: CLIENT` comments, and `authorId` is its author.
 export const clientReportMessages = defineCollection({
   name: "clientReportMessages",
   schema: z.object({
     _id: id(),
     reportId: objectId(),
+    side: z.enum(["reporter", "team"]).default("reporter"),
+    authorId: accountId.nullable().default(null),
     body: z.string().max(MAX_MESSAGE),
     fileIds: z.array(objectId()).default([]),
     erasedAt: z.date().nullable().default(null),

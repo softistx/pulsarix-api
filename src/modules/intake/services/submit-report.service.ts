@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { keyDisabled, tooFast } from "../intake.errors";
+import { announceRequests, requestsOf } from "../intake.live";
 import type { Caller, Submitted } from "../intake.types";
 import type { ClientReportDocument, WidgetKeyDocument } from "../models";
 import type { CheckedFile } from "../rules/files-input.rules";
@@ -76,6 +77,11 @@ async function fileReport(
       at: created.createdAt.toISOString(),
     });
   });
+  intake.background(
+    announceRequests(requestsOf(organisationId, [created], "new"), () =>
+      intake.now(),
+    ),
+  );
   if (email && tracking) {
     mailTracking(intake, created, email, tracking.token, project.name);
   }

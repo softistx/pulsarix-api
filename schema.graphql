@@ -384,6 +384,12 @@ type ClientReport {
   """
   publicState: PublicState!
   state: ClientReportState!
+  """
+  The conversation, oldest first (the newest 200): the reporter's messages,
+  the team's replies on this request and the public comments of its issues,
+  each with its source. Internal comments never. Needs `issue:write`. Ask for it on one request, not on a list page.
+  """
+  thread: [ClientReportThreadEntry!]!
   title: String!
   """What the reporter said it is, if anything."""
   type: ClientReportType
@@ -395,6 +401,16 @@ type ClientReportConnection {
   endCursor: String
   hasNextPage: Boolean!
   nodes: [ClientReport!]!
+}
+
+type ClientReportCounts {
+  accepted: Int!
+  """Requests the reporter waits on, whatever their state."""
+  clientWaiting: Int!
+  closed: Int!
+  declined: Int!
+  new: Int!
+  total: Int!
 }
 
 """A new client report of a project."""
@@ -460,6 +476,16 @@ enum ClientReportFileState {
   released
 }
 
+"""What the inbox keeps. Every field narrows; none given lists them all."""
+input ClientReportFilter {
+  """True: only the requests the reporter waits on; false: only the others."""
+  clientWaiting: Boolean
+  states: [ClientReportState!]
+  """Words of the title or the description."""
+  text: String @constraint(maxLength: 200)
+  types: [ClientReportType!]
+}
+
 """
 How much the problem blocks the reporter. Prefills the priority at acceptance: blocking High, annoying Medium, minor Low.
 """
@@ -488,6 +514,29 @@ enum ClientReportState {
   new
 }
 
+type ClientReportThreadEntry {
+  at: DateTime!
+  """The team member who wrote it; null for the reporter."""
+  authorId: ID
+  body: String!
+  """The files of a reporter message."""
+  files: [ClientReportFile!]!
+  id: ID!
+  """The issue a comment is on; null for the other sources."""
+  issueId: ID
+  source: ClientReportThreadSource!
+}
+
+"""Where a thread entry comes from."""
+enum ClientReportThreadSource {
+  """A public comment on one of the issues the request is linked to."""
+  ISSUE_COMMENT
+  """A message the reporter sent."""
+  REPORTER
+  """A reply the team wrote on the request itself."""
+  TEAM_REPLY
+}
+
 """
 What the reporter says it is. Becomes the type of the issue an acceptance makes: bug to Bug, suggestion to Story, question to Task. A report with no type makes a Task. No label is made.
 """
@@ -495,6 +544,16 @@ enum ClientReportType {
   bug
   question
   suggestion
+}
+
+"""What changed on a client request."""
+enum ClientRequestChange {
+  """A reporter wrote in a request's thread."""
+  MESSAGE
+  """A new request."""
+  NEW
+  """A decision, a link, a reply of the team or its issues settling."""
+  STATE
 }
 
 """
@@ -1271,6 +1330,15 @@ type Mutation {
   """
   reorderStatuses(ids: [ID!]!, projectId: ID!): [Status!]!
   """
+  Answers one request: the reply is shown to its reporter in their thread and
+  e-mailed like a public reply, and the request stops waiting on the team. It
+  reaches that request only, not the others linked to the same issue. Needs
+  `issue:write`. 404 `intake.errors.not-found`; 409
+  `intake.errors.request-declined` for a declined request; 400
+  `validation.errors.invalid-input` (empty or over 5000 characters).
+  """
+  replyToClientReport(id: ID!, input: ReplyToClientReportInput!): ClientReport!
+  """
   Sends the signed-in account a verification link (`/auth/verify-email`). True
   once accepted, whether or not the e-mail is proved already (then nothing is
   sent): the answer never tells. 401 `auth.errors.unauthenticated`; 429
@@ -1675,11 +1743,26 @@ type Query {
   """The sign-in options this server offers. Anonymous."""
   authConfig: AuthConfig!
   """
-  The project's client reports, newest first, paged by cursor (`first` 1 to
-  100, default 50), optionally of one `state`. Needs `issue:write` (those who
-  triage). 404 `projects.errors.not-found`.
+  One request with its thread, context and issues. Needs `issue:write`. The
+  same 404 `intake.errors.not-found` for an unknown or erased request.
   """
-  clientReports(after: String, first: Int = 50, projectId: ID!, state: ClientReportState): ClientReportConnection!
+  clientReport(id: ID!): ClientReport
+  """
+  How many requests are in each state, of the organisation or of one project (erased ones left out). Needs `issue:write`. 404 `projects.errors.not-found`.
+  """
+  clientReportCounts(projectId: ID): ClientReportCounts!
+  """
+  The client requests of the organisation, or of one project (`projectId`),
+  paged by cursor (`first` 1 to 100, default 50). Requests the reporter waits
+  on and new ones come first, then the others, each group newest first.
+  `filter` narrows by states, types, text (title or description) and
+  `clientWaiting`; `state` is the former single-state filter. Erased requests
+  are left out. A request that changes group between two pages (a reply, a
+  decision) may be skipped or seen twice. A former plain-id `after` starts
+  again from the first page. Needs
+  `issue:write` (those who triage). 404 `projects.errors.not-found`.
+  """
+  clientReports(after: String, filter: ClientReportFilter, first: Int = 50, projectId: ID, state: ClientReportState @deprecated(reason: "Use filter.states.")): ClientReportConnection!
   """
   The comments of an issue, oldest first, paged by cursor (`first` 1 to 100,
   default 50), with the messages of the issue's client reports merged in as
@@ -1792,6 +1875,18 @@ The ten one-time codes that replace the app when the phone is lost. Shown once.
 """
 type RecoveryCodes {
   codes: [String!]!
+}
+
+input ReplyToClientReportInput {
+  body: String! @constraint(minLength: 1, maxLength: 5000)
+}
+
+"""A client request of the organisation changed, in any project."""
+type RequestsEvent {
+  at: DateTime!
+  kind: ClientRequestChange!
+  projectId: ID!
+  reportId: ID!
 }
 
 """
@@ -1979,6 +2074,10 @@ type Subscription {
   Issues of a project created, updated, moved or deleted. Needs `issue:read`; 404 `projects.errors.not-found`.
   """
   projectBoard(projectId: ID!): IssueEvent!
+  """
+  Every change on the client requests of the organisation, whatever the project: a new request, a message, a state change. Needs `issue:write`.
+  """
+  requestsChanged: RequestsEvent!
 }
 
 """A time of day with its offset, such as 10:15:30Z (RFC 3339 full-time)."""

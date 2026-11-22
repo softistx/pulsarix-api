@@ -7,6 +7,7 @@ import {
   openIssueChanged,
   openNotifications,
   openProjectBoard,
+  openRequests,
 } from "./activity.resolver-support";
 import { issueEvent } from "./activity.utils";
 import { ActivityService } from "./services";
@@ -48,6 +49,14 @@ export const activityResolvers: Resolvers = {
       subscribe: (_, { projectId }, ctx) =>
         openClientReportFiles(ctx, projectId),
       resolve: issueEvent as never,
+    },
+    requestsChanged: {
+      subscribe: (_, __, ctx) => openRequests(ctx),
+      resolve: ((event: { kind: string; at: string }) => ({
+        ...event,
+        kind: event.kind.toUpperCase(),
+        at: new Date(event.at),
+      })) as never,
     },
     clientReportMessageReceived: {
       subscribe: (_, { projectId }, ctx) =>

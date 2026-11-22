@@ -13,6 +13,7 @@ import {
   reportNotFound,
   requestDeclined,
 } from "../intake.errors";
+import { announceRequests, requestsOf } from "../intake.live";
 import {
   type ClientReportDocument,
   MAX_MESSAGE,
@@ -21,6 +22,7 @@ import {
 import { checkFiles, type DeclaredFile } from "../rules/files-input.rules";
 import { attachmentsOn } from "../utils/attachments.utils";
 import { stripControl } from "../utils/text.utils";
+import { linkedIssueIds } from "./linked-reports.service";
 import { type FileTicket, reserveSlots, ticketExpiry } from "./slots.service";
 import type { IntakeMongo, PublicIntake } from "./submit.service";
 import { refreshLinkedIssuesWaiting } from "./waiting.service";
@@ -102,6 +104,13 @@ export async function postMessage(
   );
   await runAfterCommit(later);
   const publish = intake.deps.publishMessage;
+  if (posted) {
+    intake.background(
+      announceRequests(requestsOf(organisationId, [report], "message"), () =>
+        intake.now(),
+      ),
+    );
+  }
   if (publish && posted) {
     const messageId = posted.messageId;
     intake.background(async () => {
@@ -141,6 +150,8 @@ async function writeMessage(
   if (current.state === "declined") throw requestDeclined();
   const message = await tx.db.clientReportMessages.create({
     reportId: report._id,
+    side: "reporter",
+    authorId: null,
     body,
     fileIds: [],
     erasedAt: null,
@@ -160,20 +171,21 @@ async function writeMessage(
     });
   }
   await tx.db.clientReports.update(report._id, { clientWaiting: true });
-  if (current.issueId) {
-    await refreshLinkedIssuesWaiting(tx, current);
-    const issue = await tx.db.issues.findById(current.issueId);
-    if (issue) {
-      later.push(
-        await journalOnIssue(tx, {
-          issue,
-          organisationId: key.organisationId.toHexString(),
-          actorId: SYSTEM_ACTOR,
-          verb: "clientReplied",
-          comment: null,
-        }),
-      );
-    }
+  // Every issue the request is linked to waits for the team and journals it.
+  await refreshLinkedIssuesWaiting(tx, current);
+  const linked = (await linkedIssueIds(tx, [current])).get(current.id);
+  for (const issueId of linked ?? []) {
+    const issue = await tx.db.issues.findById(issueId);
+    if (!issue) continue;
+    later.push(
+      await journalOnIssue(tx, {
+        issue,
+        organisationId: key.organisationId.toHexString(),
+        actorId: SYSTEM_ACTOR,
+        verb: "clientReplied",
+        comment: null,
+      }),
+    );
   }
   return { posted: { messageId: message.id, files: tickets }, later };
 }

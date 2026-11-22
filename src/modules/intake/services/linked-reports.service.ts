@@ -50,6 +50,45 @@ export async function linkedIssueIds(
   return found;
 }
 
+// One issue a request is linked to, and the date from which its reporter reads
+// the issue's public comments (they never see what was said before the link).
+export interface ReportLink {
+  issueId: ObjectId;
+  since: Date | null;
+}
+
+// The links of each report, in link order, with their dates. A report with no
+// link row yet falls back to its `issueId`, since its own link date.
+export async function linksOf(
+  mongo: LinkMongo,
+  reports: readonly Pick<
+    ClientReportDocument,
+    "_id" | "id" | "issueId" | "linkedAt"
+  >[],
+): Promise<Map<string, ReportLink[]>> {
+  const found = new Map<string, ReportLink[]>(
+    reports.map((report) => [report.id, []]),
+  );
+  if (reports.length === 0) return found;
+  const links = await mongo.db.clientReportLinks.findMany({
+    filter: { reportId: { $in: reports.map((report) => report._id) } },
+    sort: { _id: 1 },
+    limit: reports.length * LIMIT,
+  });
+  for (const link of links) {
+    found
+      .get(link.reportId.toHexString())
+      ?.push({ issueId: link.issueId, since: link.linkedAt });
+  }
+  for (const report of reports) {
+    const own = found.get(report.id);
+    if (own && own.length === 0 && report.issueId) {
+      own.push({ issueId: report.issueId, since: report.linkedAt ?? null });
+    }
+  }
+  return found;
+}
+
 // The requests of many issues at once, erased ones left out, keyed by the
 // issue's hex id: one read of the links, one of the reports.
 export async function reportsOfIssues(

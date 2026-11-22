@@ -50,6 +50,7 @@ export const clearClientWaiting: CommentChangeHandler = async (
   for (const report of waiting) {
     const newer = await mongo.db.clientReportMessages.exists({
       reportId: report._id,
+      side: { $ne: "team" },
       erasedAt: null,
       _id: { $gt: comment._id },
     });

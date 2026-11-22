@@ -11,10 +11,10 @@ import type {
 import { declineReasonShown } from "../utils/reports.utils";
 import { parseTrackingToken } from "../utils/token.utils";
 import { publicStateOf } from "./public-state.service";
+import { repliesOf } from "./replies.service";
 import { detailOf, type RequestDetail } from "./requests-read.service";
 import type { Scope } from "./requests-session.service";
 import type { PublicIntake } from "./submit.service";
-import { publicFilter } from "./thread.service";
 
 // The tracking page's reads (the public side of the intake, services/submit.service.ts):
 // a report by its token, and the thumbnails of the reporter's own pictures.
@@ -112,15 +112,11 @@ export async function trackedStatus(
   await intake.limit((l) => l.intakeTrackingIp, { ip });
   const { scope, report } = await scopeOf(intake, token);
   const { mongo } = scope;
-  const replies = report.issueId
-    ? await mongo.db.comments.findMany({
-        filter: publicFilter(report),
-        sort: { _id: -1 },
-        limit: MAX_REPLIES,
-      })
-    : [];
   // Newest MAX_REPLIES, shown oldest first.
-  replies.reverse();
+  const replies = await repliesOf(mongo, report, {
+    newest: true,
+    limit: MAX_REPLIES,
+  });
   const files = await mongo.db.clientReportFiles.findMany({
     // A reply's files belong to the thread, not to the report's own list.
     filter: {

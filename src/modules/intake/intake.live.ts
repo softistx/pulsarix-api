@@ -34,3 +34,39 @@ export function announceChanged(
     }
   };
 }
+
+export interface RequestsChange {
+  organisationId: string;
+  projectId: string;
+  reportId: string;
+  kind: "new" | "message" | "state";
+}
+
+// Tells the organisation's triage stream (`requestsChanged`, A25) that some
+// requests changed, once the transaction committed (or at once, for a caller
+// outside one). A failed publish never fails the write it follows.
+export function announceRequests(
+  changes: readonly RequestsChange[],
+  now: () => Date = () => new Date(),
+): AfterCommit {
+  return async () => {
+    for (const change of changes) {
+      await realtime.channels.requestsChanged
+        .publish({ ...change, at: now().toISOString() })
+        .catch(() => undefined);
+    }
+  };
+}
+
+// The same events for reports already read.
+export const requestsOf = (
+  organisationId: string,
+  reports: readonly Pick<ClientReportDocument, "id" | "projectId">[],
+  kind: RequestsChange["kind"],
+): RequestsChange[] =>
+  reports.map((report) => ({
+    organisationId,
+    projectId: report.projectId.toHexString(),
+    reportId: report.id,
+    kind,
+  }));
