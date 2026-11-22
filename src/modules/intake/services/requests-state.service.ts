@@ -2,6 +2,7 @@ import type { ObjectId } from "mongodb";
 import type { PublicState } from "../../projects/public";
 import type { ClientReportDocument } from "../models";
 import { combineMapped } from "../rules/client-state.rules";
+import { timesOf } from "../utils/times.utils";
 import { linkedIssueIds, linksOf } from "./linked-reports.service";
 import { derivePublicState, mappedStatesOf } from "./public-state.service";
 import type { IntakeMongo } from "./submit.service";
@@ -78,21 +79,4 @@ export async function unreadOf(
     counts.set(report.id, comments + after(replyTimes.get(report.id), read));
   }
   return counts;
-}
-
-// The creation dates of the matching rows, grouped by `key` (hex id).
-async function timesOf(
-  collection: {
-    aggregate: (pipeline: object[]) => { toArray: () => Promise<unknown[]> };
-  },
-  match: object,
-  key: string,
-): Promise<Map<string, Date[]>> {
-  const rows = (await collection
-    .aggregate([
-      { $match: match },
-      { $group: { _id: key, times: { $push: "$createdAt" } } },
-    ])
-    .toArray()) as { _id: ObjectId; times: Date[] }[];
-  return new Map(rows.map((row) => [row._id.toHexString(), row.times]));
 }

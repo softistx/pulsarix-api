@@ -28,7 +28,7 @@ export interface InboxArgs {
   after?: string | null | undefined;
 }
 
-async function projectOf(
+export async function projectOf(
   mongo: IntakeMongo,
   projectId: string | null | undefined,
 ): Promise<ObjectId | null> {
