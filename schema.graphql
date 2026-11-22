@@ -483,7 +483,7 @@ enum ClientReportState {
 }
 
 """
-What the reporter says it is. Becomes a label (Bug, Question, Suggestion, made on first use) at acceptance.
+What the reporter says it is. Becomes the type of the issue an acceptance makes: bug to Bug, suggestion to Story, question to Task. A report with no type makes a Task. No label is made.
 """
 enum ClientReportType {
   bug

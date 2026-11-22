@@ -26,7 +26,7 @@ export const Report = `query($projectId: ID!) {
   }
 }`;
 export const IssueOf = `query($id: ID!) {
-  issues(projectId: $id) { nodes { id key statusId priority priorityOrigin labelIds } }
+  issues(projectId: $id) { nodes { id key type statusId priority priorityOrigin labelIds } }
 }`;
 export const AddComment = `mutation($issueId: ID!, $input: AddCommentInput!) {
   addComment(issueId: $issueId, input: $input) { id }
@@ -55,6 +55,7 @@ export interface ReportOut {
 export interface IssueOut {
   id: string;
   key: string;
+  type: string;
   statusId: string;
   priority: string;
   priorityOrigin: string;

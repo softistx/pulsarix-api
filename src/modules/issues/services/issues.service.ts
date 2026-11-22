@@ -1,3 +1,4 @@
+import { changesBetween } from "../../../core/shared/changes";
 import { issueNotFound } from "../issues.errors";
 import type { IssueDocument } from "../issues.model";
 import type {
@@ -9,6 +10,7 @@ import type {
   UpdateIssueInput,
 } from "../issues.types";
 import { issueRemoved } from "../issues.usage";
+import { orphanPatch } from "../utils/orphan.utils";
 import { IssueCreation } from "./create.service";
 import { IssuesProject } from "./issues-project.service";
 import { IssueMoves } from "./move.service";
@@ -66,17 +68,23 @@ export class IssuesService {
     return this.moves.move(id, statusId, beforeId, afterId);
   }
 
-  // Answers the issue's id; its children lose their parent.
+  // Answers the issue's id. Its children lose their parent; a Sub-task would
+  // be left without one, so it becomes a Task (one activity row each).
   async delete(id: string): Promise<string> {
     const current = await this.project.byId(id);
     await this.project.inProject(current.projectId, async (tx, _, changed) => {
       await tx.db.issues.hardDelete(current._id);
       await changed("deleted", current, []);
       await issueRemoved(tx as IssuesMongo, current.id);
-      await tx.db.issues.updateMany(
-        { parentId: current._id },
-        { parentId: null },
-      );
+      const children = await tx.db.issues.findMany({
+        filter: { parentId: current._id },
+      });
+      for (const child of children) {
+        const patch = orphanPatch(child);
+        const updated = await tx.db.issues.update(child._id, patch);
+        const changes = changesBetween(child, updated, ["type", "parentId"]);
+        if (changes.length > 0) await changed("updated", updated, changes);
+      }
     });
     return current.id;
   }
