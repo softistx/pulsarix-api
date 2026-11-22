@@ -1,6 +1,7 @@
 import { can, requirePermission } from "../core/access";
 import type { Context } from "../http/context";
 import { intakeLoaders } from "./intake/data-loaders";
+import { issuesLoaders } from "./issues/issues.data-loader";
 import { projectsLoaders } from "./projects/projects.data-loader";
 import { scoped as timeScoped } from "./time/public";
 import { timeLoaders } from "./time/time.data-loader";
@@ -13,6 +14,9 @@ function build(ctx: Context) {
   return {
     projects: projectsLoaders(
       async () => (await requirePermission(ctx, "project:read")).mongo,
+    ),
+    issues: issuesLoaders(
+      async () => (await requirePermission(ctx, "issue:read")).mongo,
     ),
     intake: intakeLoaders(
       async () => (await requirePermission(ctx, "issue:write")).mongo,

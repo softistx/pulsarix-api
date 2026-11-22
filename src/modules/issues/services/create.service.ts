@@ -27,6 +27,11 @@ export class IssueCreation {
         throw invalid([invalidField("statusId")]);
       }
       await this.project.checkReferences(tx, projectId, input);
+      await this.project.checkParentRules(
+        tx,
+        input.type ?? "task",
+        optionalId(input.parentId, "parentId"),
+      );
       const number = await this.nextNumber(tx, projectId);
       try {
         const created = await tx.db.issues.create(

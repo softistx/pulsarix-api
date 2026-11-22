@@ -6,6 +6,19 @@ enum IssuePriority {
   urgent
 }
 
+"""
+The kind of an issue, the same set in every project. An `epic` has no parent;
+a `story`, `task` or `bug` may have an `epic` as parent; a `subTask` must have
+a `story`, `task` or `bug` as parent.
+"""
+enum IssueType {
+  epic
+  story
+  task
+  bug
+  subTask
+}
+
 enum ClientMarker {
   "A reporter marked a request of the issue resolved."
   resolved
@@ -36,6 +49,8 @@ type Issue {
   number: Int!
   key: String!
   title: String!
+  "An issue stored before the types reads as `task`."
+  type: IssueType!
   "Rich text, as the client wrote it."
   description: String!
   statusId: ID!
@@ -44,6 +59,8 @@ type Issue {
   assigneeId: ID
   labelIds: [ID!]!
   parentId: ID
+  "Its children, done out of all (the cancelled ones left out)."
+  progress: IssueProgress!
   startDate: DateTime
   dueDate: DateTime
   "The estimate in hours, or null. The time spent is `timeSpent` (chronix)."
@@ -68,6 +85,16 @@ type Issue {
   updatedAt: DateTime!
 }
 
+"""
+The children of an issue: `done` is how many stand in a status of the `done`
+category, `total` how many there are; children in a `cancelled` status count
+in neither.
+"""
+type IssueProgress {
+  done: Int!
+  total: Int!
+}
+
 type IssueConnection {
   nodes: [Issue!]!
   "Pass it as `after` for the next page; null on the last."
@@ -81,6 +108,8 @@ input IssueFilter {
   "The issues whose status has one of these categories."
   categories: [StatusCategory!]
   priorities: [IssuePriority!]
+  "The issues of ANY of these types (one stored before the types is a `task`)."
+  types: [IssueType!]
   assigneeId: ID
   "Only the issues nobody is assigned to; ignored with `assigneeId`."
   unassigned: Boolean
@@ -126,13 +155,14 @@ input IssueSort {
 }
 
 """
-`statusId` defaults to the first Backlog status. `dueDate` may not precede
-`startDate`; `assigneeId` must be a member; labels and the parent belong to the
-project.
+`statusId` defaults to the first Backlog status, `type` to `task`. `dueDate`
+may not precede `startDate`; `assigneeId` must be a member; labels and the
+parent belong to the project; the parent follows the rules of `IssueType`.
 """
 input CreateIssueInput {
   projectId: ID!
   title: String! @constraint(minLength: 1, maxLength: 200)
+  type: IssueType = task
   description: String @constraint(maxLength: 50000)
   statusId: ID
   priority: IssuePriority
@@ -148,10 +178,13 @@ input CreateIssueInput {
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
 `startDate`, `dueDate` and `estimateHours`, and is refused for the others. The status changes
-with `moveIssue`.
+with `moveIssue`. A new `type` or `parentId` is checked against the rules of
+`IssueType` (and a new type against the issue's children); a link that already
+broke them is left alone until it is edited.
 """
 input UpdateIssueInput {
   title: String @constraint(minLength: 1, maxLength: 200)
+  type: IssueType
   description: String @constraint(maxLength: 50000)
   priority: IssuePriority
   assigneeId: ID
@@ -214,12 +247,16 @@ type Mutation {
   """
   Makes an issue at the end of its status. Needs `issue:write`. 404
   `projects.errors.not-found`; 400 `validation.errors.invalid-input`
-  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`).
+  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`); 409
+  `issues.errors.parent-not-allowed`, `parent-type-invalid` or `parent-required`
+  (on `parentId`).
   """
   createIssue(input: CreateIssueInput!): Issue!
   """
   Changes the given fields. Needs `issue:write`. 404 `issues.errors.not-found`;
-  409 `issues.errors.parent-cycle`.
+  409 `issues.errors.parent-cycle`; 409 `issues.errors.parent-not-allowed`,
+  `parent-type-invalid` or `parent-required` (the type and parent it would
+  leave the issue with); 409 `issues.errors.type-breaks-children`.
   """
   updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
   """

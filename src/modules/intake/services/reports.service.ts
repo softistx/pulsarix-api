@@ -138,7 +138,7 @@ export class ReportsService {
         description: report.description,
         statusId: triage?.id ?? null,
         clientReportId: report._id,
-        ...(await prefillOf(this.mongo, report)),
+        ...prefillOf(report),
       });
       created = true;
       // The files go to the issue in place (services/files-team.service.ts). The report

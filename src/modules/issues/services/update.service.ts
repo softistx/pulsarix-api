@@ -2,10 +2,11 @@ import { changesBetween } from "../../../core/shared/changes";
 import { invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
 import { issueNotFound } from "../issues.errors";
-import type { IssueDocument } from "../issues.model";
+import { type IssueDocument, typeOf } from "../issues.model";
 import type {
   BulkUpdateIssueInput,
   BulkUpdateResult,
+  IssuesMongo,
   UpdateIssueInput,
 } from "../issues.types";
 import { invalidField } from "../issues.validation";
@@ -47,6 +48,7 @@ export class IssueUpdates {
           idOrInvalid(input.parentId, "parentId"),
         );
       }
+      await this.checkTypeRules(tx, issue, input);
       const updated = await tx.db.issues.update(
         issue._id,
         updatedFields(input, issue),
@@ -55,6 +57,31 @@ export class IssueUpdates {
       if (changes.length > 0) await changed("updated", updated, changes);
       return updated;
     });
+  }
+
+  // The parent rules, for the pair the edit changes: a type given that is the
+  // current one, or a parent that is the same, is no change, so a link that
+  // already broke the rules survives an unrelated edit.
+  private async checkTypeRules(
+    tx: IssuesMongo,
+    issue: IssueDocument,
+    input: UpdateIssueInput,
+  ): Promise<void> {
+    const from = typeOf(issue);
+    const to = input.type ?? from;
+    const parentId =
+      input.parentId === undefined
+        ? issue.parentId
+        : optionalId(input.parentId, "parentId");
+    const parentMoved =
+      (parentId?.toHexString() ?? null) !==
+      (issue.parentId?.toHexString() ?? null);
+    if (to !== from || parentMoved) {
+      await this.project.checkParentRules(tx, to, parentId);
+    }
+    if (to !== from) {
+      await this.project.checkChildrenRules(tx, issue._id, from, to);
+    }
   }
 
   // Applies one patch to many issues, each through `update` (and `move` for

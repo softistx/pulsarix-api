@@ -483,7 +483,7 @@ enum ClientReportState {
 }
 
 """
-What the reporter says it is. Becomes a label (Bug, Question, Suggestion, made on first use) at acceptance.
+What the reporter says it is. Becomes the type of the issue an acceptance makes: bug to Bug, suggestion to Story, question to Task. A report with no type makes a Task. No label is made.
 """
 enum ClientReportType {
   bug
@@ -542,9 +542,9 @@ enum CommentSource {
 scalar CountryCode @specifiedBy(url: "https://www.iso.org/iso-3166-country-codes.html")
 
 """
-`statusId` defaults to the first Backlog status. `dueDate` may not precede
-`startDate`; `assigneeId` must be a member; labels and the parent belong to the
-project.
+`statusId` defaults to the first Backlog status, `type` to `task`. `dueDate`
+may not precede `startDate`; `assigneeId` must be a member; labels and the
+parent belong to the project; the parent follows the rules of `IssueType`.
 """
 input CreateIssueInput {
   assigneeId: ID
@@ -559,6 +559,7 @@ input CreateIssueInput {
   startDate: DateTime
   statusId: ID
   title: String! @constraint(minLength: 1, maxLength: 200)
+  type: IssueType = task
 }
 
 input CreateLabelInput {
@@ -762,6 +763,8 @@ type Issue {
   parentId: ID
   priority: IssuePriority!
   priorityOrigin: PriorityOrigin!
+  """Its children, done out of all (the cancelled ones left out)."""
+  progress: IssueProgress!
   projectId: ID!
   """
   Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`.
@@ -776,6 +779,8 @@ type Issue {
   """
   timeSpent: TimeSpent!
   title: String!
+  """An issue stored before the types reads as `task`."""
+  type: IssueType!
   updatedAt: DateTime!
   watcherIds: [ID!]!
   """Whether the viewer watches it."""
@@ -833,6 +838,10 @@ input IssueFilter {
   statusIds: [ID!]
   """Part of the title, any case."""
   text: String @constraint(maxLength: 200)
+  """
+  The issues of ANY of these types (one stored before the types is a `task`).
+  """
+  types: [IssueType!]
   """Only the issues nobody is assigned to; ignored with `assigneeId`."""
   unassigned: Boolean
   """Only the issues the viewer watches."""
@@ -845,6 +854,16 @@ enum IssuePriority {
   medium
   none
   urgent
+}
+
+"""
+The children of an issue: `done` is how many stand in a status of the `done`
+category, `total` how many there are; children in a `cancelled` status count
+in neither.
+"""
+type IssueProgress {
+  done: Int!
+  total: Int!
 }
 
 input IssueSort {
@@ -870,6 +889,19 @@ type IssueTimer {
   On `startIssueTimer`: the seconds of the timer this one replaced (chronix saves it), null when none ran. Always null on `myRunningTimer`.
   """
   stoppedSeconds: Int
+}
+
+"""
+The kind of an issue, the same set in every project. An `epic` has no parent;
+a `story`, `task` or `bug` may have an `epic` as parent; a `subTask` must have
+a `story`, `task` or `bug` as parent.
+"""
+enum IssueType {
+  bug
+  epic
+  story
+  subTask
+  task
 }
 
 """Any JSON value."""
@@ -1049,7 +1081,9 @@ type Mutation {
   """
   Makes an issue at the end of its status. Needs `issue:write`. 404
   `projects.errors.not-found`; 400 `validation.errors.invalid-input`
-  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`).
+  (`title`, `statusId`, `assigneeId`, `labelIds`, `parentId`, `dueDate`); 409
+  `issues.errors.parent-not-allowed`, `parent-type-invalid` or `parent-required`
+  (on `parentId`).
   """
   createIssue(input: CreateIssueInput!): Issue!
   """Needs `project:manage`. 409 `projects.errors.label-name-taken`."""
@@ -1317,7 +1351,9 @@ type Mutation {
   unwatchIssue(id: ID!): Issue!
   """
   Changes the given fields. Needs `issue:write`. 404 `issues.errors.not-found`;
-  409 `issues.errors.parent-cycle`.
+  409 `issues.errors.parent-cycle`; 409 `issues.errors.parent-not-allowed`,
+  `parent-type-invalid` or `parent-required` (the type and parent it would
+  leave the issue with); 409 `issues.errors.type-breaks-children`.
   """
   updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
   """
@@ -1974,7 +2010,9 @@ scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
 `startDate`, `dueDate` and `estimateHours`, and is refused for the others. The status changes
-with `moveIssue`.
+with `moveIssue`. A new `type` or `parentId` is checked against the rules of
+`IssueType` (and a new type against the issue's children); a link that already
+broke them is left alone until it is edited.
 """
 input UpdateIssueInput {
   assigneeId: ID
@@ -1987,6 +2025,7 @@ input UpdateIssueInput {
   priority: IssuePriority
   startDate: DateTime
   title: String @constraint(minLength: 1, maxLength: 200)
+  type: IssueType
 }
 
 """A field left out stays as it is; null is refused."""

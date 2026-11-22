@@ -43,5 +43,9 @@ export const issuesModule = defineModule({
     "parent-cycle",
     "bad-placement",
     "project-archived",
+    "parent-not-allowed",
+    "parent-type-invalid",
+    "parent-required",
+    "type-breaks-children",
   ]),
 });

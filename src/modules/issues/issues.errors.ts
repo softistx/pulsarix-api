@@ -17,3 +17,17 @@ export const parentCycle = () =>
 // The move names neighbours that are not in the column, or not in order.
 export const badPlacement = () =>
   fail("issues.errors.bad-placement", { status: 409 });
+
+// The parent rules (plan §20.3, issues.rules.ts): all 409, on `parentId`
+// except `type-breaks-children`, which is on `type`.
+export const parentNotAllowed = () =>
+  fail("issues.errors.parent-not-allowed", { status: 409, field: "parentId" });
+
+export const parentTypeInvalid = () =>
+  fail("issues.errors.parent-type-invalid", { status: 409, field: "parentId" });
+
+export const parentRequired = () =>
+  fail("issues.errors.parent-required", { status: 409, field: "parentId" });
+
+export const typeBreaksChildren = () =>
+  fail("issues.errors.type-breaks-children", { status: 409, field: "type" });
