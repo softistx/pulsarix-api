@@ -16,6 +16,10 @@ export const issuesTexts: Record<Locale, Record<string, string>> = {
       "A sub-task needs a parent: a story, a task or a bug.",
     "issues.errors.type-breaks-children":
       "This type would break the link with the issue's child issues. Move or detach them first.",
+    "issues.errors.points-off-scale":
+      "Story points must be 1, 2, 3, 5, 8, 13 or 21.",
+    "issues.errors.points-not-allowed":
+      "Only a story, a task or a bug carries story points.",
     "issues.errors.project-archived":
       "This project is archived: its issues, comments and files can no longer be changed. Unarchive it first.",
   },
@@ -32,6 +36,10 @@ export const issuesTexts: Record<Locale, Record<string, string>> = {
       "Une sous-tâche a besoin d'un parent : une story, une tâche ou un bug.",
     "issues.errors.type-breaks-children":
       "Ce type casserait le lien avec les tickets enfants. Déplacez-les ou détachez-les d'abord.",
+    "issues.errors.points-off-scale":
+      "Les points doivent valoir 1, 2, 3, 5, 8, 13 ou 21.",
+    "issues.errors.points-not-allowed":
+      "Seule une story, une tâche ou un bug porte des points.",
     "issues.errors.project-archived":
       "Ce projet est archivé : ses tickets, commentaires et fichiers ne peuvent plus être modifiés. Désarchivez-le d'abord.",
   },

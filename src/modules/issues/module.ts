@@ -47,5 +47,7 @@ export const issuesModule = defineModule({
     "parent-type-invalid",
     "parent-required",
     "type-breaks-children",
+    "points-off-scale",
+    "points-not-allowed",
   ]),
 });

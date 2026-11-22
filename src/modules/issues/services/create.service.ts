@@ -5,11 +5,12 @@ import { changesFromNothing } from "../../../core/shared/changes";
 import { exhausted, invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
 import type { ProjectDocument } from "../../projects/public";
-import type { IssueDocument } from "../issues.model";
+import { pointsNotAllowed } from "../issues.errors";
+import { type IssueDocument, pointTypes } from "../issues.model";
 import type { Changed, CreateIssueInput, IssuesMongo } from "../issues.types";
 import { invalidField } from "../issues.validation";
 import { createIssues } from "../utils/checks.utils";
-import { CREATED, newIssue, optionalId } from "../utils/fields.utils";
+import { CREATED, isSet, newIssue, optionalId } from "../utils/fields.utils";
 import type { IssuesProject } from "./issues-project.service";
 
 // The creation of an issue: its number, its status, its place in the column.
@@ -65,6 +66,9 @@ export class IssueCreation {
       input.type ?? "task",
       optionalId(input.parentId, "parentId"),
     );
+    if (isSet(input.points) && !pointTypes.includes(input.type ?? "task")) {
+      throw pointsNotAllowed();
+    }
     const number = await this.nextNumber(tx, projectId);
     try {
       const created = await tx.db.issues.create(

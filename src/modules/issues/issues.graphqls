@@ -65,6 +65,8 @@ type Issue {
   dueDate: DateTime
   "The estimate in hours, or null. The time spent is `timeSpent` (chronix)."
   estimateHours: Float
+  "Story points (1, 2, 3, 5, 8, 13 or 21) on a Story, Task or Bug; null for none. An Epic's own are always null: read `progress.points`."
+  points: Int
   "Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`."
   rank: String!
   "The member who made it."
@@ -93,6 +95,10 @@ in neither.
 type IssueProgress {
   done: Int!
   total: Int!
+  "The story points of the same children (the cancelled ones left out): an Epic's total."
+  points: Int!
+  "The story points of the children in a `done` status."
+  pointsDone: Int!
 }
 
 type IssueConnection {
@@ -138,6 +144,7 @@ enum IssueSortField {
   number
   title
   priority
+  points
   dueDate
   startDate
   createdAt
@@ -173,11 +180,13 @@ input CreateIssueInput {
   dueDate: DateTime
   "Hours, 0 to 100 000."
   estimateHours: Float
+  "1, 2, 3, 5, 8, 13 or 21 (else 400 `issues.errors.points-off-scale`); only for a Story, Task or Bug (else 409 `issues.errors.points-not-allowed`)."
+  points: Int
 }
 
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
-`startDate`, `dueDate` and `estimateHours`, and is refused for the others. The status changes
+`startDate`, `dueDate`, `estimateHours` and `points`, and is refused for the others. The status changes
 with `moveIssue`. A new `type` or `parentId` is checked against the rules of
 `IssueType` (and a new type against the issue's children); a link that already
 broke them is left alone until it is edited.
@@ -194,11 +203,13 @@ input UpdateIssueInput {
   dueDate: DateTime
   "Hours, 0 to 100 000; null clears it."
   estimateHours: Float
+  "As on `CreateIssueInput`; null clears it. Moving the issue to an Epic or a Sub-task type clears its points."
+  points: Int
 }
 
 """
 One patch for many issues; a field left out stays as it is. Null clears
-`assigneeId`, `dueDate` and `estimateHours`, and is refused for the others.
+`assigneeId`, `dueDate`, `estimateHours` and `points`, and is refused for the others.
 `addLabelIds` are added to each issue's labels, then `removeLabelIds` taken
 off (an id in both is removed). `statusId` puts each issue at the end of that
 status.
@@ -212,6 +223,8 @@ input BulkUpdateIssueInput {
   dueDate: DateTime
   "Hours, 0 to 100 000; null clears it."
   estimateHours: Float
+  "As on `UpdateIssueInput`; null clears it. An Epic or Sub-task among the issues is listed in `failures` (409 `points-not-allowed`)."
+  points: Int
 }
 
 "An issue the bulk update refused, with the code and message `updateIssue` would have answered."

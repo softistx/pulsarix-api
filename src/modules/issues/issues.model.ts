@@ -15,6 +15,10 @@ export type Priority = z.infer<typeof priority>;
 export const issueType = z.enum(["epic", "story", "task", "bug", "subTask"]);
 export type IssueType = z.infer<typeof issueType>;
 
+// The story-point scale (plan §20.5) and the types that carry points.
+export const pointScale = [1, 2, 3, 5, 8, 13, 21] as const;
+export const pointTypes: readonly IssueType[] = ["story", "task", "bug"];
+
 // What a reporter did to the issue's requests (plan §19), shown to the team.
 export const clientMarker = z.enum(["resolved", "reopened", "deleted"]);
 export type ClientMarker = z.infer<typeof clientMarker>;
@@ -64,6 +68,9 @@ export const issues = defineCollection({
     dueDate: z.date().nullable().default(null),
     // The estimate in hours (time tracking, P1); the time spent is chronix's.
     estimateHours: z.number().min(0).max(100_000).nullable().default(null),
+    // Story points (plan §20.5): Fibonacci 1 to 21 (`pointScale`), on a Story,
+    // a Task or a Bug only; null is none. Issues stored before lack it.
+    points: z.number().int().nullable().default(null),
     rank: z.string().min(1).max(200),
     // The member who made it.
     reporterId: accountId.nullable().default(null),

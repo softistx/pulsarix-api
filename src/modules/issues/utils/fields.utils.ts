@@ -22,6 +22,7 @@ export const TRACKED = [
   "startDate",
   "dueDate",
   "estimateHours",
+  "points",
 ] as const;
 export const CREATED = [...TRACKED, "statusId"] as const;
 export const MOVED = ["statusId", "rank"] as const;
@@ -69,6 +70,7 @@ export function newIssue(
     startDate: input.startDate ?? null,
     dueDate: input.dueDate ?? null,
     estimateHours: input.estimateHours ?? null,
+    points: input.points ?? null,
     rank: place.rank,
     reporterId: place.reporterId,
     clientReportId: input.clientReportId ?? null,
@@ -105,5 +107,6 @@ export function updatedFields(input: UpdateIssueInput, issue: IssueDocument) {
     ...(input.estimateHours !== undefined && {
       estimateHours: input.estimateHours,
     }),
+    ...(input.points !== undefined && { points: input.points }),
   };
 }
