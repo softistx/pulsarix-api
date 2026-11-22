@@ -48,6 +48,12 @@ export const intakeResolvers: Resolvers = {
         .map(([reason, count]) => ({ reason, count }))
         .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
   },
+  Issue: {
+    waitingClients: (issue, _, ctx) =>
+      dataLoaders(ctx).intake.waitingClients.load(issue.id),
+    clientReports: (issue, _, ctx) =>
+      dataLoaders(ctx).intake.issueReports.load(issue.id),
+  },
   ClientReport: {
     projectId: (report) => report.projectId.toHexString(),
     issueId: (report) => report.issueId?.toHexString() ?? null,

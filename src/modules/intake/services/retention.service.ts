@@ -2,7 +2,7 @@ import type { AppTenancy, ModuleMongo } from "../../../config/db";
 import { SYSTEM_ACTOR } from "../../../core/shared/actors";
 import type { ClientReportDocument } from "../models";
 import { markIssue } from "./markers.service";
-import { refreshIssueWaiting } from "./waiting.service";
+import { refreshLinkedIssuesWaiting } from "./waiting.service";
 
 // How long a settled report keeps its personal data (plan Q15).
 export const RETENTION_DAYS = 90;
@@ -64,7 +64,7 @@ export async function eraseReport(
   });
   if (report.issueId) {
     // An erased report no longer makes its issue wait.
-    await refreshIssueWaiting(as, report.issueId);
+    await refreshLinkedIssuesWaiting(as, report);
     if (mark) await markIssue(as, report.issueId, "deleted");
   }
 }

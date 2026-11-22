@@ -20,7 +20,7 @@ import {
 import type { Scope } from "./requests-session.service";
 import type { IntakeMongo, PublicIntake } from "./submit.service";
 import { ownedReport } from "./thread.service";
-import { refreshIssueWaiting } from "./waiting.service";
+import { refreshLinkedIssuesWaiting } from "./waiting.service";
 
 // "Mark as resolved" and "Reopen": the reporter settles their request.
 
@@ -50,7 +50,7 @@ async function settle(
               issue._id,
               verb === "clientResolved" ? "resolved" : "reopened",
             );
-            await refreshIssueWaiting(tx, issue._id);
+            await refreshLinkedIssuesWaiting(tx, report);
             later.push(
               await journalOnIssue(tx, {
                 issue,
@@ -96,7 +96,7 @@ export async function resolveReport(
   report: ClientReportDocument,
 ): Promise<RequestSummary> {
   if (report.state === "declined") throw requestDeclined();
-  const mapped = await mappedStateOf(session.mongo, report.issueId);
+  const mapped = await mappedStateOf(session.mongo, report);
   if (derivePublicState(report, mapped) !== "resolved") {
     await settleLimit(intake, session);
     await settle(intake, session, report, "clientResolved", {
@@ -125,7 +125,7 @@ export async function reopenReport(
   report: ClientReportDocument,
 ): Promise<RequestSummary> {
   if (report.state === "declined") throw requestDeclined();
-  const mapped = await mappedStateOf(session.mongo, report.issueId);
+  const mapped = await mappedStateOf(session.mongo, report);
   const state = derivePublicState(report, mapped);
   if (state === "resolved") {
     if (!canReopenAt(settledAt(report, state), intake.now())) {

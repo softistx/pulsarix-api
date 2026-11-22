@@ -23,7 +23,7 @@ import { attachmentsOn } from "../utils/attachments.utils";
 import { stripControl } from "../utils/text.utils";
 import { type FileTicket, reserveSlots, ticketExpiry } from "./slots.service";
 import type { IntakeMongo, PublicIntake } from "./submit.service";
-import { refreshIssueWaiting } from "./waiting.service";
+import { refreshLinkedIssuesWaiting } from "./waiting.service";
 
 type MessageMongo = IntakeMongo & ModuleMongo<"issues">;
 
@@ -161,7 +161,7 @@ async function writeMessage(
   }
   await tx.db.clientReports.update(report._id, { clientWaiting: true });
   if (current.issueId) {
-    await refreshIssueWaiting(tx, current.issueId);
+    await refreshLinkedIssuesWaiting(tx, current);
     const issue = await tx.db.issues.findById(current.issueId);
     if (issue) {
       later.push(

@@ -3,6 +3,7 @@ import type { ModuleMongo } from "../../config/db";
 import type { CommentChangeHandler } from "../comments/public";
 import type { IssueChangeHandler } from "../issues/public";
 import { announceChanged } from "./intake.live";
+import { reportsOfIssue } from "./services/linked-reports.service";
 
 // What the team does that a reporter's open stream must hear (plan §19, A17):
 // a public reply on the issue of their request (added, edited, withdrawn or
@@ -16,9 +17,8 @@ async function announceIssue(
   issueId: ObjectId,
   organisationId: string,
 ) {
-  const reports = await mongo.db.clientReports.findMany({
-    filter: { issueId, reporterKey: { $ne: null } },
-    limit: 100,
+  const reports = await reportsOfIssue(mongo, issueId, {
+    reporterKey: { $ne: null },
   });
   return reports.length > 0
     ? announceChanged(organisationId, reports)

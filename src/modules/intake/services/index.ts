@@ -7,6 +7,7 @@ export * from "./files-team.service";
 export * from "./identity.service";
 export type { IntakeMongo } from "./keys.service";
 export * from "./keys.service";
+export * from "./linked-reports.service";
 export * from "./markers.service";
 export * from "./messages.service";
 export * from "./notify.service";
