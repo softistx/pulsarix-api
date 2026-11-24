@@ -11,7 +11,7 @@
  * and pinned by widget.spec.ts; the file and process work is in deploy.ts.
  */
 
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 /** What the widget's checkout and its served `dist` are, as absolute paths. */
 export function widgetPaths(
@@ -64,4 +64,30 @@ export function planWidgetSync(input: {
   const have = new Set(built);
   const stale = existing.filter((f) => !have.has(f) && f !== keep).sort();
   return { copy, stale };
+}
+
+/**
+ * The directory of the Font Awesome sprite sheets the widget build turns into
+ * `dist/icons/duotone.svg` (its `ICON_SPRITES_DIR`). `ICON_SPRITES_DIR` in the
+ * environment wins (a relative one resolves against `base`); otherwise it is
+ * under the pulsarix-ui checkout `uiRoot` (the stack's UI_CONTEXT, by default
+ * the sibling of the API's checkout).
+ */
+export function iconSpritesDir(
+  env: Record<string, string | undefined>,
+  uiRoot: string,
+  base: string,
+): string {
+  const raw = env["ICON_SPRITES_DIR"];
+  if (raw !== undefined && raw !== "")
+    return isAbsolute(raw) ? raw : resolve(base, raw);
+  return join(uiRoot, "public/assets/icons/sprites");
+}
+
+/** The icon sheet the build writes, relative to `dist`; older widgets have none. */
+export const ICON_SHEET = "icons/duotone.svg";
+
+/** Whether the build must be served with its icon sheet (so the deploy checks it). */
+export function expectsIconSheet(built: string[]): boolean {
+  return built.includes(ICON_SHEET);
 }

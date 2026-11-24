@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { manifestWidget, planWidgetSync, widgetPaths } from "./widget";
+import {
+  expectsIconSheet,
+  iconSpritesDir,
+  manifestWidget,
+  planWidgetSync,
+  widgetPaths,
+} from "./widget";
 
 describe("widgetPaths", () => {
   test("defaults to the sibling checkout of the API, relative to deploy/", () => {
@@ -54,5 +60,35 @@ describe("planWidgetSync", () => {
   test("nothing is stale on a first deploy or a rerun of the same build", () => {
     expect(planWidgetSync({ built, existing: [] }).stale).toEqual([]);
     expect(planWidgetSync({ built, existing: built }).stale).toEqual([]);
+  });
+});
+
+describe("iconSpritesDir", () => {
+  test("defaults to the pulsarix-ui checkout beside the API's", () => {
+    expect(iconSpritesDir({}, "/srv/pulsarix-ui", "/srv/pulsarix-api")).toBe(
+      "/srv/pulsarix-ui/public/assets/icons/sprites",
+    );
+    expect(
+      iconSpritesDir(
+        { ICON_SPRITES_DIR: "" },
+        "/srv/pulsarix-ui",
+        "/srv/pulsarix-api",
+      ),
+    ).toBe("/srv/pulsarix-ui/public/assets/icons/sprites");
+  });
+  test("ICON_SPRITES_DIR overrides it, absolute or relative to the API", () => {
+    expect(
+      iconSpritesDir({ ICON_SPRITES_DIR: "/i/s" }, "/ui", "/srv/api"),
+    ).toBe("/i/s");
+    expect(
+      iconSpritesDir({ ICON_SPRITES_DIR: "../i" }, "/ui", "/srv/api"),
+    ).toBe("/srv/i");
+  });
+});
+
+describe("expectsIconSheet", () => {
+  test("only a build that wrote icons/duotone.svg is checked for it", () => {
+    expect(expectsIconSheet(["loader.js", "icons/duotone.svg"])).toBe(true);
+    expect(expectsIconSheet(["loader.js", "manifest.json"])).toBe(false);
   });
 });
