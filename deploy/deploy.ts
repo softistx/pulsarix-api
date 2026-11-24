@@ -23,8 +23,11 @@
  *              /widget/v1/loader.js answers through the container. The build
  *              runs with REQUIRE_ICONS=1 and ICON_SPRITES_DIR (default: the
  *              pulsarix-ui checkout beside this one, public/assets/icons/sprites;
- *              override with the ICON_SPRITES_DIR environment variable), and the
- *              deploy refuses when that directory is missing. When the build
+ *              override with the ICON_SPRITES_DIR environment variable, read
+ *              from the process environment, not from deploy/.env; a relative
+ *              path resolves against the API checkout). The deploy refuses
+ *              when that directory is missing, even for a widget with no
+ *              sheet, since the stack already needs the UI checkout. When the build
  *              wrote icons/duotone.svg, /widget/v1/icons/duotone.svg must answer
  *              200 too (older widgets have no sheet: not checked)
  *   --backup   also build and start the offsite backup (compose profile `backup`)
