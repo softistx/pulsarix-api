@@ -20,7 +20,13 @@
  *              pulsarix-widget, build it in a scratch copy, copy the result into
  *              the served `dist` in place (the UI container's bind mount keeps
  *              working: no restart, no 404 window), then check
- *              /widget/v1/loader.js answers through the container
+ *              /widget/v1/loader.js answers through the container. The build
+ *              runs with REQUIRE_ICONS=1 and ICON_SPRITES_DIR (default: the
+ *              pulsarix-ui checkout beside this one, public/assets/icons/sprites;
+ *              override with the ICON_SPRITES_DIR environment variable), and the
+ *              deploy refuses when that directory is missing. When the build
+ *              wrote icons/duotone.svg, /widget/v1/icons/duotone.svg must answer
+ *              200 too (older widgets have no sheet: not checked)
  *   --backup   also build and start the offsite backup (compose profile `backup`)
  *              and require its BACKUP_S3_* settings; without it the backup is
  *              off and nothing about it is required
@@ -66,7 +72,14 @@ import {
   renderPlan,
   staleImages,
 } from "./plan";
-import { manifestWidget, planWidgetSync, widgetPaths } from "./widget";
+import {
+  expectsIconSheet,
+  ICON_SHEET,
+  iconSpritesDir,
+  manifestWidget,
+  planWidgetSync,
+  widgetPaths,
+} from "./widget";
 
 const args = Bun.argv.slice(2);
 const known = new Set([
@@ -263,8 +276,10 @@ async function deployWidget(): Promise<void> {
   }
   const container = `${prefix ? `${prefix}-` : ""}pulsarix-ui`;
   const { dist, root } = widgetPaths(values, DEPLOY_DIR);
+  const sprites = iconSpritesDir(process.env, uiContext(values), API_ROOT);
   const probe = ["docker", "exec", container, "wget", "-qO-"];
   const url = "http://127.0.0.1:3000/widget/v1/loader.js";
+  const sheetUrl = `http://127.0.0.1:3000/widget/v1/${ICON_SHEET}`;
   const pull = options.noPull
     ? "skip git pull (--no-pull)"
     : `git -C ${root} pull --ff-only`;
@@ -284,7 +299,7 @@ async function deployWidget(): Promise<void> {
         {
           name: "build",
           detail: "in a scratch copy of the checkout, so dist is never deleted",
-          command: "bun scripts/build.ts",
+          command: `REQUIRE_ICONS=1 ICON_SPRITES_DIR=${sprites} bun scripts/build.ts`,
         },
         {
           name: "copy",
@@ -300,12 +315,21 @@ async function deployWidget(): Promise<void> {
           detail: "/widget/v1/loader.js answers 200",
           command: `${probe.join(" ")} ${url}`,
         },
+        {
+          name: "check",
+          detail: `/widget/v1/${ICON_SHEET} answers 200 when the build wrote it`,
+          command: `${probe.join(" ")} ${sheetUrl}`,
+        },
       ]),
     );
     return;
   }
 
   if (!existsSync(root)) fail(`no widget checkout at ${root}`);
+  if (!existsSync(sprites))
+    fail(
+      `no icon sprite sheets at ${sprites}: check out pulsarix-ui beside this repository or set ICON_SPRITES_DIR`,
+    );
   ensureReadToken();
   if (options.noPull) step("skip", "git pull (--no-pull)");
   else {
@@ -328,7 +352,9 @@ async function deployWidget(): Promise<void> {
     }
     await symlink(join(root, "node_modules"), join(scratch, "node_modules"));
     step("build", `${scratch} (scratch copy of ${root})`);
-    await $`bun scripts/build.ts`.cwd(scratch);
+    await $`bun scripts/build.ts`
+      .cwd(scratch)
+      .env({ ...process.env, REQUIRE_ICONS: "1", ICON_SPRITES_DIR: sprites });
 
     const built = await listFiles(join(scratch, "dist"));
     if (!built.includes("loader.js") || !built.includes("manifest.json"))
@@ -368,9 +394,18 @@ async function deployWidget(): Promise<void> {
       fail(
         `/widget/v1/loader.js through ${container} is not the loader just built: the mount is stale (docker restart ${container})`,
       );
+    let sheet = "no icon sheet in this build";
+    if (expectsIconSheet(built)) {
+      const icons = await $`${probe} ${sheetUrl}`.quiet().nothrow();
+      if (icons.exitCode !== 0 || icons.stdout.length === 0)
+        fail(
+          `/widget/v1/${ICON_SHEET} did not answer 200 through ${container}: the mount is stale (docker restart ${container})`,
+        );
+      sheet = `/widget/v1/${ICON_SHEET} answers (${icons.stdout.length} bytes)`;
+    }
     step(
       "healthy",
-      `/widget/v1/loader.js answers through ${container} and is the new build (${res.stdout.length} bytes)`,
+      `/widget/v1/loader.js answers through ${container} and is the new build (${res.stdout.length} bytes); ${sheet}`,
     );
   } finally {
     await rm(scratch, { recursive: true, force: true });
