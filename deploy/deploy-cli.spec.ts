@@ -137,6 +137,8 @@ describe("deploy.ts --dry-run", () => {
     expect(out).toContain("pulsarix-widget");
     expect(out).toContain("scratch copy");
     expect(out).toContain("in place");
+    expect(out).toContain("REQUIRE_ICONS=1");
+    expect(out).toContain("duotone.svg");
     expect(out).toContain("docker exec pulsarix-ui wget -qO-");
     expect(out).not.toContain("docker restart");
     expect(existsSync(calls)).toBe(false);
