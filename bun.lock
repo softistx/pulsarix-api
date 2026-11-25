@@ -16,7 +16,7 @@
         "@softistx/alxia-media": "^0.12.0",
         "@softistx/alxia-modules": "^0.6.0",
         "@softistx/alxia-tenancy": "^0.8.0",
-        "@softistx/chronix-react": "^0.3.5",
+        "@softistx/chronix-react": "^0.3.6",
         "@softistx/graphql-scalars": "^0.8.0",
         "@softistx/graphql-validation": "^0.10.0",
         "@softistx/graxia": "^0.17.0",
@@ -303,7 +303,7 @@
 
     "@softistx/alxia-tenancy": ["@softistx/alxia-tenancy@0.8.0", "", { "peerDependencies": { "@softistx/alxia-modules": "^0.6.0", "@softistx/mongo": ">=0.27.0 <1", "mongodb": "^7.7.0", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-UjWZPdGZpHnUnBQgjrX/KDWq1dPyf5sacBC8ys0SPxe4julBeieHdKI+krhm973OAfq/5WPfIO3wm52SruMqYg=="],
 
-    "@softistx/chronix-react": ["@softistx/chronix-react@0.3.5", "", {}, "sha512-Aiu8OYasNoU0odHlt6JlZpbYWui8mWSnRB9txayhYRGqFBN90mu7uwRPVZfcTFbeef/IyRWYx8gu/n8V9imHrw=="],
+    "@softistx/chronix-react": ["@softistx/chronix-react@0.3.6", "", {}, "sha512-1kbgu48CTtKv56agTz4EKyt2X1Q9tFkepiyS1wuo98FitEvlj191qxJjdP0kcVAM1Lnql+VP13kSoKuFZlA55A=="],
 
     "@softistx/graphql-codegen-zod": ["@softistx/graphql-codegen-zod@0.6.0", "", { "dependencies": { "@softistx/graphql-validation": "^0.10.0", "change-case": "^5.4.4" }, "peerDependencies": { "graphql": "^16.11.0 || ^17.0.0", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-QD+SfMr7HpO/72b99aFn8AkBAz2KUa0+nFud9Pp9oSJ/x+DpreVivS/qcpKKYsWbxeXk4wNdAQ39J8gqXJzE7Q=="],
 
