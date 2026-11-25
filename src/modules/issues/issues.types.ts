@@ -28,6 +28,7 @@ export interface CreateIssueInput {
   startDate?: Date | null;
   dueDate?: Date | null;
   estimateHours?: number | null;
+  points?: number | null;
   // Set by the intake module only (never by GraphQL's `CreateIssueInput`): the
   // client report this issue is made from.
   clientReportId?: ObjectId | null;
@@ -47,10 +48,11 @@ export interface UpdateIssueInput {
   startDate?: Date | null;
   dueDate?: Date | null;
   estimateHours?: number | null;
+  points?: number | null;
 }
 
 // One patch for many issues. A field left out stays; null clears `assigneeId`,
-// `dueDate` and `estimateHours`.
+// `dueDate`, `estimateHours` and `points`.
 export interface BulkUpdateIssueInput {
   statusId?: string | null;
   priority?: Priority | null;
@@ -59,6 +61,7 @@ export interface BulkUpdateIssueInput {
   removeLabelIds?: string[] | null;
   dueDate?: Date | null;
   estimateHours?: number | null;
+  points?: number | null;
 }
 
 export interface BulkIssueFailure {

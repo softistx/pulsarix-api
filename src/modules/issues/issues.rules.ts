@@ -39,14 +39,83 @@ export function breaksChildren(
 }
 
 // The progress of an issue's children: the done ones out of all of them, the
-// cancelled ones left out of both counts.
-export function progressOf(categories: readonly string[]): {
+// cancelled ones left out of every count; `points` sums their story points
+// (an Epic's total) and `pointsDone` those of the done ones.
+export function progressOf(
+  children: readonly { category: string; points: number | null }[],
+): {
   done: number;
   total: number;
+  points: number;
+  pointsDone: number;
 } {
-  const counted = categories.filter((category) => category !== "cancelled");
+  const counted = children.filter((child) => child.category !== "cancelled");
+  const done = counted.filter((child) => child.category === "done");
+  const sum = (list: typeof counted) =>
+    list.reduce((total, child) => total + (child.points ?? 0), 0);
   return {
-    done: counted.filter((category) => category === "done").length,
+    done: done.length,
     total: counted.length,
+    points: sum(counted),
+    pointsDone: sum(done),
+  };
+}
+
+export interface RoadmapRange {
+  start: Date | null;
+  end: Date | null;
+  startDerived: boolean;
+  endDerived: boolean;
+}
+
+// The dates of a roadmap row (plan §20.5). Its own dates win; without them the
+// start is the earliest start or due date of the `children` and the end the
+// latest due date, and the flag says which one was derived. A row with none of
+// either has no range (`null`), so it is listed as undated. The caller leaves
+// the cancelled children out.
+export function rangeOf(
+  own: { start: Date | null; due: Date | null },
+  children: readonly { start: Date | null; due: Date | null }[],
+): RoadmapRange {
+  const starts = children.flatMap((child) => child.start ?? child.due ?? []);
+  const dues = children.flatMap((child) => child.due ?? []);
+  const time = (date: Date) => date.getTime();
+  const earliest =
+    starts.length > 0 ? new Date(Math.min(...starts.map(time))) : null;
+  const latest = dues.length > 0 ? new Date(Math.max(...dues.map(time))) : null;
+  return {
+    start: own.start ?? earliest,
+    end: own.due ?? latest,
+    startDerived: own.start === null && earliest !== null,
+    endDerived: own.due === null && latest !== null,
+  };
+}
+
+export interface RoadmapIssue {
+  category: string;
+  start: Date | null;
+  due: Date | null;
+  points: number | null;
+}
+
+export interface RoadmapFacts extends RoadmapRange {
+  done: boolean;
+  progress: ReturnType<typeof progressOf>;
+}
+
+// One roadmap row from an Epic (null for the "No Epic" bucket) and its
+// children: the range (the cancelled children left out of it), the progress
+// and whether the Epic itself is done.
+export function roadmapFacts(
+  epic: RoadmapIssue | null,
+  children: readonly RoadmapIssue[],
+): RoadmapFacts {
+  return {
+    done: epic?.category === "done",
+    progress: progressOf(children),
+    ...rangeOf(
+      { start: epic?.start ?? null, due: epic?.due ?? null },
+      children.filter((child) => child.category !== "cancelled"),
+    ),
   };
 }

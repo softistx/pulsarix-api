@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { IssueType } from "./issues.model";
-import { breaksChildren, parentRefusal, progressOf } from "./issues.rules";
+import {
+  breaksChildren,
+  parentRefusal,
+  progressOf,
+  rangeOf,
+} from "./issues.rules";
 
 describe("parentRefusal", () => {
   test("an Epic has no parent", () => {
@@ -51,11 +56,80 @@ describe("breaksChildren", () => {
 });
 
 describe("progressOf", () => {
+  const of = (categories: string[], points: (number | null)[] = []) =>
+    categories.map((category, i) => ({ category, points: points[i] ?? null }));
+
   test("counts done children out of all, leaving the cancelled out", () => {
     expect(
-      progressOf(["done", "todo", "cancelled", "done", "inProgress"]),
-    ).toEqual({ done: 2, total: 4 });
-    expect(progressOf([])).toEqual({ done: 0, total: 0 });
-    expect(progressOf(["cancelled"])).toEqual({ done: 0, total: 0 });
+      progressOf(of(["done", "todo", "cancelled", "done", "inProgress"])),
+    ).toMatchObject({ done: 2, total: 4 });
+    expect(progressOf([])).toEqual({
+      done: 0,
+      total: 0,
+      points: 0,
+      pointsDone: 0,
+    });
+    expect(progressOf(of(["cancelled"], [5]))).toMatchObject({
+      total: 0,
+      points: 0,
+    });
+  });
+
+  test("sums the points of the children, and of the done ones", () => {
+    expect(
+      progressOf(of(["done", "todo", "cancelled", "done"], [3, 5, 13, null])),
+    ).toEqual({ done: 2, total: 3, points: 8, pointsDone: 3 });
+  });
+});
+
+describe("rangeOf", () => {
+  const day = (n: number) => new Date(Date.UTC(2026, 0, n));
+  const child = (start: number | null, due: number | null) => ({
+    start: start === null ? null : day(start),
+    due: due === null ? null : day(due),
+  });
+
+  test("its own dates win over the children's", () => {
+    expect(rangeOf(child(5, 20), [child(1, 30)])).toEqual({
+      start: day(5),
+      end: day(20),
+      startDerived: false,
+      endDerived: false,
+    });
+  });
+
+  test("without its own, the start is the earliest child start or due date, the end the latest due date", () => {
+    expect(
+      rangeOf(child(null, null), [child(null, 4), child(3, 9), child(8, 6)]),
+    ).toEqual({
+      start: day(3),
+      end: day(9),
+      startDerived: true,
+      endDerived: true,
+    });
+  });
+
+  test("each end is derived on its own", () => {
+    expect(rangeOf(child(2, null), [child(5, 9)])).toEqual({
+      start: day(2),
+      end: day(9),
+      startDerived: false,
+      endDerived: true,
+    });
+  });
+
+  test("no dates anywhere: no range, nothing derived", () => {
+    expect(rangeOf(child(null, null), [child(null, null)])).toEqual({
+      start: null,
+      end: null,
+      startDerived: false,
+      endDerived: false,
+    });
+    expect(rangeOf(child(null, null), [])).toEqual({
+      start: null,
+      end: null,
+      startDerived: false,
+      endDerived: false,
+    });
   });
 });

@@ -276,7 +276,7 @@ type BulkIssueFailure {
 
 """
 One patch for many issues; a field left out stays as it is. Null clears
-`assigneeId`, `dueDate` and `estimateHours`, and is refused for the others.
+`assigneeId`, `dueDate`, `estimateHours` and `points`, and is refused for the others.
 `addLabelIds` are added to each issue's labels, then `removeLabelIds` taken
 off (an id in both is removed). `statusId` puts each issue at the end of that
 status.
@@ -287,6 +287,10 @@ input BulkUpdateIssueInput {
   dueDate: DateTime
   """Hours, 0 to 100 000; null clears it."""
   estimateHours: Float
+  """
+  As on `UpdateIssueInput`; null clears it. An Epic or Sub-task among the issues is listed in `failures` (409 `points-not-allowed`).
+  """
+  points: Int
   priority: IssuePriority
   removeLabelIds: [ID!]
   statusId: ID
@@ -619,6 +623,10 @@ input CreateIssueInput {
   estimateHours: Float
   labelIds: [ID!]
   parentId: ID
+  """
+  1, 2, 3, 5, 8, 13 or 21 (else 400 `issues.errors.points-off-scale`); only for a Story, Task or Bug (else 409 `issues.errors.points-not-allowed`).
+  """
+  points: Int
   priority: IssuePriority
   projectId: ID!
   startDate: DateTime
@@ -830,6 +838,10 @@ type Issue {
   labelIds: [ID!]!
   number: Int!
   parentId: ID
+  """
+  Story points (1, 2, 3, 5, 8, 13 or 21) on a Story, Task or Bug; null for none. An Epic's own are always null: read `progress.points`.
+  """
+  points: Int
   priority: IssuePriority!
   priorityOrigin: PriorityOrigin!
   """Its children, done out of all (the cancelled ones left out)."""
@@ -902,6 +914,10 @@ input IssueFilter {
   dueBefore: DateTime
   """The issues carrying ANY of these labels."""
   labelIds: [ID!]
+  """
+  Only the Stories, Tasks and Bugs with no Epic (the roadmap's No Epic row); `types` narrows them, `parentId` wins.
+  """
+  noEpic: Boolean
   """The children of this issue."""
   parentId: ID
   priorities: [IssuePriority!]
@@ -938,6 +954,12 @@ in neither.
 """
 type IssueProgress {
   done: Int!
+  """
+  The story points of the same children (the cancelled ones left out): an Epic's total.
+  """
+  points: Int!
+  """The story points of the children in a `done` status."""
+  pointsDone: Int!
   total: Int!
 }
 
@@ -950,6 +972,7 @@ enum IssueSortField {
   createdAt
   dueDate
   number
+  points
   priority
   rank
   startDate
@@ -1838,6 +1861,12 @@ type Query {
   """
   projects(includeArchived: Boolean = false): [Project!]!
   """
+  The Epics of a project with their date range and progress, and the No Epic
+  row. A constant number of reads, whatever the number of Epics. Needs
+  `issue:read`. 400 `validation.errors.invalid-input` (`projectId`).
+  """
+  roadmap(projectId: ID!): Roadmap!
+  """
   Searches issues (title, key, description), projects (key, name, description)
   and members (name, e-mail) of the request's organisation, ranked best match
   first, at most `first` per kind (1 to 50, default 10). `kinds` defaults to
@@ -1887,6 +1916,38 @@ type RequestsEvent {
   kind: ClientRequestChange!
   projectId: ID!
   reportId: ID!
+}
+
+"""The roadmap of a project: its Epics on a time axis."""
+type Roadmap {
+  """
+  The Epics that have a start or an end (their own or derived), the cancelled ones left out.
+  """
+  epics: [RoadmapRow!]!
+  """
+  The Stories, Tasks and Bugs with no Epic, as one row; list them with `issues(filter: { noEpic: true })`.
+  """
+  noEpic: RoadmapRow!
+  """The Epics with no date at all, listed apart."""
+  undated: [RoadmapRow!]!
+}
+
+"""
+One line of the roadmap: an Epic, or the issues that have no Epic (`epic` is
+null). Its dates are its own when it has them, else derived from its children
+(the earliest start or due date, the latest due date; the cancelled ones left
+out): `startDerived` and `endDerived` say which. `progress` counts its
+children, in issues and in story points.
+"""
+type RoadmapRow {
+  """The Epic is in a `done` status (always false for the No Epic row)."""
+  done: Boolean!
+  end: DateTime
+  endDerived: Boolean!
+  epic: Issue
+  progress: IssueProgress!
+  start: DateTime
+  startDerived: Boolean!
 }
 
 """
@@ -2154,7 +2215,7 @@ scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
-`startDate`, `dueDate` and `estimateHours`, and is refused for the others. The status changes
+`startDate`, `dueDate`, `estimateHours` and `points`, and is refused for the others. The status changes
 with `moveIssue`. A new `type` or `parentId` is checked against the rules of
 `IssueType` (and a new type against the issue's children); a link that already
 broke them is left alone until it is edited.
@@ -2167,6 +2228,10 @@ input UpdateIssueInput {
   estimateHours: Float
   labelIds: [ID!]
   parentId: ID
+  """
+  As on `CreateIssueInput`; null clears it. Moving the issue to an Epic or a Sub-task type clears its points.
+  """
+  points: Int
   priority: IssuePriority
   startDate: DateTime
   title: String @constraint(minLength: 1, maxLength: 200)

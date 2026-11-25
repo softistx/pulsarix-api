@@ -16,6 +16,7 @@ export interface IssueFilter {
   labelIds?: string[] | null;
   parentId?: string | null;
   rootsOnly?: boolean | null;
+  noEpic?: boolean | null;
   reporterId?: string | null;
   watching?: boolean | null;
   clientWaiting?: boolean | null;
@@ -31,6 +32,7 @@ export type IssueSortField =
   | "number"
   | "title"
   | "priority"
+  | "points"
   | "dueDate"
   | "startDate"
   | "createdAt"
@@ -47,6 +49,7 @@ const orderBy = {
   number: "number",
   title: "title",
   priority: "priorityLevel",
+  points: "points",
   dueDate: "dueDate",
   startDate: "startDate",
   createdAt: "createdAt",
@@ -67,6 +70,27 @@ const ids = (given: string[], path: string): ObjectId[] =>
 // An issue stored before the types has none: it is a task (`null` matches it).
 const typesIn = (types: IssueType[]): (IssueType | null)[] =>
   types.includes("task") ? [...types, null] : types;
+
+// The "No Epic" row of the roadmap: Stories, Tasks and Bugs with no parent.
+export const noEpicTypes = typesIn(["story", "task", "bug"]);
+
+// The `type` and `parentId` clauses: `types` (narrowed to the No Epic types
+// by `noEpic`), `parentId`, `rootsOnly` and `noEpic` (no parent).
+const shapeOf = (f: IssueFilter) => {
+  const types = f.types && f.types.length > 0 ? typesIn(f.types) : null;
+  const wanted =
+    f.noEpic && types
+      ? types.filter((type) => noEpicTypes.includes(type))
+      : f.noEpic
+        ? noEpicTypes
+        : types;
+  return {
+    ...(wanted && { type: { $in: wanted } }),
+    ...(f.parentId
+      ? { parentId: toObjectId(idOrInvalid(f.parentId, "parentId")) }
+      : (f.rootsOnly || f.noEpic) && { parentId: null }),
+  };
+};
 
 const range = (from?: Date | null, to?: Date | null) =>
   from || to
@@ -113,17 +137,13 @@ export async function listIssues(
     projectId,
     ...(statusIds && { statusId: { $in: statusIds } }),
     ...(f.priorities && { priority: { $in: f.priorities } }),
-    ...(f.types && f.types.length > 0 && { type: { $in: typesIn(f.types) } }),
+    ...shapeOf(f),
     ...(f.assigneeId && { assigneeId: f.assigneeId }),
     ...(f.unassigned && !f.assigneeId && { assigneeId: null }),
     ...(f.labelIds &&
       f.labelIds.length > 0 && {
         labelIds: { $in: ids(f.labelIds, "labelIds") },
       }),
-    ...(f.parentId && {
-      parentId: toObjectId(idOrInvalid(f.parentId, "parentId")),
-    }),
-    ...(f.rootsOnly && !f.parentId && { parentId: null }),
     ...(f.reporterId && { reporterId: f.reporterId }),
     ...(f.watching && { watcherIds: viewerId }),
     ...(f.clientWaiting && { clientWaiting: true }),

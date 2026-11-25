@@ -5,7 +5,7 @@ import type {
   CreateIssueInput,
   UpdateIssueInput,
 } from "../issues.types";
-import { estimateIssue } from "../issues.validation";
+import { checkScale, estimateIssue } from "../issues.validation";
 
 // The refusal of a creation made before any write: the title first, then the
 // estimate.
@@ -13,6 +13,7 @@ export function createIssues(input: CreateIssueInput): FieldIssue[] {
   if (!input.title.trim()) {
     return [{ path: "title", code: "validation.errors.required" }];
   }
+  checkScale(input.points);
   return estimateIssue(input.estimateHours);
 }
 
@@ -29,6 +30,7 @@ export function updateIssues(input: UpdateIssueInput): FieldIssue[] {
     issues.push({ path: "title", code: "validation.errors.required" });
   }
   issues.push(...estimateIssue(input.estimateHours));
+  checkScale(input.points);
   return issues;
 }
 
@@ -36,6 +38,7 @@ export function updateIssues(input: UpdateIssueInput): FieldIssue[] {
 export function bulkIssues(patch: BulkUpdateIssueInput): FieldIssue[] {
   const issues: FieldIssue[] = required(patch, ["statusId", "priority"]);
   issues.push(...estimateIssue(patch.estimateHours));
+  checkScale(patch.points);
   const fields = [
     patch.statusId,
     patch.priority,
@@ -44,6 +47,7 @@ export function bulkIssues(patch: BulkUpdateIssueInput): FieldIssue[] {
     patch.removeLabelIds,
     patch.dueDate,
     patch.estimateHours,
+    patch.points,
   ];
   if (fields.every((field) => field === undefined)) {
     issues.push({ path: "input", code: "validation.errors.required" });

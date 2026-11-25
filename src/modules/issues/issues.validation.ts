@@ -1,6 +1,8 @@
 import type { ObjectId } from "mongodb";
 import type { FieldIssue } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
+import { pointsOffScale } from "./issues.errors";
+import { pointScale } from "./issues.model";
 
 // The ids given, as ObjectIds, each once.
 export const distinct = (given: string[], path: string): ObjectId[] => {
@@ -19,6 +21,17 @@ export const estimateIssue = (
   hours !== undefined && hours !== null && !(hours >= 0 && hours <= 100_000)
     ? [{ path: "estimateHours", code: "validation.errors.out-of-range" }]
     : [];
+
+// Story points are on the Fibonacci scale or none: 400 `points-off-scale`.
+export const checkScale = (points: number | null | undefined): void => {
+  if (
+    points !== undefined &&
+    points !== null &&
+    !(pointScale as readonly number[]).includes(points)
+  ) {
+    throw pointsOffScale();
+  }
+};
 
 export const invalidField = (path: string): FieldIssue => ({
   path,

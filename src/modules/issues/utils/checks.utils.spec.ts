@@ -63,3 +63,22 @@ describe("bulkIssues", () => {
     expect(bulkIssues({ addLabelIds: [] })).toEqual([]);
   });
 });
+
+describe("story points", () => {
+  test("a value off the Fibonacci scale throws a 400 in every check", () => {
+    const off = /Story points must be/;
+    expect(() =>
+      createIssues({ projectId: "p", title: "x", points: 4 }),
+    ).toThrow(off);
+    expect(() => updateIssues({ points: 0 })).toThrow(off);
+    expect(() => bulkIssues({ points: 22 })).toThrow(off);
+  });
+
+  test("the scale and null pass, and points alone are a valid bulk patch", () => {
+    for (const points of [1, 2, 3, 5, 8, 13, 21, null]) {
+      expect(updateIssues({ points })).toEqual([]);
+    }
+    expect(bulkIssues({ points: 5 })).toEqual([]);
+    expect(bulkIssues({ points: null })).toEqual([]);
+  });
+});

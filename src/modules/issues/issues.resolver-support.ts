@@ -1,6 +1,6 @@
 import { requirePermission, requireViewer } from "../../core/access";
 import type { Context } from "../../http/context";
-import { IssuesService } from "./services";
+import { IssuesService, RoadmapService } from "./services";
 
 export type Permission = "issue:read" | "issue:write" | "issue:delete";
 
@@ -11,6 +11,7 @@ export async function scoped(ctx: Context, permission: Permission) {
   return {
     viewerId,
     mongo,
+    roadmap: new RoadmapService(mongo),
     issues: new IssuesService(
       mongo,
       async (accountId) =>

@@ -27,7 +27,10 @@ export function issuesLoaders(mongoOf: () => Promise<IssuesMongo>) {
         (child) => child.parentId?.toHexString() ?? "",
       ).map((own) =>
         progressOf(
-          own.map((child) => category.get(child.statusId.toHexString()) ?? ""),
+          own.map((child) => ({
+            category: category.get(child.statusId.toHexString()) ?? "",
+            points: child.points ?? null,
+          })),
         ),
       );
     }),
