@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { ObjectId } from "mongodb";
 import { codeOf } from "~/http";
 import { ByKey, Create, Move, Update, withProject } from "~/issues";
+import { withSprints } from "~/sprints";
 import { tenancy } from "../../../config/db";
+import type { SprintsMongo } from "../../sprints/sprints.types";
 
 const ACTIVITY_QUERY = `query($issueId: ID) {
   activity(issueId: $issueId) { nodes { verb changes { field } } }
@@ -20,6 +22,43 @@ async function setup() {
     codeOf(await t.asOwner.attempt(Update, { id, input }));
   return { ...t, attempt, change };
 }
+
+describe("an issue that becomes an epic or a sub-task", () => {
+  const stored = async (organisationId: string, id: string) => {
+    const mongo = (await tenancy.databaseOf(
+      organisationId,
+    )) as unknown as SprintsMongo;
+    return { mongo, issue: await mongo.db.issues.findById(new ObjectId(id)) };
+  };
+
+  test("goes back to the backlog, and an active sprint snapshots the change", async () => {
+    const t = await withSprints("UNP");
+    const sprint = await t.sprint();
+    const a = await t.make("A", { type: "story", points: 5 });
+    const b = await t.make("B", { type: "task", points: 3 });
+    await t.plan([a, b], sprint.id);
+    await t.start(sprint.id);
+    await t.asOwner.call(Update, { id: b.id, input: { type: "epic" } });
+    const { mongo, issue } = await stored(t.organisation.id, b.id);
+    expect(issue).toMatchObject({ type: "epic", sprintId: null });
+    const scope = await mongo.db.sprintSnapshots.findMany({
+      filter: { reason: "scope" },
+    });
+    // The scope now counts A only.
+    expect(scope.map((s) => s.scopePoints)).toEqual([5]);
+  });
+
+  test("a planned sprint just loses the issue", async () => {
+    const t = await withSprints("UN2");
+    const sprint = await t.sprint();
+    const a = await t.make("A", { type: "task" });
+    await t.plan([a], sprint.id);
+    await t.asOwner.call(Update, { id: a.id, input: { type: "epic" } });
+    const { mongo, issue } = await stored(t.organisation.id, a.id);
+    expect(issue?.sprintId).toBeNull();
+    expect(await mongo.db.sprintSnapshots.count({ reason: "scope" })).toBe(0);
+  });
+});
 
 describe("issue types and parent rules", () => {
   test("an issue is a task by default, and its type is read back", async () => {

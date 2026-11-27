@@ -47,6 +47,7 @@ export async function reportsOf(ctx: Context) {
         (await ctx.services.roleOf(organisationId, accountId)) !== null,
       viewerId,
       organisationId,
+      tenant.timeZone,
     ),
     viewerId,
     { organisationId },

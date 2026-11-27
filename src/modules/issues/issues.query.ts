@@ -4,7 +4,7 @@ import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { escapeRegex } from "../../core/shared/regex";
 import type { IssueDocument, IssueType, Priority } from "./issues.model";
-import { activeSprintOf } from "./issues.sprint";
+import { activeSprintOf } from "./issues.registry";
 import type { IssuesMongo } from "./issues.types";
 
 export interface IssueFilter {

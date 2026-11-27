@@ -1,8 +1,10 @@
+import type { AfterCommit } from "../../../core/shared/after-commit";
 import { changesBetween } from "../../../core/shared/changes";
 import { invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
 import { issueNotFound, pointsNotAllowed } from "../issues.errors";
 import { type IssueDocument, pointTypes, typeOf } from "../issues.model";
+import { sprintLeft } from "../issues.registry";
 import type {
   BulkUpdateIssueInput,
   BulkUpdateResult,
@@ -20,6 +22,7 @@ import {
 import { failureOf, labelChanges, patchInput } from "../utils/patch.utils";
 import type { IssuesProject } from "./issues-project.service";
 import type { IssueMoves } from "./move.service";
+import { IssuePlanning } from "./planning.service";
 
 // The edits of an issue, one by one and in bulk.
 export class IssueUpdates {
@@ -35,33 +38,57 @@ export class IssueUpdates {
     const refused = updateIssues(input);
     if (refused.length > 0) throw invalid(refused);
     const current = await this.project.byId(id);
-    return this.project.inProject(current.projectId, async (tx, _, changed) => {
-      const issue = await tx.db.issues.findById(current._id);
-      if (!issue) throw issueNotFound();
-      await this.project.checkReferences(tx, issue.projectId, {
-        assigneeId: input.assigneeId,
-        labelIds: input.labelIds,
-        parentId: input.parentId,
-        startDate:
-          input.startDate !== undefined ? input.startDate : issue.startDate,
-        dueDate: input.dueDate !== undefined ? input.dueDate : issue.dueDate,
-      });
-      if (input.parentId) {
-        await this.project.checkNoLoop(
-          tx,
-          issue._id,
-          idOrInvalid(input.parentId, "parentId"),
-        );
-      }
-      await this.checkTypeRules(tx, issue, input);
-      const updated = await tx.db.issues.update(issue._id, {
-        ...updatedFields(input, issue),
-        ...this.pointsFor(issue, input),
-      });
-      const changes = changesBetween(issue, updated, TRACKED);
-      if (changes.length > 0) await changed("updated", updated, changes);
-      return updated;
-    });
+    return this.project.inProject(
+      current.projectId,
+      async (tx, _, changed, after) => {
+        const issue = await tx.db.issues.findById(current._id);
+        if (!issue) throw issueNotFound();
+        await this.project.checkReferences(tx, issue.projectId, {
+          assigneeId: input.assigneeId,
+          labelIds: input.labelIds,
+          parentId: input.parentId,
+          startDate:
+            input.startDate !== undefined ? input.startDate : issue.startDate,
+          dueDate: input.dueDate !== undefined ? input.dueDate : issue.dueDate,
+        });
+        if (input.parentId) {
+          await this.project.checkNoLoop(
+            tx,
+            issue._id,
+            idOrInvalid(input.parentId, "parentId"),
+          );
+        }
+        await this.checkTypeRules(tx, issue, input);
+        const updated = await tx.db.issues.update(issue._id, {
+          ...updatedFields(input, issue),
+          ...this.pointsFor(issue, input),
+        });
+        const changes = changesBetween(issue, updated, TRACKED);
+        if (changes.length > 0) await changed("updated", updated, changes);
+        return this.unplanned(tx, updated, after);
+      },
+    );
+  }
+
+  // An Epic or a Sub-task is not planned: an issue that becomes one while it
+  // is in a sprint goes back to the backlog in the same transaction, and an
+  // active sprint it leaves snapshots its scope change.
+  private async unplanned(
+    tx: IssuesMongo,
+    issue: IssueDocument,
+    after: (work: AfterCommit[]) => void,
+  ): Promise<IssueDocument> {
+    const { sprintId } = issue;
+    const type = typeOf(issue);
+    if (!sprintId || (type !== "epic" && type !== "subTask")) return issue;
+    const planning = new IssuePlanning(
+      this.project.viewerId,
+      this.project.organisationId,
+    );
+    const placed = await planning.place(tx, [issue], null);
+    after(placed.later);
+    await sprintLeft(tx, sprintId, this.project.timeZone, new Date());
+    return placed.issues[0] ?? issue;
   }
 
   // Points follow the type the issue ends with: an Epic or a Sub-task carries

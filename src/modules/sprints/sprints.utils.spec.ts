@@ -17,8 +17,23 @@ describe("sprint utils", () => {
 
   test("the end is whole weeks after the start", () => {
     const start = new Date("2026-03-02T00:00:00Z");
-    expect(defaultEnd(start, 2).toISOString()).toBe("2026-03-16T00:00:00.000Z");
-    expect(defaultEnd(start, 1).toISOString()).toBe("2026-03-09T00:00:00.000Z");
+    expect(defaultEnd(start, 2, "UTC").toISOString()).toBe(
+      "2026-03-16T00:00:00.000Z",
+    );
+    expect(defaultEnd(start, 1, "UTC").toISOString()).toBe(
+      "2026-03-09T00:00:00.000Z",
+    );
+  });
+
+  test("the end keeps the wall-clock time across a clock change", () => {
+    // Monday 10:00 in New York (EST), the clocks go forward on Sunday 8 March.
+    const start = new Date("2026-03-02T15:00:00Z");
+    expect(defaultEnd(start, 1, "America/New_York").toISOString()).toBe(
+      "2026-03-09T14:00:00.000Z",
+    );
+    expect(defaultEnd(start, 1, "UTC").toISOString()).toBe(
+      "2026-03-09T15:00:00.000Z",
+    );
   });
 
   test("done and cancelled issues are finished, the others are not", () => {

@@ -19,6 +19,7 @@ export async function scoped(ctx: Context, permission: Permission) {
         null,
       viewerId,
       tenant._id.toHexString(),
+      tenant.timeZone,
     ),
   };
 }

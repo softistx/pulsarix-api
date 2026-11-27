@@ -30,8 +30,15 @@ export class IssuesService {
     isMember: IsMember,
     private readonly viewerId: string,
     organisationId: string,
+    timeZone: string,
   ) {
-    this.project = new IssuesProject(mongo, isMember, viewerId, organisationId);
+    this.project = new IssuesProject(
+      mongo,
+      isMember,
+      viewerId,
+      organisationId,
+      timeZone,
+    );
     this.creation = new IssueCreation(this.project);
     this.moves = new IssueMoves(this.project);
     this.updates = new IssueUpdates(this.project, this.moves);

@@ -30,6 +30,7 @@ describe("a release that failed is retried by the retention job", () => {
         async () => true,
         viewerId,
         organisationId,
+        "UTC",
       ),
       viewerId,
       {
