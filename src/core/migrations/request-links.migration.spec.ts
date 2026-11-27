@@ -18,7 +18,9 @@ describe("request-links", () => {
   test("one link per report with an issue, with the linkedAt fallback, and a second run changes nothing", async () => {
     const { organisation } = await ownerWithOrganisation(kit);
     const db = dbOf(await tenancy.databaseOf(organisation.id));
-    await db.collection("nxgt_migrations").deleteOne({ _id: ID as never });
+    await db.collection("nxgt_migrations").deleteMany({
+      _id: { $in: [ID, "2026-11-26-plan-rank"] as never[] },
+    });
     const raw = { bypassDocumentValidation: true };
     const linked = new ObjectId();
     const open = new ObjectId();
@@ -104,7 +106,9 @@ describe("request-links", () => {
       .findOne({ _id: linked });
     expect(report?.["issueId"]).toEqual(issueId);
 
-    await db.collection("nxgt_migrations").deleteOne({ _id: ID as never });
+    await db.collection("nxgt_migrations").deleteMany({
+      _id: { $in: [ID, "2026-11-26-plan-rank"] as never[] },
+    });
     await migrate(db, migrations);
     const again = await db.collection("clientReportLinks").find().toArray();
     expect(again).toHaveLength(4);

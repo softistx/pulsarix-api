@@ -20,6 +20,13 @@ export const activityVerb = z.enum([
   // A reporter marked a request resolved, or reopened it (A17).
   "clientResolved",
   "clientReopened",
+  // A sprint of the project was made, changed, started, closed or deleted
+  // (no issue: the row has none).
+  "sprintCreated",
+  "sprintUpdated",
+  "sprintStarted",
+  "sprintClosed",
+  "sprintDeleted",
 ]);
 export type ActivityVerb = z.infer<typeof activityVerb>;
 

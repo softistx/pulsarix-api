@@ -69,6 +69,10 @@ export const projects = defineCollection({
     leadId: accountId.nullable().default(null),
     visibility: z.enum(["organisation"]).default("organisation"),
     archivedAt: z.date().nullable().default(null),
+    // Sprints (plan §20.6): off by default, a project behaves as it always did.
+    // Projects stored before sprints lack both: read false and 2.
+    sprintsEnabled: z.boolean().default(false),
+    sprintLengthWeeks: z.number().int().min(1).max(4).default(2),
   }),
   timestamps: true,
   optimisticLock: true,

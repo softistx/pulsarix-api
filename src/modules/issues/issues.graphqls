@@ -69,6 +69,10 @@ type Issue {
   points: Int
   "Its place among the issues of its status (a string that sorts by plain order); move it with `moveIssue`."
   rank: String!
+  "The sprint it is planned in; null is the backlog (a Sub-task has none: it follows its parent). Plan it with `planIssues`."
+  sprintId: ID
+  "Its place among the issues of its sprint or of the backlog (a string that sorts by plain order); set by `planIssues`."
+  planRank: String!
   "The member who made it."
   reporterId: ID
   "The client report it was accepted from, if any."
@@ -132,6 +136,12 @@ input IssueFilter {
   watching: Boolean
   "Only the issues a reporter wrote last on and no public reply has answered."
   clientWaiting: Boolean
+  "The issues planned in this sprint."
+  sprintId: ID
+  "Only the Stories, Tasks and Bugs in no sprint and still open (not in triage, done or cancelled); ignored with `sprintId` or `activeSprint`."
+  backlog: Boolean
+  "Only the issues of the project's active sprint (none when there is no active sprint); ignored with `sprintId`."
+  activeSprint: Boolean
   "Part of the title, any case."
   text: String @constraint(maxLength: 200)
   startAfter: DateTime
@@ -143,6 +153,8 @@ input IssueFilter {
 
 enum IssueSortField {
   rank
+  "The plan order of the sprint or of the backlog."
+  planRank
   number
   title
   priority

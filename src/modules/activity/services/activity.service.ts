@@ -12,8 +12,8 @@ export const MAX_PAGE = 100;
 
 export interface ActivityEntry {
   projectId: ObjectId;
-  issueId: ObjectId;
-  issueKey: string;
+  issueId: ObjectId | null;
+  issueKey: string | null;
   actorId: string;
   verb: ActivityVerb;
   changes: FieldChange[];

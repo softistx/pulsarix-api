@@ -35,6 +35,7 @@ const config: CodegenConfig = {
           Status: "@/modules/projects/projects.model#StatusDocument",
           Label: "@/modules/projects/projects.model#LabelDocument",
           Issue: "@/modules/issues/issues.model#IssueDocument",
+          Sprint: "@/modules/sprints/sprints.model#SprintDocument",
           IssueConnection: "@/modules/issues/issues.query#IssuePage",
           RoadmapRow:
             "@/modules/issues/services/roadmap.service#RoadmapRowView",

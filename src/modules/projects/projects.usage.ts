@@ -1,3 +1,4 @@
+import type { ObjectId } from "mongodb";
 import type { ModuleMongo } from "../../config/db";
 
 export type ProjectsMongo = ModuleMongo<"projects">;
@@ -50,4 +51,29 @@ export function registerLabelRemoval(removal: LabelRemoval): () => void {
 
 export async function labelRemoved(mongo: ProjectsMongo, labelId: string) {
   for (const removal of removals) await removal(mongo, labelId);
+}
+
+// Asks whether sprints may be turned off for a project: the sprints module
+// refuses (409 `sprints.errors.active-sprint`) while one is active. It runs
+// inside the updating transaction, the project locked.
+export type SprintsOffCheck = (
+  mongo: ProjectsMongo,
+  projectId: ObjectId,
+) => Promise<void>;
+
+const sprintsOffChecks = new Set<SprintsOffCheck>();
+
+// Registers a check; the returned function removes it.
+export function registerSprintsOffCheck(check: SprintsOffCheck): () => void {
+  sprintsOffChecks.add(check);
+  return () => {
+    sprintsOffChecks.delete(check);
+  };
+}
+
+export async function checkSprintsOff(
+  mongo: ProjectsMongo,
+  projectId: ObjectId,
+) {
+  for (const check of sprintsOffChecks) await check(mongo, projectId);
 }

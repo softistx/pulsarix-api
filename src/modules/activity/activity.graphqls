@@ -12,6 +12,16 @@ enum ActivityVerb {
   clientResolved
   "A reporter reopened one of the issue's requests."
   clientReopened
+  "A sprint of the project was made. The row has no issue (`issueId` null)."
+  sprintCreated
+  "A sprint of the project was edited. The row has no issue (`issueId` null)."
+  sprintUpdated
+  "A sprint of the project was started. The row has no issue (`issueId` null)."
+  sprintStarted
+  "A sprint of the project was closed. The row has no issue (`issueId` null)."
+  sprintClosed
+  "A sprint of the project was deleted. The row has no issue (`issueId` null)."
+  sprintDeleted
 }
 
 "One field a change touched. Values are text, `null` for none; a list is JSON text; a long text is cut."

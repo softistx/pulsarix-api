@@ -26,6 +26,8 @@ export const TRACKED = [
 ] as const;
 export const CREATED = [...TRACKED, "statusId"] as const;
 export const MOVED = ["statusId", "rank"] as const;
+// What planning an issue changes (sprints module): its sprint.
+export const PLANNED = ["sprintId"] as const;
 
 // A value that is neither left out (undefined) nor cleared (null).
 export function isSet<T>(value: T | null | undefined): value is T {
@@ -49,6 +51,7 @@ export function newIssue(
     number: number;
     key: string;
     rank: string;
+    planRank: string;
     reporterId: string;
   },
 ) {
@@ -72,6 +75,8 @@ export function newIssue(
     estimateHours: input.estimateHours ?? null,
     points: input.points ?? null,
     rank: place.rank,
+    // A new issue goes to the end of the backlog, until planned.
+    planRank: place.planRank,
     reporterId: place.reporterId,
     clientReportId: input.clientReportId ?? null,
     watcherIds: [],

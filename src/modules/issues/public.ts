@@ -1,9 +1,15 @@
 // What other modules may import from issues.
 
 export { assertProjectWritable } from "./issues.archived";
-export { issueNotFound, projectArchived } from "./issues.errors";
-export type { ClientMarker, IssueDocument } from "./issues.model";
-export type { CreateIssueInput } from "./issues.types";
+export {
+  badPlacement,
+  issueNotFound,
+  projectArchived,
+} from "./issues.errors";
+export type { ClientMarker, IssueDocument, IssueType } from "./issues.model";
+export { planRankOf, typeOf } from "./issues.model";
+export { registerActiveSprint } from "./issues.sprint";
+export type { CreateIssueInput, IssuesMongo } from "./issues.types";
 export {
   type IssueChange,
   type IssueChangeHandler,
@@ -13,4 +19,4 @@ export {
   registerIssueChange,
   registerIssueRemoval,
 } from "./issues.usage";
-export { IssuesService } from "./services";
+export { IssuePlanning, IssuesService } from "./services";
