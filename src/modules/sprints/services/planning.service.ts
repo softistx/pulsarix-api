@@ -12,6 +12,7 @@ import {
   typeNotAllowed,
 } from "../sprints.errors";
 import { plannable } from "../sprints.utils";
+import { SprintSnapshots } from "./snapshots.service";
 import type { SprintsProject, SprintWork } from "./sprints-project.service";
 
 export interface PlanInput {
@@ -60,10 +61,31 @@ export class SprintPlanning {
           beforeId: before,
         });
         later(result.later);
+        await this.snapshotScope(tx, ordered, sprintId);
         return result.issues;
       },
       { enabled: true },
     );
+  }
+
+  // A scope change of the active sprint, the one the issues joined or left,
+  // is a snapshot of the burndown.
+  private async snapshotScope(
+    tx: SprintWork["tx"],
+    before: IssueDocument[],
+    sprintId: ObjectId | null,
+  ) {
+    const ids = new Map<string, ObjectId>();
+    for (const id of [sprintId, ...before.map((issue) => issue.sprintId)]) {
+      if (id) ids.set(id.toHexString(), id);
+    }
+    if (ids.size === 0) return;
+    const active = await tx.db.sprints.findMany({
+      filter: { _id: { $in: [...ids.values()] }, state: "active" },
+    });
+    const snapshots = new SprintSnapshots(tx, this.project.timeZone);
+    const now = new Date();
+    for (const sprint of active) await snapshots.take(sprint, "scope", now);
   }
 
   // The issues as the transaction sees them, in the order of `ids`.

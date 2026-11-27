@@ -5,6 +5,10 @@ export const sprintsResolvers: Resolvers = {
   Query: {
     sprints: async (_, { projectId, states }, ctx) =>
       (await scoped(ctx, "sprint:read")).sprints.list(projectId, states),
+    sprintBurndown: async (_, { id }, ctx) =>
+      (await scoped(ctx, "sprint:read")).reports.burndown(id, new Date()),
+    velocity: async (_, { projectId, last }, ctx) =>
+      (await scoped(ctx, "sprint:read")).reports.velocity(projectId, last),
   },
   Mutation: {
     createSprint: async (_, { projectId, input }, ctx) =>

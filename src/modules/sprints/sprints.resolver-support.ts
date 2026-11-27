@@ -3,6 +3,7 @@ import type { Context } from "../../http/context";
 import {
   SprintLifecycle,
   SprintPlanning,
+  SprintReports,
   SprintsProject,
   SprintsService,
 } from "./services";
@@ -17,10 +18,12 @@ export async function scoped(ctx: Context, permission: Permission) {
     mongo,
     viewer.id,
     tenant._id.toHexString(),
+    tenant.timeZone,
   );
   return {
     sprints: new SprintsService(project),
     lifecycle: new SprintLifecycle(project),
     planning: new SprintPlanning(project),
+    reports: new SprintReports(project),
   };
 }

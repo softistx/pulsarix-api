@@ -4,15 +4,14 @@ import { Update, withProject } from "~/issues";
 import { PlanIssues, UpdateProject, withSprints } from "~/sprints";
 
 describe("planning issues (their sprint and plan rank)", () => {
-  test("an existing issue sits at the end of the backlog in the order it was made", async () => {
+  test("issues made in turn rank in the order they were made", async () => {
     const t = await withProject("RNK");
-    const a = await t.make("A");
-    const b = await t.make("B");
+    await t.make("A");
+    await t.make("B");
     expect(await t.titles({}, { field: "planRank" })).toEqual(["A", "B"]);
-    expect(a.id).not.toBe(b.id);
   });
 
-  test("planning changes an issue's sprint and keeps its plan rank when planned again", async () => {
+  test("planning changes an issue's sprint; planned again alone in it, it keeps its plan rank", async () => {
     const t = await withSprints("ACT");
     const sprint = await t.sprint();
     const a = await t.make("A", { type: "task" });
@@ -20,6 +19,23 @@ describe("planning issues (their sprint and plan rank)", () => {
     expect(planned?.sprintId).toBe(sprint.id);
     const again = await t.plan([a], sprint.id);
     expect(again[0]?.planRank).toBe(planned?.planRank as string);
+  });
+
+  test("planned again with no placement, an issue goes after the others of its sprint", async () => {
+    const t = await withSprints("RE2");
+    const sprint = await t.sprint();
+    const a = await t.make("A", { type: "task" });
+    const b = await t.make("B", { type: "task" });
+    const [first] = await t.plan([a, b], sprint.id);
+    expect(
+      await t.titles({ sprintId: sprint.id }, { field: "planRank" }),
+    ).toEqual(["A", "B"]);
+    // A alone is "moved": it is placed after B, so it does not keep its rank.
+    const [again] = await t.plan([a], sprint.id);
+    expect(again?.planRank).not.toBe(first?.planRank as string);
+    expect(
+      await t.titles({ sprintId: sprint.id }, { field: "planRank" }),
+    ).toEqual(["B", "A"]);
   });
 
   test("an issue's sprint is not changed by updateIssue", async () => {

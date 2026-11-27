@@ -49,6 +49,7 @@ export class SprintsProject {
     readonly mongo: SprintsMongo,
     readonly viewerId: string,
     readonly organisationId: string,
+    readonly timeZone: string,
   ) {}
 
   async byId(id: string): Promise<SprintDocument> {

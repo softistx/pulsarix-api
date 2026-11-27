@@ -10,6 +10,7 @@ import {
   startRetentionWorker,
 } from "./modules/intake/public";
 import { startDigestWorker } from "./modules/notifications/public";
+import { startSnapshotWorker } from "./modules/sprints/public";
 
 // Janus and core validators/indexes reach production here, before any request.
 await syncCoreAtBoot(coreMongo);
@@ -20,5 +21,6 @@ await startDigestWorker();
 startRetentionWorker(tenancy);
 startReporterMailWorker(tenancy);
 startFilesRetentionWorker(tenancy, serverMedia);
+startSnapshotWorker(tenancy);
 app.listen({ port: env.PORT });
 console.log(`pulsarix-api listening on :${env.PORT}`);

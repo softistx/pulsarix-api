@@ -1,5 +1,6 @@
 import type { ObjectId } from "mongodb";
 import { changesBetween } from "../../../core/shared/changes";
+import { dayIn, earlierDay } from "../../../core/shared/days";
 import { invalid } from "../../../core/shared/errors";
 import { idOrInvalid } from "../../../core/shared/ids";
 import { IssuePlanning } from "../../issues/public";
@@ -17,6 +18,7 @@ import {
   isFinished,
   pointsOf,
 } from "../sprints.utils";
+import { SprintSnapshots } from "./snapshots.service";
 import type { SprintsProject, SprintWork } from "./sprints-project.service";
 
 export interface StartInput {
@@ -65,6 +67,17 @@ export class SprintLifecycle {
           endDate,
           committedPoints: pointsOf(scope),
         });
+        // The burndown starts from the committed scope, counted to the start's
+        // day (the day it is taken when the start is still to come).
+        const now = new Date();
+        const today = dayIn(this.project.timeZone, now);
+        const startDay = dayIn(this.project.timeZone, input.startDate);
+        await new SprintSnapshots(tx, this.project.timeZone).take(
+          updated,
+          "start",
+          now,
+          earlierDay(startDay, today),
+        );
         await changed(
           "started",
           updated,
@@ -102,6 +115,11 @@ export class SprintLifecycle {
       });
       const stateOf = (issue: (typeof all)[number]) =>
         category.get(issue.statusId.toHexString()) ?? "backlog";
+      await new SprintSnapshots(tx, this.project.timeZone).take(
+        sprint,
+        "close",
+        new Date(),
+      );
       const unfinished = all.filter((issue) => !isFinished(stateOf(issue)));
       const done = all.filter((issue) => stateOf(issue) === "done");
       if (unfinished.length > 0) {
