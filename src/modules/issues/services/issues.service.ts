@@ -65,8 +65,12 @@ export class IssuesService {
     return this.creation.createMany(inputs, prepare);
   }
 
-  update(id: string, input: UpdateIssueInput): Promise<IssueDocument> {
-    return this.updates.update(id, input);
+  update(
+    id: string,
+    input: UpdateIssueInput,
+    projectId?: string | null,
+  ): Promise<IssueDocument> {
+    return this.updates.update(id, input, projectId);
   }
 
   bulkUpdate(
@@ -81,8 +85,9 @@ export class IssuesService {
     statusId: string,
     beforeId?: string | null,
     afterId?: string | null,
+    projectId?: string | null,
   ): Promise<IssueDocument> {
-    return this.moves.move(id, statusId, beforeId, afterId);
+    return this.moves.move(id, statusId, beforeId, afterId, projectId);
   }
 
   // Answers the issue's id. Its children lose their parent; a Sub-task would

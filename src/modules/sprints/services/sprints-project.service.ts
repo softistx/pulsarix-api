@@ -11,7 +11,11 @@ import { retryWriteConflicts } from "../../../core/shared/locked";
 import { journalOnSprint } from "../../activity/public";
 import { projectArchived } from "../../issues/public";
 import { lockProject, type ProjectDocument } from "../../projects/public";
-import { sprintNotFound, sprintsDisabled } from "../sprints.errors";
+import {
+  sprintNotFound,
+  sprintsDisabled,
+  sprintWrongProject,
+} from "../sprints.errors";
 import type { SprintDocument } from "../sprints.model";
 import type { SprintsMongo } from "../sprints.types";
 
@@ -52,10 +56,23 @@ export class SprintsProject {
     readonly timeZone: string,
   ) {}
 
-  async byId(id: string): Promise<SprintDocument> {
+  // The sprint, which must be in `projectId` when the caller names one.
+  async byId(id: string, projectId?: string | null): Promise<SprintDocument> {
     const found = await this.mongo.db.sprints.findById(idOrInvalid(id, "id"));
     if (!found) throw sprintNotFound();
+    this.inScope(found.projectId, projectId);
     return found;
+  }
+
+  // Refuses a record of another project than the one the caller named.
+  inScope(actual: ObjectId, projectId?: string | null): void {
+    if (
+      projectId !== undefined &&
+      projectId !== null &&
+      !actual.equals(idOrInvalid(projectId, "projectId"))
+    ) {
+      throw sprintWrongProject();
+    }
   }
 
   // Runs `work` in a transaction holding the project's lock. The live events

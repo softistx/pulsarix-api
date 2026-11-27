@@ -16,11 +16,11 @@ export const DeleteStatus = `mutation($id: ID!) { deleteStatus(id: $id) }`;
 export const Create = `mutation($input: CreateIssueInput!) {
   createIssue(input: $input) { ${fields} }
 }`;
-export const Update = `mutation($id: ID!, $input: UpdateIssueInput!) {
-  updateIssue(id: $id, input: $input) { ${fields} }
+export const Update = `mutation($id: ID!, $input: UpdateIssueInput!, $projectId: ID) {
+  updateIssue(id: $id, input: $input, projectId: $projectId) { ${fields} }
 }`;
-export const Move = `mutation($id: ID!, $statusId: ID!, $beforeId: ID, $afterId: ID) {
-  moveIssue(id: $id, statusId: $statusId, beforeId: $beforeId, afterId: $afterId) { ${fields} }
+export const Move = `mutation($id: ID!, $statusId: ID!, $beforeId: ID, $afterId: ID, $projectId: ID) {
+  moveIssue(id: $id, statusId: $statusId, beforeId: $beforeId, afterId: $afterId, projectId: $projectId) { ${fields} }
 }`;
 export const Delete = `mutation($id: ID!) { deleteIssue(id: $id) }`;
 export const Watch = `mutation($id: ID!) { watchIssue(id: $id) { watcherIds watching } }`;

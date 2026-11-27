@@ -19,16 +19,17 @@ export const issuesResolvers: Resolvers = {
   Mutation: {
     createIssue: async (_, { input }, ctx) =>
       (await scoped(ctx, "issue:write")).issues.create(input),
-    updateIssue: async (_, { id, input }, ctx) =>
-      (await scoped(ctx, "issue:write")).issues.update(id, input),
+    updateIssue: async (_, { id, input, projectId }, ctx) =>
+      (await scoped(ctx, "issue:write")).issues.update(id, input, projectId),
     updateIssues: async (_, { ids, input }, ctx) =>
       (await scoped(ctx, "issue:write")).issues.bulkUpdate(ids, input),
-    moveIssue: async (_, { id, statusId, beforeId, afterId }, ctx) =>
+    moveIssue: async (_, { id, statusId, beforeId, afterId, projectId }, ctx) =>
       (await scoped(ctx, "issue:write")).issues.move(
         id,
         statusId,
         beforeId,
         afterId,
+        projectId,
       ),
     deleteIssue: async (_, { id }, ctx) =>
       (await scoped(ctx, "issue:delete")).issues.delete(id),

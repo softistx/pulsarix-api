@@ -9,6 +9,7 @@ import {
 import {
   sprintClosed,
   sprintNotFound,
+  sprintWrongProject,
   typeNotAllowed,
 } from "../sprints.errors";
 import { plannable } from "../sprints.utils";
@@ -20,6 +21,7 @@ export interface PlanInput {
   sprintId?: string | null | undefined;
   afterId?: string | null | undefined;
   beforeId?: string | null | undefined;
+  projectId?: string | null | undefined;
 }
 
 // Puts issues in a sprint or back in the backlog, at a place among its issues.
@@ -39,6 +41,7 @@ export class SprintPlanning {
     if (found.some((issue) => !issue.projectId.equals(first.projectId))) {
       throw invalid([{ path: "ids", code: "validation.errors.invalid" }]);
     }
+    this.project.inScope(first.projectId, input.projectId);
     const sprintId = input.sprintId
       ? idOrInvalid(input.sprintId, "sprintId")
       : null;
@@ -116,7 +119,8 @@ export class SprintPlanning {
   ) {
     if (sprintId) {
       const target = await tx.db.sprints.findById(sprintId);
-      if (!target?.projectId.equals(projectId)) throw sprintNotFound();
+      if (!target) throw sprintNotFound();
+      if (!target.projectId.equals(projectId)) throw sprintWrongProject();
       if (target.state === "closed") throw sprintClosed();
     }
     const current = issues.flatMap((issue) =>

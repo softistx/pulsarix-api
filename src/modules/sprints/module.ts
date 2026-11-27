@@ -32,5 +32,6 @@ export const sprintsModule = defineModule({
     "closed",
     "type-not-allowed",
     "active-sprint",
+    "wrong-project",
   ]),
 });

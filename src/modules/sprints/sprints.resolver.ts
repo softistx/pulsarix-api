@@ -14,14 +14,14 @@ export const sprintsResolvers: Resolvers = {
   Mutation: {
     createSprint: async (_, { projectId, input }, ctx) =>
       (await scoped(ctx, "sprint:write")).sprints.create(projectId, input),
-    updateSprint: async (_, { id, input }, ctx) =>
-      (await scoped(ctx, "sprint:write")).sprints.update(id, input),
-    deleteSprint: async (_, { id }, ctx) =>
-      (await scoped(ctx, "sprint:write")).sprints.delete(id),
-    startSprint: async (_, { id, input }, ctx) =>
-      (await scoped(ctx, "sprint:write")).lifecycle.start(id, input),
-    closeSprint: async (_, { id, input }, ctx) =>
-      (await scoped(ctx, "sprint:write")).lifecycle.close(id, input),
+    updateSprint: async (_, { id, input, projectId }, ctx) =>
+      (await scoped(ctx, "sprint:write")).sprints.update(id, input, projectId),
+    deleteSprint: async (_, { id, projectId }, ctx) =>
+      (await scoped(ctx, "sprint:write")).sprints.delete(id, projectId),
+    startSprint: async (_, { id, input, projectId }, ctx) =>
+      (await scoped(ctx, "sprint:write")).lifecycle.start(id, input, projectId),
+    closeSprint: async (_, { id, input, projectId }, ctx) =>
+      (await scoped(ctx, "sprint:write")).lifecycle.close(id, input, projectId),
     planIssues: async (_, input, ctx) =>
       (await scoped(ctx, "sprint:write")).planning.plan(input),
   },

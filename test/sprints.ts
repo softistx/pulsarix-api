@@ -8,18 +8,18 @@ export const UpdateProject = `mutation($id: ID!, $input: UpdateProjectInput!) {
 export const CreateSprint = `mutation($projectId: ID!, $input: CreateSprintInput!) {
   createSprint(projectId: $projectId, input: $input) { ${sprintFields} }
 }`;
-export const UpdateSprint = `mutation($id: ID!, $input: UpdateSprintInput!) {
-  updateSprint(id: $id, input: $input) { ${sprintFields} }
+export const UpdateSprint = `mutation($id: ID!, $input: UpdateSprintInput!, $projectId: ID) {
+  updateSprint(id: $id, input: $input, projectId: $projectId) { ${sprintFields} }
 }`;
-export const DeleteSprint = `mutation($id: ID!) { deleteSprint(id: $id) }`;
-export const StartSprint = `mutation($id: ID!, $input: StartSprintInput!) {
-  startSprint(id: $id, input: $input) { ${sprintFields} }
+export const DeleteSprint = `mutation($id: ID!, $projectId: ID) { deleteSprint(id: $id, projectId: $projectId) }`;
+export const StartSprint = `mutation($id: ID!, $input: StartSprintInput!, $projectId: ID) {
+  startSprint(id: $id, input: $input, projectId: $projectId) { ${sprintFields} }
 }`;
-export const CloseSprint = `mutation($id: ID!, $input: CloseSprintInput!) {
-  closeSprint(id: $id, input: $input) { ${sprintFields} }
+export const CloseSprint = `mutation($id: ID!, $input: CloseSprintInput!, $projectId: ID) {
+  closeSprint(id: $id, input: $input, projectId: $projectId) { ${sprintFields} }
 }`;
-export const PlanIssues = `mutation($ids: [ID!]!, $sprintId: ID, $afterId: ID, $beforeId: ID) {
-  planIssues(ids: $ids, sprintId: $sprintId, afterId: $afterId, beforeId: $beforeId) {
+export const PlanIssues = `mutation($ids: [ID!]!, $sprintId: ID, $afterId: ID, $beforeId: ID, $projectId: ID) {
+  planIssues(ids: $ids, sprintId: $sprintId, afterId: $afterId, beforeId: $beforeId, projectId: $projectId) {
     id title sprintId planRank
   }
 }`;

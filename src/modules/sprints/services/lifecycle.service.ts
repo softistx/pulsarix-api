@@ -9,6 +9,7 @@ import {
   sprintNotActive,
   sprintNotFound,
   sprintNotPlanned,
+  sprintWrongProject,
 } from "../sprints.errors";
 import type { SprintDocument } from "../sprints.model";
 import { datesIssues } from "../sprints.rules";
@@ -47,8 +48,12 @@ const STARTED = [
 export class SprintLifecycle {
   constructor(private readonly project: SprintsProject) {}
 
-  async start(id: string, input: StartInput): Promise<SprintDocument> {
-    const current = await this.project.byId(id);
+  async start(
+    id: string,
+    input: StartInput,
+    projectId?: string | null,
+  ): Promise<SprintDocument> {
+    const current = await this.project.byId(id, projectId);
     return this.project.inProject(
       current.projectId,
       async ({ tx, project, changed }) => {
@@ -113,8 +118,12 @@ export class SprintLifecycle {
     await snapshots.take(sprint, "start", now, earlierDay(startDay, today));
   }
 
-  async close(id: string, input: CloseInput): Promise<SprintDocument> {
-    const current = await this.project.byId(id);
+  async close(
+    id: string,
+    input: CloseInput,
+    projectId?: string | null,
+  ): Promise<SprintDocument> {
+    const current = await this.project.byId(id, projectId);
     return this.project.inProject(current.projectId, async (run) => {
       const { tx, changed } = run;
       const sprint = await tx.db.sprints.findById(current._id);
@@ -186,7 +195,8 @@ export class SprintLifecycle {
       const found = await tx.db.sprints.findById(
         idOrInvalid(named, "nextSprintId"),
       );
-      if (!found?.projectId.equals(sprint.projectId)) throw sprintNotFound();
+      if (!found) throw sprintNotFound();
+      if (!found.projectId.equals(sprint.projectId)) throw sprintWrongProject();
       if (found.state !== "planned") throw sprintNotPlanned();
       return found._id;
     }

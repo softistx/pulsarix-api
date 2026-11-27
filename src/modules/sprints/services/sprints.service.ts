@@ -73,8 +73,12 @@ export class SprintsService {
     );
   }
 
-  async update(id: string, input: SprintInput): Promise<SprintDocument> {
-    const current = await this.project.byId(id);
+  async update(
+    id: string,
+    input: SprintInput,
+    projectId?: string | null,
+  ): Promise<SprintDocument> {
+    const current = await this.project.byId(id, projectId);
     const missing = required(input, ["name"]);
     if (missing.length > 0) throw invalid(missing);
     return this.project.inProject(
@@ -101,8 +105,8 @@ export class SprintsService {
   }
 
   // A planned sprint only; its issues go back to the end of the backlog.
-  async delete(id: string): Promise<string> {
-    const current = await this.project.byId(id);
+  async delete(id: string, projectId?: string | null): Promise<string> {
+    const current = await this.project.byId(id, projectId);
     await this.project.inProject(
       current.projectId,
       async ({ tx, changed, after }) => {

@@ -17,6 +17,8 @@ export const sprintsTexts: Record<Locale, Record<string, string>> = {
       "Epics and sub-tasks are not planned: plan their parent story, task or bug.",
     "sprints.errors.active-sprint":
       "Sprints cannot be turned off while one is active. Close it first.",
+    "sprints.errors.wrong-project":
+      "This sprint or these issues belong to another project.",
   },
   fr: {
     "sprints.errors.not-found": "Ce sprint n'existe pas.",
@@ -32,5 +34,7 @@ export const sprintsTexts: Record<Locale, Record<string, string>> = {
       "Les epics et les sous-tâches ne sont pas planifiées : planifiez leur story, tâche ou bug parent.",
     "sprints.errors.active-sprint":
       "Les sprints ne peuvent pas être désactivés tant qu'un sprint est actif. Clôturez-le d'abord.",
+    "sprints.errors.wrong-project":
+      "Ce sprint ou ces tickets appartiennent à un autre projet.",
   },
 };

@@ -157,31 +157,35 @@ extend type Mutation {
   """
   createSprint(projectId: ID!, input: CreateSprintInput!): Sprint!
   """
-  Changes a planned or active sprint. Needs `sprint:write`. 404
+  Changes a planned or active sprint. Like `deleteSprint`, `startSprint`,
+  `closeSprint` and `planIssues`, it takes an optional `projectId`, the project
+  the caller works in: a sprint, issue, target or `nextSprintId` of another
+  project is refused with 409 `sprints.errors.wrong-project`. Needs `sprint:write`. 404
   `sprints.errors.not-found`; 409 `sprints.errors.closed`.
   """
-  updateSprint(id: ID!, input: UpdateSprintInput!): Sprint!
+  updateSprint(id: ID!, input: UpdateSprintInput!, projectId: ID): Sprint!
   """
   Deletes a planned sprint; its issues go back to the backlog. Answers its id.
   Needs `sprint:write`. 404 `sprints.errors.not-found`; 409
-  `sprints.errors.not-planned`.
+  `sprints.errors.not-planned`, `sprints.errors.wrong-project`.
   """
-  deleteSprint(id: ID!): ID!
+  deleteSprint(id: ID!, projectId: ID): ID!
   """
   Starts a planned sprint and snapshots its scope as `committedPoints`. Needs
   `sprint:write`. 404 `sprints.errors.not-found`; 409
   `sprints.errors.not-planned`, `sprints.errors.active-exists` (one active
-  sprint per project), `sprints.errors.disabled`.
+  sprint per project), `sprints.errors.disabled`, `sprints.errors.wrong-project`.
   """
-  startSprint(id: ID!, input: StartSprintInput!): Sprint!
+  startSprint(id: ID!, input: StartSprintInput!, projectId: ID): Sprint!
   """
   Closes the active sprint: the done and cancelled issues stay with it, the
   others move as `unfinished` says; `completedPoints` is set. Needs
   `sprint:write`. 404 `sprints.errors.not-found`; 409
   `sprints.errors.not-active`, `sprints.errors.not-planned` (the chosen next
-  sprint is not planned).
+  sprint is not planned), `sprints.errors.wrong-project` (the sprint, or a
+  `nextSprintId` of another project).
   """
-  closeSprint(id: ID!, input: CloseSprintInput!): Sprint!
+  closeSprint(id: ID!, input: CloseSprintInput!, projectId: ID): Sprint!
   """
   Puts issues in a sprint (`sprintId` null: the backlog), after `afterId` and
   before `beforeId` (either or both left out; the end of the sprint with
@@ -189,12 +193,15 @@ extend type Mutation {
   they now stand. Needs `sprint:write`. 404 `sprints.errors.not-found`,
   `issues.errors.not-found`; 409 `sprints.errors.closed` (the target, or a
   sprint the issues are done in), `sprints.errors.type-not-allowed` (an epic
-  or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`.
+  or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`,
+  `sprints.errors.wrong-project` (a target sprint or issues of another
+  project).
   """
   planIssues(
     ids: [ID!]! @constraint(minItems: 1, maxItems: 100)
     sprintId: ID
     afterId: ID
     beforeId: ID
+    projectId: ID
   ): [Issue!]!
 }
