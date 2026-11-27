@@ -4,7 +4,7 @@ import { registerActiveSprint } from "../issues/public";
 import { registerSprintsOffCheck } from "../projects/public";
 import { activeSprint } from "./sprints.errors";
 import sprintsTypeDefs from "./sprints.graphqls" with { type: "text" };
-import { sprints } from "./sprints.model";
+import { sprintSnapshots, sprints } from "./sprints.model";
 import { sprintsResolvers } from "./sprints.resolver";
 import type { SprintsMongo } from "./sprints.types";
 
@@ -33,7 +33,7 @@ registerSprintsOffCheck(async (mongo, projectId) => {
 export const sprintsModule = defineModule({
   name: "sprints",
   dependsOn: ["access", "organisations", "projects", "issues", "activity"],
-  collections: { sprints },
+  collections: { sprints, sprintSnapshots },
   typeDefs: [sprintsTypeDefs],
   resolvers: sprintsResolvers as never,
   permissions: ["sprint:read", "sprint:write"],

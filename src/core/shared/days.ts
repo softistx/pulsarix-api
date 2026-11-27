@@ -57,3 +57,23 @@ export function startOfDayIn(timeZone: string, now: Date): Date {
   const first = local - offsetAt(timeZone, now.getTime());
   return new Date(local - offsetAt(timeZone, first));
 }
+
+// The day `n` days after (or before, when negative) a `YYYY-MM-DD` day.
+export function addDays(day: string, n: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+// The whole days from `from` to `to`, both `YYYY-MM-DD` (negative when `to`
+// comes first).
+export function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      86_400_000,
+  );
+}
+
+// The earlier and the later of two `YYYY-MM-DD` days (they sort as text).
+export const earlierDay = (a: string, b: string) => [a, b].sort()[0] as string;
+export const laterDay = (a: string, b: string) => [a, b].sort()[1] as string;

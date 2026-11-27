@@ -68,12 +68,67 @@ input CloseSprintInput {
   nextSprintId: ID
 }
 
+"One day of a sprint's burndown, in the organisation's time zone."
+type BurndownPoint {
+  "The organisation's day, `YYYY-MM-DD`."
+  day: String!
+  "Points still to do on the straight line from the committed scope to 0 on the last day."
+  ideal: Float!
+  "Points still to do at the end of the day; null for a day to come."
+  remainingPoints: Int
+  "The points of the sprint's issues (cancelled ones left out); null for a day to come."
+  scopePoints: Int
+  "The points of the done issues; null for a day to come."
+  completedPoints: Int
+}
+
+"A sprint's burndown: one point per day from its start to its end (or to today when it runs over)."
+type SprintBurndown {
+  sprintId: ID!
+  committedPoints: Int!
+  "The organisation's IANA time zone the days are in."
+  timeZone: String!
+  "Empty while the sprint is planned."
+  points: [BurndownPoint!]!
+}
+
+"A closed sprint in the velocity."
+type VelocitySprint {
+  sprintId: ID!
+  number: Int!
+  name: String!
+  committedPoints: Int!
+  completedPoints: Int!
+  closedAt: DateTime
+}
+
+"The project's recent closed sprints, oldest first, and their mean completed points (one decimal; 0 with none)."
+type Velocity {
+  sprints: [VelocitySprint!]!
+  average: Float!
+}
+
 extend type Query {
   """
   The sprints of a project, by number, optionally only those in `states`.
   Needs `sprint:read`. 404 `projects.errors.not-found`.
   """
   sprints(projectId: ID!, states: [SprintState!]): [Sprint!]!
+  """
+  The burndown of a started sprint (active or closed), day by day; today's
+  point is read from the issues, the earlier ones from the snapshots taken
+  at the start, on each scope change, daily at the organisation's midnight and
+  at the close. Needs `sprint:read`. 404 `sprints.errors.not-found`.
+  """
+  sprintBurndown(id: ID!): SprintBurndown!
+  """
+  The last `last` closed sprints of a project (6 by default, 1 to 50) and their
+  mean completed points. Needs `sprint:read`. 404 `projects.errors.not-found`.
+  """
+  velocity(
+    projectId: ID!
+    last: Int! = 6 @constraint(min: 1, max: 50)
+  ): Velocity!
 }
 
 extend type Mutation {

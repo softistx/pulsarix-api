@@ -27,6 +27,43 @@ export const Sprints = `query($projectId: ID!, $states: [SprintState!]) {
   sprints(projectId: $projectId, states: $states) { ${sprintFields} }
 }`;
 
+export const SprintBurndown = `query($id: ID!) {
+  sprintBurndown(id: $id) {
+    sprintId committedPoints timeZone
+    points { day ideal remainingPoints scopePoints completedPoints }
+  }
+}`;
+export const Velocity = `query($projectId: ID!, $last: Int) {
+  velocity(projectId: $projectId, last: $last) {
+    average
+    sprints { sprintId number name committedPoints completedPoints closedAt }
+  }
+}`;
+
+export interface Burndown {
+  sprintId: string;
+  committedPoints: number;
+  timeZone: string;
+  points: {
+    day: string;
+    ideal: number;
+    remainingPoints: number | null;
+    scopePoints: number | null;
+    completedPoints: number | null;
+  }[];
+}
+export interface VelocityData {
+  average: number;
+  sprints: {
+    sprintId: string;
+    number: number;
+    name: string;
+    committedPoints: number;
+    completedPoints: number;
+    closedAt: string | null;
+  }[];
+}
+
 export interface Sprint {
   id: string;
   projectId: string;
@@ -93,5 +130,15 @@ export async function withSprints(key = "SPR") {
         states,
       })
     ).sprints;
-  return { ...t, sprint, plan, start, close, all };
+  const burndown = async (id: string) =>
+    (await t.asOwner.call<{ sprintBurndown: Burndown }>(SprintBurndown, { id }))
+      .sprintBurndown;
+  const velocity = async (last?: number) =>
+    (
+      await t.asOwner.call<{ velocity: VelocityData }>(Velocity, {
+        projectId: t.project.id,
+        ...(last === undefined ? {} : { last }),
+      })
+    ).velocity;
+  return { ...t, sprint, plan, start, close, all, burndown, velocity };
 }

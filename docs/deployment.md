@@ -64,6 +64,9 @@ first change, so replies in a window are one mail; at least once, never lost). T
 `MAIL_FROM` and `UI_ORIGIN`, the latter being the host of the unsubscribe links (the
 `List-Unsubscribe` header is sent only when it is https). With one API container only, the live
 stream's per-reporter cap is also exact (it counts per process).
+The sprints one: `sprint-snapshots` (every 15 minutes, takes the snapshot of the day that just ended
+for each active sprint of each organisation whose midnight has passed, if it is not there yet: the
+burndown's daily point; a missed run is made up by the next).
 
 ## The API image
 

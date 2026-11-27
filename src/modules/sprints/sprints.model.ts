@@ -48,3 +48,42 @@ export const sprints = defineCollection({
   ],
 });
 export type SprintDocument = ReadDocumentOf<typeof sprints>;
+
+export const snapshotReason = z.enum(["start", "scope", "daily", "close"]);
+export type SnapshotReason = z.infer<typeof snapshotReason>;
+
+// The burndown's log (plan §28): what a sprint's scope and done work were at a
+// moment. One is taken when the sprint starts, when its scope changes, when it
+// closes, and daily at the organisation's midnight. `day` is the organisation
+// day the snapshot counts toward (`YYYY-MM-DD`): an event's own day, and for the
+// daily one the day that just ended. Points are the sprint's issues' points,
+// cancelled issues left out of the scope; an unestimated issue counts for none.
+export const sprintSnapshots = defineCollection({
+  name: "sprintSnapshots",
+  schema: z.object({
+    _id: id(),
+    sprintId: objectId(),
+    projectId: objectId(),
+    day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    reason: snapshotReason,
+    takenAt: z.date(),
+    scopePoints: z.number().int().min(0),
+    completedPoints: z.number().int().min(0),
+    scopeIssues: z.number().int().min(0),
+    completedIssues: z.number().int().min(0),
+  }),
+  indexes: [
+    {
+      key: { sprintId: 1, day: 1, takenAt: 1 },
+      name: "sprintSnapshots_sprintIdDayTakenAt",
+    },
+    // One daily snapshot per sprint and day, whatever runs the job twice.
+    {
+      key: { sprintId: 1, day: 1 },
+      unique: true,
+      partialFilterExpression: { reason: "daily" },
+      name: "sprintSnapshots_sprintIdDayDailyUnique",
+    },
+  ],
+});
+export type SprintSnapshotDocument = ReadDocumentOf<typeof sprintSnapshots>;

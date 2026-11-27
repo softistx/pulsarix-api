@@ -2,3 +2,4 @@
 // re-exported here, since the wiring takes one namespace.
 export * from "../modules/intake/intake.queues";
 export * from "../modules/notifications/notifications.queues";
+export * from "../modules/sprints/sprints.queues";
