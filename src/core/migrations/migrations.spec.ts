@@ -122,6 +122,7 @@ describe("issue-types", () => {
     expect(result.applied.map((a) => a.id)).toEqual([
       ISSUE_TYPES,
       REQUEST_LINKS,
+      PLAN_RANK,
     ]);
 
     const after = await typesOf(db, docs);

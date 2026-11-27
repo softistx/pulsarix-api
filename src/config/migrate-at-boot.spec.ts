@@ -26,7 +26,11 @@ describe("migrateAtBoot", () => {
     const db = dbOf(await tenancy.databaseOf(organisation.id));
     await db.collection("nxgt_migrations").deleteMany({
       _id: {
-        $in: ["2026-11-21-issue-types", "2026-11-22-request-links"] as never[],
+        $in: [
+          "2026-11-21-issue-types",
+          "2026-11-22-request-links",
+          "2026-11-26-plan-rank",
+        ] as never[],
       },
     });
     const _id = new ObjectId();
