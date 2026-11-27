@@ -2218,6 +2218,10 @@ type Sprint {
   name: String!
   """1, 2, 3... in the order the project's sprints were made."""
   number: Int!
+  """
+  Its issues' points and counts as they stand now (cancelled ones left out), for a planned, active or closed sprint; a list of sprints is one grouped read.
+  """
+  progress: SprintProgress!
   projectId: ID!
   startDate: DateTime
   state: SprintState!
@@ -2233,6 +2237,24 @@ type SprintBurndown {
   sprintId: ID!
   """The organisation's IANA time zone the days are in."""
   timeZone: String!
+}
+
+"""
+A sprint's live scope, read from its issues as they stand (the cancelled ones
+left out). Unlike `committedPoints` and `completedPoints`, it moves with every
+change and is available for a planned, active or closed sprint.
+"""
+type SprintProgress {
+  """How many issues the sprint holds."""
+  issues: Int!
+  """How many of them are in a `done` status."""
+  issuesDone: Int!
+  """
+  The story points of the sprint's issues; an unestimated issue counts for none.
+  """
+  points: Int!
+  """The story points of the issues in a `done` status."""
+  pointsDone: Int!
 }
 
 enum SprintState {

@@ -1,4 +1,5 @@
 import type { Resolvers } from "@/generated/graphql/resolvers";
+import { dataLoaders } from "../data-loaders";
 import { scoped } from "./sprints.resolver-support";
 
 export const sprintsResolvers: Resolvers = {
@@ -27,5 +28,7 @@ export const sprintsResolvers: Resolvers = {
   Sprint: {
     id: (sprint) => sprint.id,
     projectId: (sprint) => sprint.projectId.toHexString(),
+    progress: (sprint, _, ctx) =>
+      dataLoaders(ctx).sprints.progress.load(sprint.id),
   },
 };

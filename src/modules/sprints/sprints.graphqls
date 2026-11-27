@@ -34,6 +34,24 @@ type Sprint {
   committedPoints: Int!
   "The points of the issues done when it closed; 0 until then."
   completedPoints: Int!
+  "Its issues' points and counts as they stand now (cancelled ones left out), for a planned, active or closed sprint; a list of sprints is one grouped read."
+  progress: SprintProgress!
+}
+
+"""
+A sprint's live scope, read from its issues as they stand (the cancelled ones
+left out). Unlike `committedPoints` and `completedPoints`, it moves with every
+change and is available for a planned, active or closed sprint.
+"""
+type SprintProgress {
+  "The story points of the sprint's issues; an unestimated issue counts for none."
+  points: Int!
+  "The story points of the issues in a `done` status."
+  pointsDone: Int!
+  "How many issues the sprint holds."
+  issues: Int!
+  "How many of them are in a `done` status."
+  issuesDone: Int!
 }
 
 input CreateSprintInput {

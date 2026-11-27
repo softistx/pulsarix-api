@@ -23,6 +23,9 @@ export const PlanIssues = `mutation($ids: [ID!]!, $sprintId: ID, $afterId: ID, $
     id title sprintId planRank
   }
 }`;
+export const SprintsProgress = `query($projectId: ID!) {
+  sprints(projectId: $projectId) { id progress { points pointsDone issues issuesDone } }
+}`;
 export const Sprints = `query($projectId: ID!, $states: [SprintState!]) {
   sprints(projectId: $projectId, states: $states) { ${sprintFields} }
 }`;

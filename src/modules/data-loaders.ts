@@ -3,6 +3,7 @@ import type { Context } from "../http/context";
 import { intakeLoaders } from "./intake/data-loaders";
 import { issuesLoaders } from "./issues/issues.data-loader";
 import { projectsLoaders } from "./projects/projects.data-loader";
+import { sprintsLoaders } from "./sprints/sprints.data-loader";
 import { scoped as timeScoped } from "./time/public";
 import { timeLoaders } from "./time/time.data-loader";
 
@@ -17,6 +18,9 @@ function build(ctx: Context) {
     ),
     issues: issuesLoaders(
       async () => (await requirePermission(ctx, "issue:read")).mongo,
+    ),
+    sprints: sprintsLoaders(
+      async () => (await requirePermission(ctx, "sprint:read")).mongo,
     ),
     intake: intakeLoaders(
       async () => (await requirePermission(ctx, "issue:write")).mongo,
