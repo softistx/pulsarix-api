@@ -8,7 +8,7 @@ export {
 } from "./issues.errors";
 export type { ClientMarker, IssueDocument, IssueType } from "./issues.model";
 export { planRankOf, typeOf } from "./issues.model";
-export { registerActiveSprint } from "./issues.sprint";
+export { registerActiveSprint, registerSprintLeft } from "./issues.registry";
 export type { CreateIssueInput, IssuesMongo } from "./issues.types";
 export {
   type IssueChange,

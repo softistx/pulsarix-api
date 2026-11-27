@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { codeOf } from "~/http";
+import { Move } from "~/issues";
 import {
   CloseSprint,
   StartSprint,
@@ -22,6 +23,21 @@ describe("starting and closing sprints", () => {
     expect(started.committedPoints).toBe(8);
     expect(started.startDate).toBe("2026-03-02T00:00:00.000Z");
     expect(started.endDate).toBe("2026-03-16T00:00:00.000Z");
+  });
+
+  test("the committed points leave out the cancelled issues", async () => {
+    const t = await withSprints("CAN");
+    const cancelled = t.project.statuses.find(
+      (s) => s.category === "cancelled",
+    );
+    if (!cancelled) throw new Error("no cancelled status");
+    const sprint = await t.sprint();
+    const a = await t.make("A", { type: "story", points: 5 });
+    const b = await t.make("B", { type: "task", points: 3 });
+    await t.plan([a, b], sprint.id);
+    await t.asOwner.call(Move, { id: b.id, statusId: cancelled.id });
+    const started = await t.start(sprint.id);
+    expect(started.committedPoints).toBe(5);
   });
 
   test("the default end follows the project's sprint length", async () => {

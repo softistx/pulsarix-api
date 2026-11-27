@@ -1,15 +1,19 @@
+import { addDays, dayIn, startOfDay } from "../../core/shared/days";
 import { type IssueType, typeOf } from "../issues/public";
 import type { StatusCategory } from "../projects/public";
-
-const DAY = 86_400_000;
 
 // A sprint named in the order it was made, until the team names it.
 export const defaultName = (number: number) => `Sprint ${number}`;
 
 // The end of a sprint started on `start`, `weeks` weeks long: the same weekday
-// of the last week, so a two-week sprint of a Monday ends on the Monday after.
-export const defaultEnd = (start: Date, weeks: number) =>
-  new Date(start.getTime() + weeks * 7 * DAY);
+// and wall-clock time of the last week in the organisation's zone, so a
+// two-week sprint of a Monday ends on the Monday after, across a clock change.
+export function defaultEnd(start: Date, weeks: number, timeZone: string): Date {
+  const timeOfDay =
+    start.getTime() - startOfDay(timeZone, dayIn(timeZone, start)).getTime();
+  const lastDay = addDays(dayIn(timeZone, start), weeks * 7);
+  return new Date(startOfDay(timeZone, lastDay).getTime() + timeOfDay);
+}
 
 // The categories whose issues leave a closing sprint where they are.
 const FINISHED: readonly StatusCategory[] = ["done", "cancelled"];

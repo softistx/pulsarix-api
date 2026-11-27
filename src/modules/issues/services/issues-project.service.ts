@@ -46,7 +46,8 @@ export class IssuesProject {
     readonly mongo: IssuesMongo,
     private readonly isMember: IsMember,
     readonly viewerId: string,
-    private readonly organisationId: string,
+    readonly organisationId: string,
+    readonly timeZone: string,
   ) {}
 
   async byKey(key: string): Promise<IssueDocument> {
@@ -72,6 +73,7 @@ export class IssuesProject {
       tx: IssuesMongo & AnyDb,
       project: ProjectDocument,
       changed: Changed,
+      after: (work: AfterCommit[]) => void,
     ) => Promise<T>,
     // Watching is a viewer's own mark, not a change of the issue.
     options: { archivedOk?: boolean } = {},
@@ -98,7 +100,9 @@ export class IssuesProject {
           };
           // The transaction holds every collection of the organisation: widened
           // once, here, for the callers that run other modules' handlers.
-          return work(tx as IssuesMongo & AnyDb, project, changed);
+          return work(tx as IssuesMongo & AnyDb, project, changed, (work) => {
+            later.push(...work);
+          });
         }),
       exhausted,
     );

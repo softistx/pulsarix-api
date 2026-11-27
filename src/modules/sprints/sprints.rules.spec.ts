@@ -12,6 +12,15 @@ describe("sprint rules", () => {
     expect(datesIssues(a, null)).toEqual([]);
   });
 
+  test("a sprint of eight weeks is fine, one day more is refused", () => {
+    const eight = new Date("2026-04-27T00:00:00Z");
+    const nine = new Date("2026-04-28T00:00:00Z");
+    expect(datesIssues(a, eight)).toEqual([]);
+    expect(datesIssues(a, nine)).toEqual([
+      { path: "endDate", code: "validation.errors.invalid" },
+    ]);
+  });
+
   test("an end before the start is refused on endDate", () => {
     expect(datesIssues(b, a)).toEqual([
       { path: "endDate", code: "validation.errors.invalid" },
