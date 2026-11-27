@@ -1230,7 +1230,7 @@ type Mutation {
   `sprints.errors.not-active`, `sprints.errors.not-planned` (the chosen next
   sprint is not planned).
   """
-  closeSprint(id: ID!, input: CloseSprintInput!): Sprint!
+  closeSprint(id: ID!, input: CloseSprintInput!, projectId: ID): Sprint!
   """
   Proves the signed-in account's e-mail from a verification link's token,
   posted by the page it opens (never on GET: mail scanners follow links), and
@@ -1344,7 +1344,7 @@ type Mutation {
   Needs `sprint:write`. 404 `sprints.errors.not-found`; 409
   `sprints.errors.not-planned`.
   """
-  deleteSprint(id: ID!): ID!
+  deleteSprint(id: ID!, projectId: ID): ID!
   """
   Deletes a status and closes the gap in the order. Refused while issues use it
   (409 `projects.errors.status-in-use`). Answers its id. Needs `project:manage`.
@@ -1438,7 +1438,7 @@ type Mutation {
   sprint the issues are done in), `sprints.errors.type-not-allowed` (an epic
   or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`.
   """
-  planIssues(afterId: ID, beforeId: ID, ids: [ID!]! @constraint(minItems: 1, maxItems: 100), sprintId: ID): [Issue!]!
+  planIssues(afterId: ID, beforeId: ID, ids: [ID!]! @constraint(minItems: 1, maxItems: 100), projectId: ID, sprintId: ID): [Issue!]!
   """
   Opens the session with a recovery code instead of the app's code; the code is
   spent. Same refusals as `confirmSecondFactor`.
@@ -1562,7 +1562,7 @@ type Mutation {
   `sprints.errors.not-planned`, `sprints.errors.active-exists` (one active
   sprint per project), `sprints.errors.disabled`.
   """
-  startSprint(id: ID!, input: StartSprintInput!): Sprint!
+  startSprint(id: ID!, input: StartSprintInput!, projectId: ID): Sprint!
   """
   Stops the viewer's running timer when it runs on this issue and returns the
   entry chronix saved; null when none runs or it runs on another issue (it
@@ -1616,10 +1616,13 @@ type Mutation {
   """Changes a project; its key stays. Needs `project:manage`."""
   updateProject(id: ID!, input: UpdateProjectInput!): Project!
   """
-  Changes a planned or active sprint. Needs `sprint:write`. 404
+  Changes a planned or active sprint. Like `deleteSprint`, `startSprint`,
+  `closeSprint` and `planIssues`, it takes an optional `projectId`, the project
+  the caller works in: a sprint, issue, target or `nextSprintId` of another
+  project is refused with 409 `sprints.errors.wrong-project`. Needs `sprint:write`. 404
   `sprints.errors.not-found`; 409 `sprints.errors.closed`.
   """
-  updateSprint(id: ID!, input: UpdateSprintInput!): Sprint!
+  updateSprint(id: ID!, input: UpdateSprintInput!, projectId: ID): Sprint!
   """Needs `project:manage`. 409 `projects.errors.status-name-taken`."""
   updateStatus(id: ID!, input: UpdateStatusInput!): Status!
   """

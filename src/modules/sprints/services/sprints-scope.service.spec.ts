@@ -1,0 +1,135 @@
+import { describe, expect, test } from "bun:test";
+import { codeOf } from "~/http";
+import { Create, CreateProject, type Issue } from "~/issues";
+import {
+  CloseSprint,
+  CreateSprint,
+  DeleteSprint,
+  PlanIssues,
+  type Sprint,
+  StartSprint,
+  UpdateProject,
+  UpdateSprint,
+  withSprints,
+} from "~/sprints";
+
+// Two projects of one organisation: the caller works in `t`, `other` is the
+// sibling whose ids it must not reach.
+async function twoProjects() {
+  const t = await withSprints("SCA");
+  const { createProject: other } = await t.asOwner.call<{
+    createProject: { id: string };
+  }>(CreateProject, { input: { key: "SCB", name: "Beta" } });
+  await t.asOwner.call(UpdateProject, {
+    id: other.id,
+    input: { sprintsEnabled: true },
+  });
+  const foreignSprint = (
+    await t.asOwner.call<{ createSprint: Sprint }>(CreateSprint, {
+      projectId: other.id,
+      input: {},
+    })
+  ).createSprint;
+  const foreignIssue = (
+    await t.asOwner.call<{ createIssue: Issue }>(Create, {
+      input: { projectId: other.id, title: "Foreign", type: "task" },
+    })
+  ).createIssue;
+  return { t, other: other.id, foreignSprint, foreignIssue };
+}
+
+describe("the project of a sprint mutation", () => {
+  test("updateSprint, deleteSprint and startSprint refuse a sprint of another project", async () => {
+    const { t, other } = await twoProjects();
+    const sprint = await t.sprint();
+    const update = await t.asOwner.attempt(UpdateSprint, {
+      id: sprint.id,
+      input: { name: "X" },
+      projectId: other,
+    });
+    expect(codeOf(update)).toBe("sprints.errors.wrong-project");
+    const del = await t.asOwner.attempt(DeleteSprint, {
+      id: sprint.id,
+      projectId: other,
+    });
+    expect(codeOf(del)).toBe("sprints.errors.wrong-project");
+    const start = await t.asOwner.attempt(StartSprint, {
+      id: sprint.id,
+      input: { startDate: "2026-03-02T00:00:00Z" },
+      projectId: other,
+    });
+    expect(codeOf(start)).toBe("sprints.errors.wrong-project");
+    expect((await t.all()).map((s) => [s.id, s.state, s.name])).toEqual([
+      [sprint.id, "planned", sprint.name],
+    ]);
+  });
+
+  test("the own project passes, and so does no project at all", async () => {
+    const { t } = await twoProjects();
+    const sprint = await t.sprint();
+    const named = await t.asOwner.attempt(UpdateSprint, {
+      id: sprint.id,
+      input: { name: "Mine" },
+      projectId: t.project.id,
+    });
+    expect(codeOf(named)).toBeUndefined();
+    const bare = await t.asOwner.attempt(UpdateSprint, {
+      id: sprint.id,
+      input: { name: "Bare" },
+    });
+    expect(codeOf(bare)).toBeUndefined();
+  });
+
+  test("closeSprint refuses another project, and a next sprint of another project", async () => {
+    const { t, other, foreignSprint } = await twoProjects();
+    const sprint = await t.sprint();
+    await t.start(sprint.id);
+    const close = await t.asOwner.attempt(CloseSprint, {
+      id: sprint.id,
+      input: { unfinished: "BACKLOG" },
+      projectId: other,
+    });
+    expect(codeOf(close)).toBe("sprints.errors.wrong-project");
+    await t
+      .make("Open", { type: "task" })
+      .then((issue) => t.plan([issue], sprint.id));
+    const next = await t.asOwner.attempt(CloseSprint, {
+      id: sprint.id,
+      input: { unfinished: "NEXT_SPRINT", nextSprintId: foreignSprint.id },
+    });
+    expect(codeOf(next)).toBe("sprints.errors.wrong-project");
+    expect((await t.all(["active"])).length).toBe(1);
+  });
+
+  test("planIssues refuses issues of another project, and a sprint of another project", async () => {
+    const { t, other, foreignSprint } = await twoProjects();
+    const sprint = await t.sprint();
+    const issue = await t.make("A", { type: "task" });
+    const wrongIssues = await t.asOwner.attempt(PlanIssues, {
+      ids: [issue.id],
+      sprintId: sprint.id,
+      projectId: other,
+    });
+    expect(codeOf(wrongIssues)).toBe("sprints.errors.wrong-project");
+    const wrongSprint = await t.asOwner.attempt(PlanIssues, {
+      ids: [issue.id],
+      sprintId: foreignSprint.id,
+      projectId: t.project.id,
+    });
+    expect(codeOf(wrongSprint)).toBe("sprints.errors.wrong-project");
+    expect(await t.titles({ sprintId: sprint.id })).toEqual([]);
+  });
+
+  test("planIssues refuses a rank anchor of another project", async () => {
+    const { t, foreignIssue: anchor } = await twoProjects();
+    const sprint = await t.sprint();
+    const issue = await t.make("A", { type: "task" });
+    const refused = await t.asOwner.attempt(PlanIssues, {
+      ids: [issue.id],
+      sprintId: sprint.id,
+      afterId: anchor.id,
+      projectId: t.project.id,
+    });
+    expect(codeOf(refused)).toBe("issues.errors.bad-placement");
+  });
+});
