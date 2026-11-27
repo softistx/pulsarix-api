@@ -1428,7 +1428,7 @@ type Mutation {
   409 `issues.errors.bad-placement` when a neighbour is elsewhere or the two
   are not in order. Needs `issue:write`.
   """
-  moveIssue(afterId: ID, beforeId: ID, id: ID!, statusId: ID!): Issue!
+  moveIssue(afterId: ID, beforeId: ID, id: ID!, projectId: ID, statusId: ID!): Issue!
   """
   Puts issues in a sprint (`sprintId` null: the backlog), after `afterId` and
   before `beforeId` (either or both left out; the end of the sprint with
@@ -1589,12 +1589,14 @@ type Mutation {
   """Removes the viewer from the watchers; repeatable. Needs `issue:write`."""
   unwatchIssue(id: ID!): Issue!
   """
-  Changes the given fields. Needs `issue:write`. 404 `issues.errors.not-found`;
+  Changes the given fields. Needs `issue:write`. The optional `projectId` (here
+  and on `moveIssue`) is the project the caller works in: an issue of another
+  one is refused with 409 `issues.errors.wrong-project`. 404 `issues.errors.not-found`;
   409 `issues.errors.parent-cycle`; 409 `issues.errors.parent-not-allowed`,
   `parent-type-invalid` or `parent-required` (the type and parent it would
   leave the issue with); 409 `issues.errors.type-breaks-children`.
   """
-  updateIssue(id: ID!, input: UpdateIssueInput!): Issue!
+  updateIssue(id: ID!, input: UpdateIssueInput!, projectId: ID): Issue!
   """
   Applies one patch to 1 to 100 issues, each as `updateIssue` (and
   `moveIssue` for the status) would: same checks, its own activity entry and

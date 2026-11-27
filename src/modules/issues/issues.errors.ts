@@ -14,6 +14,10 @@ export const projectArchived = () =>
 export const parentCycle = () =>
   fail("issues.errors.parent-cycle", { status: 409, field: "parentId" });
 
+// An issue id sent with a `projectId` that is not its project's.
+export const issueWrongProject = () =>
+  fail("issues.errors.wrong-project", { status: 409, field: "projectId" });
+
 // The move names neighbours that are not in the column, or not in order.
 export const badPlacement = () =>
   fail("issues.errors.bad-placement", { status: 409 });

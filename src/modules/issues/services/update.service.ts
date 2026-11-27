@@ -34,10 +34,14 @@ export class IssueUpdates {
   // A field left out stays as it is; null clears `assigneeId`, `parentId`,
   // `startDate`, `dueDate`, `estimateHours` and `points`, and is refused for the others. The status
   // changes by `moveIssue`.
-  async update(id: string, input: UpdateIssueInput): Promise<IssueDocument> {
+  async update(
+    id: string,
+    input: UpdateIssueInput,
+    projectId?: string | null,
+  ): Promise<IssueDocument> {
     const refused = updateIssues(input);
     if (refused.length > 0) throw invalid(refused);
-    const current = await this.project.byId(id);
+    const current = await this.project.byId(id, projectId);
     return this.project.inProject(
       current.projectId,
       async (tx, _, changed, after) => {

@@ -23,11 +23,12 @@ export class IssueMoves {
     statusId: string,
     beforeId?: string | null,
     afterId?: string | null,
+    projectId?: string | null,
   ): Promise<IssueDocument> {
     const target = idOrInvalid(statusId, "statusId");
     const before = optionalId(beforeId, "beforeId");
     const after = optionalId(afterId, "afterId");
-    const current = await this.project.byId(id);
+    const current = await this.project.byId(id, projectId);
     return this.project.inProject(current.projectId, async (tx, _, changed) => {
       const issue = await tx.db.issues.findById(current._id);
       if (!issue) throw issueNotFound();

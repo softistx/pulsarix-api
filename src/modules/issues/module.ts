@@ -42,6 +42,7 @@ export const issuesModule = defineModule({
     "not-found",
     "parent-cycle",
     "bad-placement",
+    "wrong-project",
     "project-archived",
     "parent-not-allowed",
     "parent-type-invalid",

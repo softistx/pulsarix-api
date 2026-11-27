@@ -7,6 +7,7 @@ export const issuesTexts: Record<Locale, Record<string, string>> = {
     "issues.errors.not-found": "This issue does not exist.",
     "issues.errors.parent-cycle":
       "An issue cannot be its own parent, nor the parent of one of its parents.",
+    "issues.errors.wrong-project": "This issue belongs to another project.",
     "issues.errors.bad-placement":
       "The issues named as neighbours must be in that status, in order.",
     "issues.errors.parent-not-allowed": "An epic cannot have a parent.",
@@ -27,6 +28,7 @@ export const issuesTexts: Record<Locale, Record<string, string>> = {
     "issues.errors.not-found": "Ce ticket n'existe pas.",
     "issues.errors.parent-cycle":
       "Un ticket ne peut pas être son propre parent, ni le parent d'un de ses parents.",
+    "issues.errors.wrong-project": "Ce ticket appartient à un autre projet.",
     "issues.errors.bad-placement":
       "Les tickets voisins doivent être dans ce statut, dans l'ordre.",
     "issues.errors.parent-not-allowed": "Une epic ne peut pas avoir de parent.",

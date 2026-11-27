@@ -14,6 +14,7 @@ import { retryWriteConflicts } from "../../../core/shared/locked";
 import { lockProject, type ProjectDocument } from "../../projects/public";
 import {
   issueNotFound,
+  issueWrongProject,
   parentCycle,
   parentNotAllowed,
   parentRequired,
@@ -58,9 +59,16 @@ export class IssuesProject {
     return found;
   }
 
-  async byId(id: string): Promise<IssueDocument> {
+  // The issue, which must be in `projectId` when the caller names one.
+  async byId(id: string, projectId?: string | null): Promise<IssueDocument> {
     const found = await this.mongo.db.issues.findById(idOrInvalid(id, "id"));
     if (!found) throw issueNotFound();
+    if (
+      projectId &&
+      !found.projectId.equals(idOrInvalid(projectId, "projectId"))
+    ) {
+      throw issueWrongProject();
+    }
     return found;
   }
 

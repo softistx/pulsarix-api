@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { codeOf } from "~/http";
-import { Create, CreateProject, type Issue } from "~/issues";
+import { Create, CreateProject, type Issue, Move, Update } from "~/issues";
 import {
   CloseSprint,
   CreateSprint,
@@ -131,5 +131,36 @@ describe("the project of a sprint mutation", () => {
       projectId: t.project.id,
     });
     expect(codeOf(refused)).toBe("issues.errors.bad-placement");
+  });
+
+  test("updateIssue (assign, estimate) and moveIssue refuse an issue of another project", async () => {
+    const { t, other, foreignIssue } = await twoProjects();
+    const issue = await t.make("A", { type: "task" });
+    for (const input of [{ points: 5 }, { assigneeId: null }]) {
+      const refused = await t.asOwner.attempt(Update, {
+        id: issue.id,
+        input,
+        projectId: other,
+      });
+      expect(codeOf(refused)).toBe("issues.errors.wrong-project");
+    }
+    const moved = await t.asOwner.attempt(Move, {
+      id: issue.id,
+      statusId: t.todo,
+      projectId: other,
+    });
+    expect(codeOf(moved)).toBe("issues.errors.wrong-project");
+    const mine = await t.asOwner.attempt(Update, {
+      id: issue.id,
+      input: { points: 5 },
+      projectId: t.project.id,
+    });
+    expect(codeOf(mine)).toBeUndefined();
+    const foreign = await t.asOwner.attempt(Update, {
+      id: foreignIssue.id,
+      input: { points: 3 },
+      projectId: t.project.id,
+    });
+    expect(codeOf(foreign)).toBe("issues.errors.wrong-project");
   });
 });
