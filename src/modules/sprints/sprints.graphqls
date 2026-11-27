@@ -167,14 +167,14 @@ extend type Mutation {
   """
   Deletes a planned sprint; its issues go back to the backlog. Answers its id.
   Needs `sprint:write`. 404 `sprints.errors.not-found`; 409
-  `sprints.errors.not-planned`.
+  `sprints.errors.not-planned`, `sprints.errors.wrong-project`.
   """
   deleteSprint(id: ID!, projectId: ID): ID!
   """
   Starts a planned sprint and snapshots its scope as `committedPoints`. Needs
   `sprint:write`. 404 `sprints.errors.not-found`; 409
   `sprints.errors.not-planned`, `sprints.errors.active-exists` (one active
-  sprint per project), `sprints.errors.disabled`.
+  sprint per project), `sprints.errors.disabled`, `sprints.errors.wrong-project`.
   """
   startSprint(id: ID!, input: StartSprintInput!, projectId: ID): Sprint!
   """
@@ -182,7 +182,8 @@ extend type Mutation {
   others move as `unfinished` says; `completedPoints` is set. Needs
   `sprint:write`. 404 `sprints.errors.not-found`; 409
   `sprints.errors.not-active`, `sprints.errors.not-planned` (the chosen next
-  sprint is not planned).
+  sprint is not planned), `sprints.errors.wrong-project` (the sprint, or a
+  `nextSprintId` of another project).
   """
   closeSprint(id: ID!, input: CloseSprintInput!, projectId: ID): Sprint!
   """
@@ -192,7 +193,9 @@ extend type Mutation {
   they now stand. Needs `sprint:write`. 404 `sprints.errors.not-found`,
   `issues.errors.not-found`; 409 `sprints.errors.closed` (the target, or a
   sprint the issues are done in), `sprints.errors.type-not-allowed` (an epic
-  or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`.
+  or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`,
+  `sprints.errors.wrong-project` (a target sprint or issues of another
+  project).
   """
   planIssues(
     ids: [ID!]! @constraint(minItems: 1, maxItems: 100)

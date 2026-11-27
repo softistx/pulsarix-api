@@ -9,7 +9,7 @@ import {
   sprintNotActive,
   sprintNotFound,
   sprintNotPlanned,
-  wrongProject,
+  sprintWrongProject,
 } from "../sprints.errors";
 import type { SprintDocument } from "../sprints.model";
 import { datesIssues } from "../sprints.rules";
@@ -196,7 +196,7 @@ export class SprintLifecycle {
         idOrInvalid(named, "nextSprintId"),
       );
       if (!found) throw sprintNotFound();
-      if (!found.projectId.equals(sprint.projectId)) throw wrongProject();
+      if (!found.projectId.equals(sprint.projectId)) throw sprintWrongProject();
       if (found.state !== "planned") throw sprintNotPlanned();
       return found._id;
     }

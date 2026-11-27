@@ -341,7 +341,8 @@ type Mutation {
   `afterId` (the issues that end up above and below it; both optional, both in
   that status). With neither it goes to the end. Only this issue is written.
   409 `issues.errors.bad-placement` when a neighbour is elsewhere or the two
-  are not in order. Needs `issue:write`.
+  are not in order, `issues.errors.wrong-project` (the issue is in another
+  project than `projectId`). Needs `issue:write`.
   """
   moveIssue(
     id: ID!

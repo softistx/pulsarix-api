@@ -64,7 +64,8 @@ export class IssuesProject {
     const found = await this.mongo.db.issues.findById(idOrInvalid(id, "id"));
     if (!found) throw issueNotFound();
     if (
-      projectId &&
+      projectId !== undefined &&
+      projectId !== null &&
       !found.projectId.equals(idOrInvalid(projectId, "projectId"))
     ) {
       throw issueWrongProject();

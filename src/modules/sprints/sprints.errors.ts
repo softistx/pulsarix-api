@@ -1,7 +1,7 @@
 import { fail } from "../../core/shared/errors";
 
 // A sprint or issue id sent with a `projectId` that is not its project's.
-export const wrongProject = () =>
+export const sprintWrongProject = () =>
   fail("sprints.errors.wrong-project", { status: 409, field: "projectId" });
 
 export const sprintNotFound = () =>

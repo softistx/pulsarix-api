@@ -14,7 +14,7 @@ import { lockProject, type ProjectDocument } from "../../projects/public";
 import {
   sprintNotFound,
   sprintsDisabled,
-  wrongProject,
+  sprintWrongProject,
 } from "../sprints.errors";
 import type { SprintDocument } from "../sprints.model";
 import type { SprintsMongo } from "../sprints.types";
@@ -66,8 +66,12 @@ export class SprintsProject {
 
   // Refuses a record of another project than the one the caller named.
   inScope(actual: ObjectId, projectId?: string | null): void {
-    if (projectId && !actual.equals(idOrInvalid(projectId, "projectId"))) {
-      throw wrongProject();
+    if (
+      projectId !== undefined &&
+      projectId !== null &&
+      !actual.equals(idOrInvalid(projectId, "projectId"))
+    ) {
+      throw sprintWrongProject();
     }
   }
 

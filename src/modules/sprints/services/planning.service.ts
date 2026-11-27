@@ -9,8 +9,8 @@ import {
 import {
   sprintClosed,
   sprintNotFound,
+  sprintWrongProject,
   typeNotAllowed,
-  wrongProject,
 } from "../sprints.errors";
 import { plannable } from "../sprints.utils";
 import { SprintSnapshots } from "./snapshots.service";
@@ -120,7 +120,7 @@ export class SprintPlanning {
     if (sprintId) {
       const target = await tx.db.sprints.findById(sprintId);
       if (!target) throw sprintNotFound();
-      if (!target.projectId.equals(projectId)) throw wrongProject();
+      if (!target.projectId.equals(projectId)) throw sprintWrongProject();
       if (target.state === "closed") throw sprintClosed();
     }
     const current = issues.flatMap((issue) =>

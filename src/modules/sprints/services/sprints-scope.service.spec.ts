@@ -163,4 +163,63 @@ describe("the project of a sprint mutation", () => {
     });
     expect(codeOf(foreign)).toBe("issues.errors.wrong-project");
   });
+
+  test("an empty projectId is invalid input, not a skipped check", async () => {
+    const { t } = await twoProjects();
+    const sprint = await t.sprint();
+    const issue = await t.make("A", { type: "task" });
+    const sprints = await t.asOwner.attempt(UpdateSprint, {
+      id: sprint.id,
+      input: { name: "X" },
+      projectId: "",
+    });
+    expect(codeOf(sprints)).toBe("validation.errors.invalid-input");
+    const issues = await t.asOwner.attempt(Update, {
+      id: issue.id,
+      input: { points: 5 },
+      projectId: "",
+    });
+    expect(codeOf(issues)).toBe("validation.errors.invalid-input");
+  });
+
+  test("an id of another organisation is not found, not a wrong project", async () => {
+    const { t } = await twoProjects();
+    const away = await withSprints("SCZ");
+    const sprint = await away.sprint();
+    const issue = await away.make("Away", { type: "task" });
+    const gone = await t.asOwner.attempt(UpdateSprint, {
+      id: sprint.id,
+      input: { name: "X" },
+      projectId: t.project.id,
+    });
+    expect(codeOf(gone)).toBe("sprints.errors.not-found");
+    const missing = await t.asOwner.attempt(Update, {
+      id: issue.id,
+      input: { points: 5 },
+      projectId: t.project.id,
+    });
+    expect(codeOf(missing)).toBe("issues.errors.not-found");
+  });
+
+  test("moveIssue refuses a status or a rank anchor of another project", async () => {
+    const { t, other, foreignIssue } = await twoProjects();
+    const issue = await t.make("A", { type: "task" });
+    const { createProject: sibling } = await t.asOwner.call<{
+      createProject: { statuses: { id: string }[] };
+    }>(CreateProject, { input: { key: "SCF", name: "Gamma" } });
+    const status = await t.asOwner.attempt(Move, {
+      id: issue.id,
+      statusId: sibling.statuses[1]?.id,
+      projectId: t.project.id,
+    });
+    expect(status.errors).toBeDefined();
+    const anchor = await t.asOwner.attempt(Move, {
+      id: issue.id,
+      statusId: t.todo,
+      afterId: foreignIssue.id,
+      projectId: t.project.id,
+    });
+    expect(codeOf(anchor)).toBe("issues.errors.bad-placement");
+    expect(other).toBeDefined();
+  });
 });
