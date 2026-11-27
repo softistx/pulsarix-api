@@ -20,10 +20,11 @@ const ISSUE_TYPES = "2026-11-21-issue-types";
 // The later migrations are forgotten too: one cannot be pending before an
 // applied one.
 const REQUEST_LINKS = "2026-11-22-request-links";
+const PLAN_RANK = "2026-11-26-plan-rank";
 const forget = (db: ReturnType<typeof dbOf>) =>
-  db
-    .collection("nxgt_migrations")
-    .deleteMany({ _id: { $in: [ISSUE_TYPES, REQUEST_LINKS] as never[] } });
+  db.collection("nxgt_migrations").deleteMany({
+    _id: { $in: [ISSUE_TYPES, REQUEST_LINKS, PLAN_RANK] as never[] },
+  });
 
 const now = new Date();
 const base = (projectId: ObjectId, number: number) => ({

@@ -18,6 +18,8 @@ export {
 export {
   type LabelRemoval,
   registerLabelRemoval,
+  registerSprintsOffCheck,
   registerStatusUsage,
+  type SprintsOffCheck,
   type StatusUsage,
 } from "./projects.usage";

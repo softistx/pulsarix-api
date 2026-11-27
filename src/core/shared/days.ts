@@ -1,6 +1,9 @@
 // Calendar days in an IANA time zone, for what "today" means to an
 // organisation (its `timeZone`), not to the server.
 
+// Milliseconds in a day (UTC calendar arithmetic only).
+export const MS_PER_DAY = 86_400_000;
+
 const formats = new Map<string, Intl.DateTimeFormat>();
 
 function formatOf(timeZone: string) {
@@ -57,3 +60,30 @@ export function startOfDayIn(timeZone: string, now: Date): Date {
   const first = local - offsetAt(timeZone, now.getTime());
   return new Date(local - offsetAt(timeZone, first));
 }
+
+// The instant the `YYYY-MM-DD` day began in `timeZone`: its local midnight.
+export function startOfDay(timeZone: string, day: string): Date {
+  const local = Date.parse(`${day}T00:00:00Z`);
+  const first = local - offsetAt(timeZone, local);
+  return new Date(local - offsetAt(timeZone, first));
+}
+
+// The day `n` days after (or before, when negative) a `YYYY-MM-DD` day.
+export function addDays(day: string, n: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + n * MS_PER_DAY)
+    .toISOString()
+    .slice(0, 10);
+}
+
+// The whole days from `from` to `to`, both `YYYY-MM-DD` (negative when `to`
+// comes first).
+export function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      MS_PER_DAY,
+  );
+}
+
+// The earlier and the later of two `YYYY-MM-DD` days (they sort as text).
+export const earlierDay = (a: string, b: string) => [a, b].sort()[0] as string;
+export const laterDay = (a: string, b: string) => [a, b].sort()[1] as string;

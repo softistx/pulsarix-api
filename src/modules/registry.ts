@@ -16,6 +16,7 @@ import { issuesModule } from "./issues/module";
 import { notificationsModule } from "./notifications/module";
 import { projectsModule } from "./projects/module";
 import { searchModule } from "./search/module";
+import { sprintsModule } from "./sprints/module";
 import { timeModule } from "./time/module";
 
 // THE list of modules: adding one is one line here. Dependency order is
@@ -37,6 +38,7 @@ const registered = [
   dashboardModule,
   intakeModule,
   timeModule,
+  sprintsModule,
 ] as const;
 
 export const modules: readonly Module[] = resolveModules(registered);

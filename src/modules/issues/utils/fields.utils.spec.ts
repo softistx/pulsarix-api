@@ -10,6 +10,7 @@ const place = {
   number: 7,
   key: "PX-7",
   rank: "m",
+  planRank: "n",
   reporterId: "acc",
 };
 

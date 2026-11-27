@@ -7,13 +7,14 @@ import {
 } from "../../../core/shared/errors";
 import { retryWriteConflicts } from "../../../core/shared/locked";
 import { keyTaken, projectNotFound } from "../projects.errors";
+import { lockProject } from "../projects.lock";
 import {
   defaultPublicState,
   type ProjectDocument,
   projectKey,
 } from "../projects.model";
 import { defaultWorkflow } from "../projects.rules";
-import type { ProjectsMongo } from "../projects.usage";
+import { checkSprintsOff, type ProjectsMongo } from "../projects.usage";
 
 export interface CreateProjectInput {
   key: string;
@@ -26,6 +27,8 @@ export interface UpdateProjectInput {
   name?: string | null;
   description?: string | null;
   leadId?: string | null;
+  sprintsEnabled?: boolean | null;
+  sprintLengthWeeks?: number | null;
 }
 
 // Whether an account is a member of the organisation: a project's lead must be.
@@ -104,10 +107,15 @@ export class ProjectsService {
     }
   }
 
-  // A field left out stays as it is; null is refused for `name`. The key never
-  // changes.
+  // A field left out stays as it is; null is refused for `name`,
+  // `sprintsEnabled` and `sprintLengthWeeks`. The key never changes. Turning
+  // sprints off is refused while one is active (the sprints module's check).
   async update(id: string, input: UpdateProjectInput) {
-    const issues: FieldIssue[] = required(input, ["name"]);
+    const issues: FieldIssue[] = required(input, [
+      "name",
+      "sprintsEnabled",
+      "sprintLengthWeeks",
+    ]);
     const name = input.name?.trim();
     if (name === "")
       issues.push({ path: "name", code: "validation.errors.required" });
@@ -116,14 +124,34 @@ export class ProjectsService {
     }
     if (issues.length > 0) throw invalid(issues);
     const project = await this.byId(id);
-    return this.mongo.db.projects.update(project._id, {
+    const patch = {
       ...(name !== undefined && name !== null && { name }),
       ...(input.description !== undefined &&
         input.description !== null && {
           description: input.description.trim(),
         }),
       ...(input.leadId !== undefined && { leadId: input.leadId }),
-    });
+      ...(typeof input.sprintsEnabled === "boolean" && {
+        sprintsEnabled: input.sprintsEnabled,
+      }),
+      ...(typeof input.sprintLengthWeeks === "number" && {
+        sprintLengthWeeks: input.sprintLengthWeeks,
+      }),
+    };
+    if (input.sprintsEnabled !== false || project.sprintsEnabled !== true) {
+      return this.mongo.db.projects.update(project._id, patch);
+    }
+    // Turning sprints off: checked under the project's lock, so a sprint
+    // cannot be started meanwhile.
+    return retryWriteConflicts(
+      () =>
+        this.mongo.transaction(async (tx) => {
+          await lockProject(tx, project._id);
+          await checkSprintsOff(tx, project._id);
+          return tx.db.projects.update(project._id, patch);
+        }),
+      exhausted,
+    );
   }
 
   // Archiving keeps everything and hides the project from the default list;

@@ -35,6 +35,8 @@ export const projectsResolvers: Resolvers = {
   },
   Project: {
     id: (project) => project.id,
+    sprintsEnabled: (project) => project.sprintsEnabled === true,
+    sprintLengthWeeks: (project) => project.sprintLengthWeeks ?? 2,
     statuses: (project, _, ctx) =>
       dataLoaders(ctx).projects.statuses.load(project.id),
     labels: (project, _, ctx) =>

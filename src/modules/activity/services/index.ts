@@ -7,4 +7,4 @@ export {
   MAX_PAGE,
   recordActivity,
 } from "./activity.service";
-export { journalOnIssue } from "./journal.service";
+export { journalOnIssue, journalOnSprint } from "./journal.service";

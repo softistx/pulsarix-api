@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { dayIn, startOfDayIn } from "./days";
+import {
+  addDays,
+  dayIn,
+  daysBetween,
+  earlierDay,
+  laterDay,
+  startOfDayIn,
+} from "./days";
 
 const iso = (date: Date) => date.toISOString();
 
@@ -54,5 +61,28 @@ describe("startOfDayIn", () => {
     );
     expect(dayIn("Europe/Paris", midnight)).toBe("2026-03-29");
     expect(iso(startOfDayIn("Europe/Paris", midnight))).toBe(iso(midnight));
+  });
+});
+
+describe("addDays and daysBetween", () => {
+  test("move a day across months, years and leap days", () => {
+    expect(addDays("2026-11-30", 1)).toBe("2026-12-01");
+    expect(addDays("2026-01-01", -1)).toBe("2025-12-31");
+    expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
+    expect(addDays("2026-11-30", 0)).toBe("2026-11-30");
+  });
+
+  test("count the days between two days, negative backwards", () => {
+    expect(daysBetween("2026-11-20", "2026-12-04")).toBe(14);
+    expect(daysBetween("2026-12-04", "2026-11-20")).toBe(-14);
+    expect(daysBetween("2026-03-28", "2026-03-30")).toBe(2);
+  });
+});
+
+describe("earlierDay and laterDay", () => {
+  test("pick by calendar order, across a year end", () => {
+    expect(earlierDay("2026-12-31", "2027-01-01")).toBe("2026-12-31");
+    expect(laterDay("2026-12-31", "2027-01-01")).toBe("2027-01-01");
+    expect(laterDay("2026-11-30", "2026-11-30")).toBe("2026-11-30");
   });
 });

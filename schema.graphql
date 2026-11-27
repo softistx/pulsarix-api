@@ -178,6 +178,26 @@ enum ActivityVerb {
   created
   deleted
   moved
+  """
+  A sprint of the project was closed. The row has no issue (`issueId` null).
+  """
+  sprintClosed
+  """
+  A sprint of the project was made. The row has no issue (`issueId` null).
+  """
+  sprintCreated
+  """
+  A sprint of the project was deleted. The row has no issue (`issueId` null).
+  """
+  sprintDeleted
+  """
+  A sprint of the project was started. The row has no issue (`issueId` null).
+  """
+  sprintStarted
+  """
+  A sprint of the project was edited. The row has no issue (`issueId` null).
+  """
+  sprintUpdated
   updated
 }
 
@@ -299,6 +319,24 @@ input BulkUpdateIssueInput {
 type BulkUpdateIssuesResult {
   failures: [BulkIssueFailure!]!
   updated: [Issue!]!
+}
+
+"""One day of a sprint's burndown, in the organisation's time zone."""
+type BurndownPoint {
+  """The points of the done issues; null for a day to come."""
+  completedPoints: Int
+  """The organisation's day, `YYYY-MM-DD`."""
+  day: String!
+  """
+  Points still to do on the straight line from the committed scope to 0 on the last day.
+  """
+  ideal: Float!
+  """Points still to do at the end of the day; null for a day to come."""
+  remainingPoints: Int
+  """
+  The points of the sprint's issues (cancelled ones left out); null for a day to come.
+  """
+  scopePoints: Int
 }
 
 """An IPv4 block in CIDR notation, such as 10.0.0.0/8."""
@@ -560,6 +598,14 @@ enum ClientRequestChange {
   STATE
 }
 
+input CloseSprintInput {
+  """
+  With NEXT_SPRINT: the planned sprint that takes them; the next planned one by number when left out.
+  """
+  nextSprintId: ID
+  unfinished: UnfinishedIssues!
+}
+
 """
 A comment on an issue. `body` is rich text with the `@[Label](id)` markers of
 the mention input; `mentionIds` are the members they name, checked by the
@@ -658,6 +704,15 @@ input CreateProjectInput {
   key: String! @constraint(minLength: 2, maxLength: 10)
   leadId: ID
   name: String! @constraint(minLength: 1, maxLength: 200)
+}
+
+input CreateSprintInput {
+  """On or after `startDate`."""
+  endDate: DateTime
+  goal: String @constraint(maxLength: 1000)
+  """Defaults to `Sprint <number>`."""
+  name: String @constraint(minLength: 1, maxLength: 100)
+  startDate: DateTime
 }
 
 input CreateStatusInput {
@@ -839,6 +894,10 @@ type Issue {
   number: Int!
   parentId: ID
   """
+  Its place among the issues of its sprint or of the backlog (a string that sorts by plain order); set by `planIssues`.
+  """
+  planRank: String!
+  """
   Story points (1, 2, 3, 5, 8, 13 or 21) on a Story, Task or Bug; null for none. An Epic's own are always null: read `progress.points`.
   """
   points: Int
@@ -853,6 +912,10 @@ type Issue {
   rank: String!
   """The member who made it."""
   reporterId: ID
+  """
+  The sprint it is planned in; null is the backlog (a Sub-task has none: it follows its parent). Plan it with `planIssues`.
+  """
+  sprintId: ID
   startDate: DateTime
   statusId: ID!
   """
@@ -902,7 +965,15 @@ type IssueEvent {
 
 """Every given field narrows the list (they are combined with AND)."""
 input IssueFilter {
+  """
+  Only the issues of the project's active sprint (none when there is no active sprint); ignored with `sprintId`.
+  """
+  activeSprint: Boolean
   assigneeId: ID
+  """
+  Only the Stories, Tasks and Bugs in no sprint and still open (not in triage, done or cancelled); ignored with `sprintId` or `activeSprint`.
+  """
+  backlog: Boolean
   """The issues whose status has one of these categories."""
   categories: [StatusCategory!]
   """
@@ -924,6 +995,8 @@ input IssueFilter {
   reporterId: ID
   """Only the issues with no parent; ignored with `parentId`."""
   rootsOnly: Boolean
+  """The issues planned in this sprint."""
+  sprintId: ID
   startAfter: DateTime
   startBefore: DateTime
   statusIds: [ID!]
@@ -972,6 +1045,8 @@ enum IssueSortField {
   createdAt
   dueDate
   number
+  """The plan order of the sprint or of the backlog."""
+  planRank
   points
   priority
   rank
@@ -1149,6 +1224,14 @@ type Mutation {
   """
   changePassword(input: ChangePasswordInput!): Boolean!
   """
+  Closes the active sprint: the done and cancelled issues stay with it, the
+  others move as `unfinished` says; `completedPoints` is set. Needs
+  `sprint:write`. 404 `sprints.errors.not-found`; 409
+  `sprints.errors.not-active`, `sprints.errors.not-planned` (the chosen next
+  sprint is not planned).
+  """
+  closeSprint(id: ID!, input: CloseSprintInput!): Sprint!
+  """
   Proves the signed-in account's e-mail from a verification link's token,
   posted by the page it opens (never on GET: mail scanners follow links), and
   answers the account. The link is bound to the account that is signed in: a
@@ -1216,6 +1299,12 @@ type Mutation {
   """
   createProject(input: CreateProjectInput!): Project!
   """
+  Makes a planned sprint. Needs `sprint:write`. 409 `sprints.errors.disabled`
+  (the project has sprints off), `issues.errors.project-archived`; 400 on a
+  bad input (an end before the start).
+  """
+  createSprint(input: CreateSprintInput!, projectId: ID!): Sprint!
+  """
   Adds a status at the end of the project's workflow. Needs `project:manage`.
   409 `projects.errors.status-name-taken`.
   """
@@ -1250,6 +1339,12 @@ type Mutation {
   deleteIssue(id: ID!): ID!
   """Deletes a label. Answers its id. Needs `project:manage`."""
   deleteLabel(id: ID!): ID!
+  """
+  Deletes a planned sprint; its issues go back to the backlog. Answers its id.
+  Needs `sprint:write`. 404 `sprints.errors.not-found`; 409
+  `sprints.errors.not-planned`.
+  """
+  deleteSprint(id: ID!): ID!
   """
   Deletes a status and closes the gap in the order. Refused while issues use it
   (409 `projects.errors.status-in-use`). Answers its id. Needs `project:manage`.
@@ -1334,6 +1429,16 @@ type Mutation {
   are not in order. Needs `issue:write`.
   """
   moveIssue(afterId: ID, beforeId: ID, id: ID!, statusId: ID!): Issue!
+  """
+  Puts issues in a sprint (`sprintId` null: the backlog), after `afterId` and
+  before `beforeId` (either or both left out; the end of the sprint with
+  neither). The issues of one project, in the order given; answers them as
+  they now stand. Needs `sprint:write`. 404 `sprints.errors.not-found`,
+  `issues.errors.not-found`; 409 `sprints.errors.closed` (the target, or a
+  sprint the issues are done in), `sprints.errors.type-not-allowed` (an epic
+  or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`.
+  """
+  planIssues(afterId: ID, beforeId: ID, ids: [ID!]! @constraint(minItems: 1, maxItems: 100), sprintId: ID): [Issue!]!
   """
   Opens the session with a recovery code instead of the app's code; the code is
   spent. Same refusals as `confirmSecondFactor`.
@@ -1452,6 +1557,13 @@ type Mutation {
   """
   startIssueTimer(issueId: ID!): IssueTimer!
   """
+  Starts a planned sprint and snapshots its scope as `committedPoints`. Needs
+  `sprint:write`. 404 `sprints.errors.not-found`; 409
+  `sprints.errors.not-planned`, `sprints.errors.active-exists` (one active
+  sprint per project), `sprints.errors.disabled`.
+  """
+  startSprint(id: ID!, input: StartSprintInput!): Sprint!
+  """
   Stops the viewer's running timer when it runs on this issue and returns the
   entry chronix saved; null when none runs or it runs on another issue (it
   keeps running: a stale tab never stops another issue's timer). Two chronix
@@ -1503,6 +1615,11 @@ type Mutation {
   updateOrganisation(input: UpdateOrganisationInput!): Organisation!
   """Changes a project; its key stays. Needs `project:manage`."""
   updateProject(id: ID!, input: UpdateProjectInput!): Project!
+  """
+  Changes a planned or active sprint. Needs `sprint:write`. 404
+  `sprints.errors.not-found`; 409 `sprints.errors.closed`.
+  """
+  updateSprint(id: ID!, input: UpdateSprintInput!): Sprint!
   """Needs `project:manage`. 409 `projects.errors.status-name-taken`."""
   updateStatus(id: ID!, input: UpdateStatusInput!): Status!
   """
@@ -1707,6 +1824,12 @@ type Project {
   """
   leadId: ID
   name: String!
+  """The default length of a sprint in weeks, 1 to 4 (2 by default)."""
+  sprintLengthWeeks: Int!
+  """
+  Whether the project plans its work in sprints; off by default, and a project without sprints behaves as it always did.
+  """
+  sprintsEnabled: Boolean!
   """The project's workflow, in order."""
   statuses: [Status!]!
   updatedAt: DateTime!
@@ -1877,12 +2000,29 @@ type Query {
   empty or over-long `query` (200 characters) or on `first`.
   """
   search(first: Int = 10, kinds: [SearchKind!], query: String!): SearchResults!
+  """
+  The burndown of a started sprint (active or closed), day by day; today's
+  point is read from the issues, the earlier ones from the snapshots taken
+  at the start, on each scope change, daily at the organisation's midnight and
+  at the close. Needs `sprint:read`. 404 `sprints.errors.not-found`.
+  """
+  sprintBurndown(id: ID!): SprintBurndown!
+  """
+  The sprints of a project, by number, optionally only those in `states`.
+  Needs `sprint:read`. 404 `projects.errors.not-found`.
+  """
+  sprints(projectId: ID!, states: [SprintState!]): [Sprint!]!
   """Whether the organisation is linked to chronix. Needs `time:read`."""
   timeLink: TimeLink!
   """
   How many notifications the viewer has not read. Needs organisation membership.
   """
   unreadNotificationCount: Int!
+  """
+  The last `last` closed sprints of a project (6 by default, 1 to 50) and their
+  mean completed points. Needs `sprint:read`. 404 `projects.errors.not-found`.
+  """
+  velocity(last: Int! = 6 @constraint(min: 1, max: 50), projectId: ID!): Velocity!
   version: String!
   """The signed-in account, or null when anonymous."""
   viewer: Viewer
@@ -2061,6 +2201,58 @@ enum SortDirection {
   desc
 }
 
+"""
+A time-boxed iteration of a project. Sprints exist while the project has
+`sprintsEnabled`. Dates are instants; the UI shows them as calendar days.
+"""
+type Sprint {
+  """Set when the sprint is closed."""
+  closedAt: DateTime
+  """The points of the sprint's issues when it started; 0 until then."""
+  committedPoints: Int!
+  """The points of the issues done when it closed; 0 until then."""
+  completedPoints: Int!
+  endDate: DateTime
+  goal: String
+  id: ID!
+  name: String!
+  """1, 2, 3... in the order the project's sprints were made."""
+  number: Int!
+  projectId: ID!
+  startDate: DateTime
+  state: SprintState!
+}
+
+"""
+A sprint's burndown: one point per day from its start to its end (or to today when it runs over).
+"""
+type SprintBurndown {
+  committedPoints: Int!
+  """Empty while the sprint is planned."""
+  points: [BurndownPoint!]!
+  sprintId: ID!
+  """The organisation's IANA time zone the days are in."""
+  timeZone: String!
+}
+
+enum SprintState {
+  """Running; one per project."""
+  active
+  """Finished: it keeps its done issues and takes no change."""
+  closed
+  """Collects issues; any number may exist."""
+  planned
+}
+
+input StartSprintInput {
+  """Defaults to `startDate` plus the project's `sprintLengthWeeks`."""
+  endDate: DateTime
+  goal: String @constraint(maxLength: 1000)
+  """Defaults to the sprint's own name."""
+  name: String @constraint(minLength: 1, maxLength: 100)
+  startDate: DateTime!
+}
+
 """A step of a project's workflow."""
 type Status {
   category: StatusCategory!
@@ -2213,6 +2405,15 @@ scalar UUIDv4 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 """A version 7 (time-ordered) UUID."""
 scalar UUIDv7 @specifiedBy(url: "https://www.rfc-editor.org/rfc/rfc9562")
 
+enum UnfinishedIssues {
+  """Send the unfinished issues back to the backlog."""
+  BACKLOG
+  """
+  Move the unfinished issues to the next planned sprint (made when none exists).
+  """
+  NEXT_SPRINT
+}
+
 """
 A field left out stays as it is. Null clears `assigneeId`, `parentId`,
 `startDate`, `dueDate`, `estimateHours` and `points`, and is refused for the others. The status changes
@@ -2259,6 +2460,22 @@ input UpdateProjectInput {
   description: String @constraint(maxLength: 10000)
   leadId: ID
   name: String @constraint(minLength: 1, maxLength: 200)
+  """1 to 4; the length a new sprint defaults to. Null is refused."""
+  sprintLengthWeeks: Int @constraint(min: 1, max: 4)
+  """
+  Turning sprints off while one is active is refused (409 `sprints.errors.active-sprint`); null is refused.
+  """
+  sprintsEnabled: Boolean
+}
+
+"""
+A field left out is unchanged; `name` cannot be cleared, `goal` and the dates can.
+"""
+input UpdateSprintInput {
+  endDate: DateTime
+  goal: String @constraint(maxLength: 1000)
+  name: String @constraint(minLength: 1, maxLength: 100)
+  startDate: DateTime
 }
 
 """A field left out stays as it is; null is refused."""
@@ -2291,6 +2508,24 @@ input UpdateWidgetKeyInput {
 
 """A UTC offset from -12:00 to +14:00, such as +05:30."""
 scalar UtcOffset
+
+"""
+The project's recent closed sprints, oldest first, and their mean completed points (one decimal; 0 with none).
+"""
+type Velocity {
+  average: Float!
+  sprints: [VelocitySprint!]!
+}
+
+"""A closed sprint in the velocity."""
+type VelocitySprint {
+  closedAt: DateTime
+  committedPoints: Int!
+  completedPoints: Int!
+  name: String!
+  number: Int!
+  sprintId: ID!
+}
 
 """The signed-in account."""
 type Viewer {

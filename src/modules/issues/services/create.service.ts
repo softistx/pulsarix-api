@@ -78,6 +78,7 @@ export class IssueCreation {
           number,
           key: `${project.key}-${number}`,
           rank: await this.project.endOfColumn(tx, status._id),
+          planRank: await this.project.endOfBacklog(tx, projectId),
           reporterId: this.project.viewerId,
         }),
       );

@@ -4,6 +4,7 @@ import { invalid } from "../../core/shared/errors";
 import { idOrInvalid } from "../../core/shared/ids";
 import { escapeRegex } from "../../core/shared/regex";
 import type { IssueDocument, IssueType, Priority } from "./issues.model";
+import { activeSprintOf } from "./issues.registry";
 import type { IssuesMongo } from "./issues.types";
 
 export interface IssueFilter {
@@ -20,6 +21,9 @@ export interface IssueFilter {
   reporterId?: string | null;
   watching?: boolean | null;
   clientWaiting?: boolean | null;
+  sprintId?: string | null;
+  backlog?: boolean | null;
+  activeSprint?: boolean | null;
   text?: string | null;
   startAfter?: Date | null;
   startBefore?: Date | null;
@@ -29,6 +33,7 @@ export interface IssueFilter {
 
 export type IssueSortField =
   | "rank"
+  | "planRank"
   | "number"
   | "title"
   | "priority"
@@ -46,6 +51,7 @@ export interface IssueSort {
 // The stored field a sort field orders by (a priority orders by its weight).
 const orderBy = {
   rank: "rank",
+  planRank: "planRank",
   number: "number",
   title: "title",
   priority: "priorityLevel",
@@ -78,10 +84,11 @@ export const noEpicTypes = typesIn(["story", "task", "bug"]);
 // by `noEpic`), `parentId`, `rootsOnly` and `noEpic` (no parent).
 const shapeOf = (f: IssueFilter) => {
   const types = f.types && f.types.length > 0 ? typesIn(f.types) : null;
+  const planable = f.noEpic || isBacklog(f);
   const wanted =
-    f.noEpic && types
+    planable && types
       ? types.filter((type) => noEpicTypes.includes(type))
-      : f.noEpic
+      : planable
         ? noEpicTypes
         : types;
   return {
@@ -91,6 +98,59 @@ const shapeOf = (f: IssueFilter) => {
       : (f.rootsOnly || f.noEpic) && { parentId: null }),
   };
 };
+
+// The categories an issue not yet planned can still be in: the backlog leaves
+// out what intake has not accepted and what is finished.
+const planningCategories = ["backlog", "todo", "inProgress"];
+
+// The backlog filter applies unless a sprint is named: Stories, Tasks and
+// Bugs in no sprint, still open.
+const isBacklog = (f: IssueFilter) =>
+  Boolean(f.backlog) && !f.sprintId && !f.activeSprint;
+
+// The `sprintId` clause: a sprint, the active one, or the backlog (Stories,
+// Tasks and Bugs, a `type` of null being a legacy task, in no sprint).
+// `sprintId` wins over `activeSprint`, which wins over `backlog`. A project with
+// no active sprint has no issue in `activeSprint`.
+async function sprintClause(
+  mongo: IssuesMongo,
+  projectId: ObjectId,
+  f: IssueFilter,
+): Promise<Record<string, unknown>> {
+  if (f.sprintId) {
+    return { sprintId: toObjectId(idOrInvalid(f.sprintId, "sprintId")) };
+  }
+  if (f.activeSprint) {
+    const active = await activeSprintOf(mongo, projectId);
+    return active ? { sprintId: active } : { _id: { $in: [] } };
+  }
+  return isBacklog(f) ? { sprintId: null } : {};
+}
+
+// The statuses the filter allows: its ids and categories, narrowed to the
+// planning categories by `backlog`. Null is no restriction.
+async function statusesOf(
+  mongo: IssuesMongo,
+  projectId: ObjectId,
+  f: IssueFilter,
+): Promise<ObjectId[] | null> {
+  const statusIds = f.statusIds ? ids(f.statusIds, "statusIds") : null;
+  const named = f.categories ?? [];
+  const inBacklog = isBacklog(f);
+  if (named.length === 0 && !inBacklog) return statusIds;
+  const categories = !inBacklog
+    ? named
+    : named.length > 0
+      ? named.filter((category) => planningCategories.includes(category))
+      : planningCategories;
+  const found = await mongo.db.statuses.findMany({
+    filter: { projectId, category: { $in: categories as never } },
+  });
+  const wanted = found.map((status) => status._id);
+  return statusIds
+    ? statusIds.filter((id) => wanted.some((w) => w.equals(id)))
+    : wanted;
+}
 
 const range = (from?: Date | null, to?: Date | null) =>
   from || to
@@ -117,19 +177,8 @@ export async function listIssues(
     throw invalid([{ path: "first", code: "validation.errors.out-of-range" }]);
   }
 
-  let statusIds = f.statusIds ? ids(f.statusIds, "statusIds") : null;
-  if (f.categories && f.categories.length > 0) {
-    const inCategories = await mongo.db.statuses.findMany({
-      filter: {
-        projectId,
-        category: { $in: f.categories as never },
-      },
-    });
-    const wanted = inCategories.map((status) => status._id);
-    statusIds = statusIds
-      ? statusIds.filter((id) => wanted.some((w) => w.equals(id)))
-      : wanted;
-  }
+  const statusIds = await statusesOf(mongo, projectId, f);
+  const sprint = await sprintClause(mongo, projectId, f);
   const text = f.text?.trim();
   const due = range(f.dueAfter, f.dueBefore);
   const start = range(f.startAfter, f.startBefore);
@@ -138,6 +187,7 @@ export async function listIssues(
     ...(statusIds && { statusId: { $in: statusIds } }),
     ...(f.priorities && { priority: { $in: f.priorities } }),
     ...shapeOf(f),
+    ...sprint,
     ...(f.assigneeId && { assigneeId: f.assigneeId }),
     ...(f.unassigned && !f.assigneeId && { assigneeId: null }),
     ...(f.labelIds &&
