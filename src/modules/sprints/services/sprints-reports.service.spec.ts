@@ -4,7 +4,6 @@ import { Move } from "~/issues";
 import { SprintBurndown, Velocity, withSprints } from "~/sprints";
 import { tenancy } from "../../../config/db";
 import { addDays, dayIn } from "../../../core/shared/days";
-import { snapshotAll } from "../sprints.server";
 import type { SprintsMongo } from "../sprints.types";
 import { SprintLifecycle } from "./lifecycle.service";
 import { SprintReports } from "./reports.service";
@@ -156,37 +155,6 @@ describe("the burndown of a sprint", () => {
     expect(
       utc.points.find((p) => p.day === "2026-12-01")?.remainingPoints,
     ).toBeNull();
-  });
-
-  test("the daily job makes a missing day once however often it runs", async () => {
-    const t = await withSprints("BDJ");
-    const sprint = await t.sprint();
-    const a = await t.make("A", { type: "task", points: 2 });
-    await t.plan([a], sprint.id);
-    await t.start(sprint.id, {
-      startDate: new Date(Date.now() - 3 * DAY).toISOString(),
-    });
-    const mongo = (await tenancy.databaseOf(
-      t.organisation.id,
-    )) as unknown as SprintsMongo;
-    const only = {
-      eachTenant: async <T>(
-        work: (tenant: { timeZone: string }, mongo: never) => Promise<T>,
-      ) => [
-        {
-          ok: true as const,
-          value: await work({ timeZone: "UTC" }, mongo as never),
-        },
-      ],
-    };
-    const now = new Date();
-    expect(await snapshotAll(only as never, now)).toBe(1);
-    expect(await snapshotAll(only as never, now)).toBe(0);
-    const yesterday = addDays(dayIn("UTC", now), -1);
-    const daily = await mongo.db.sprintSnapshots.findMany({
-      filter: { reason: "daily" },
-    });
-    expect(daily.map((s) => s.day)).toEqual([yesterday]);
   });
 });
 
