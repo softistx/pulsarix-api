@@ -200,4 +200,14 @@ export class IssuesProject {
     });
     return rankAfter(last[0]?.rank ?? null);
   }
+
+  // The end of the project's backlog: the plan rank after its last issue.
+  async endOfBacklog(tx: IssuesMongo, projectId: ObjectId): Promise<string> {
+    const last = await tx.db.issues.findMany({
+      filter: { projectId, sprintId: null },
+      sort: { planRank: -1 },
+      limit: 1,
+    });
+    return rankAfter(last[0]?.planRank ?? null);
+  }
 }

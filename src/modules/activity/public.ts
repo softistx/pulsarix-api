@@ -7,4 +7,4 @@ export {
   registerActivityRecorded,
 } from "./activity.usage";
 export type { ActivityMongo } from "./services";
-export { journalOnIssue } from "./services";
+export { journalOnIssue, journalOnSprint } from "./services";

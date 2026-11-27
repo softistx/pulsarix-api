@@ -1,0 +1,127 @@
+enum SprintState {
+  "Collects issues; any number may exist."
+  planned
+  "Running; one per project."
+  active
+  "Finished: it keeps its done issues and takes no change."
+  closed
+}
+
+enum UnfinishedIssues {
+  "Move the unfinished issues to the next planned sprint (made when none exists)."
+  NEXT_SPRINT
+  "Send the unfinished issues back to the backlog."
+  BACKLOG
+}
+
+"""
+A time-boxed iteration of a project. Sprints exist while the project has
+`sprintsEnabled`. Dates are instants; the UI shows them as calendar days.
+"""
+type Sprint {
+  id: ID!
+  projectId: ID!
+  "1, 2, 3... in the order the project's sprints were made."
+  number: Int!
+  name: String!
+  goal: String
+  state: SprintState!
+  startDate: DateTime
+  endDate: DateTime
+  "Set when the sprint is closed."
+  closedAt: DateTime
+  "The points of the sprint's issues when it started; 0 until then."
+  committedPoints: Int!
+  "The points of the issues done when it closed; 0 until then."
+  completedPoints: Int!
+}
+
+input CreateSprintInput {
+  "Defaults to `Sprint <number>`."
+  name: String @constraint(minLength: 1, maxLength: 100)
+  goal: String @constraint(maxLength: 1000)
+  startDate: DateTime
+  "On or after `startDate`."
+  endDate: DateTime
+}
+
+"A field left out is unchanged; `name` cannot be cleared, `goal` and the dates can."
+input UpdateSprintInput {
+  name: String @constraint(minLength: 1, maxLength: 100)
+  goal: String @constraint(maxLength: 1000)
+  startDate: DateTime
+  endDate: DateTime
+}
+
+input StartSprintInput {
+  "Defaults to the sprint's own name."
+  name: String @constraint(minLength: 1, maxLength: 100)
+  goal: String @constraint(maxLength: 1000)
+  startDate: DateTime!
+  "Defaults to `startDate` plus the project's `sprintLengthWeeks`."
+  endDate: DateTime
+}
+
+input CloseSprintInput {
+  unfinished: UnfinishedIssues!
+  "With NEXT_SPRINT: the planned sprint that takes them; the next planned one by number when left out."
+  nextSprintId: ID
+}
+
+extend type Query {
+  """
+  The sprints of a project, by number, optionally only those in `states`.
+  Needs `sprint:read`. 404 `projects.errors.not-found`.
+  """
+  sprints(projectId: ID!, states: [SprintState!]): [Sprint!]!
+}
+
+extend type Mutation {
+  """
+  Makes a planned sprint. Needs `sprint:write`. 409 `sprints.errors.disabled`
+  (the project has sprints off), `issues.errors.project-archived`; 400 on a
+  bad input (an end before the start).
+  """
+  createSprint(projectId: ID!, input: CreateSprintInput!): Sprint!
+  """
+  Changes a planned or active sprint. Needs `sprint:write`. 404
+  `sprints.errors.not-found`; 409 `sprints.errors.closed`.
+  """
+  updateSprint(id: ID!, input: UpdateSprintInput!): Sprint!
+  """
+  Deletes a planned sprint; its issues go back to the backlog. Answers its id.
+  Needs `sprint:write`. 404 `sprints.errors.not-found`; 409
+  `sprints.errors.not-planned`.
+  """
+  deleteSprint(id: ID!): ID!
+  """
+  Starts a planned sprint and snapshots its scope as `committedPoints`. Needs
+  `sprint:write`. 404 `sprints.errors.not-found`; 409
+  `sprints.errors.not-planned`, `sprints.errors.active-exists` (one active
+  sprint per project), `sprints.errors.disabled`.
+  """
+  startSprint(id: ID!, input: StartSprintInput!): Sprint!
+  """
+  Closes the active sprint: the done and cancelled issues stay with it, the
+  others move as `unfinished` says; `completedPoints` is set. Needs
+  `sprint:write`. 404 `sprints.errors.not-found`; 409
+  `sprints.errors.not-active`, `sprints.errors.not-planned` (the chosen next
+  sprint is not planned).
+  """
+  closeSprint(id: ID!, input: CloseSprintInput!): Sprint!
+  """
+  Puts issues in a sprint (`sprintId` null: the backlog), after `afterId` and
+  before `beforeId` (either or both left out; the end of the sprint with
+  neither). The issues of one project, in the order given; answers them as
+  they now stand. Needs `sprint:write`. 404 `sprints.errors.not-found`,
+  `issues.errors.not-found`; 409 `sprints.errors.closed` (the target, or a
+  sprint the issues are done in), `sprints.errors.type-not-allowed` (an epic
+  or a sub-task), `sprints.errors.disabled`, `issues.errors.bad-placement`.
+  """
+  planIssues(
+    ids: [ID!]! @constraint(minItems: 1, maxItems: 100)
+    sprintId: ID
+    afterId: ID
+    beforeId: ID
+  ): [Issue!]!
+}

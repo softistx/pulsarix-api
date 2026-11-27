@@ -1,6 +1,7 @@
 import type { Locale } from "./locale";
 import { intakeTexts } from "./texts.intake";
 import { issuesTexts } from "./texts.issues";
+import { sprintsTexts } from "./texts.sprints";
 
 // The text of every error code in each language (ICU messages, interpolating
 // the `params` of the refusal). English is the default, French is offered
@@ -9,6 +10,7 @@ export const texts: Record<Locale, Record<string, string>> = {
   en: {
     ...intakeTexts.en,
     ...issuesTexts.en,
+    ...sprintsTexts.en,
     "auth.errors.client-header-required":
       "The {header} header is required on every request.",
     "auth.errors.unauthenticated": "Sign in to continue.",
@@ -121,6 +123,7 @@ export const texts: Record<Locale, Record<string, string>> = {
   fr: {
     ...intakeTexts.fr,
     ...issuesTexts.fr,
+    ...sprintsTexts.fr,
     "auth.errors.client-header-required":
       "L'en-tête {header} est obligatoire sur chaque requête.",
     "auth.errors.unauthenticated": "Connectez-vous pour continuer.",

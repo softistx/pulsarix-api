@@ -72,6 +72,13 @@ export const issues = defineCollection({
     // a Task or a Bug only; null is none. Issues stored before lack it.
     points: z.number().int().nullable().default(null),
     rank: z.string().min(1).max(200),
+    // The sprint the issue is planned in (sprints module); null is the
+    // backlog. Issues stored before sprints lack it: read `sprintId ?? null`.
+    sprintId: objectId().nullable().default(null),
+    // Its place among the issues of its sprint (or of the backlog), a
+    // fractional rank like `rank`. Issues stored before sprints get theirs
+    // from a migration (their `rank`): read `planRank ?? rank` (planRankOf).
+    planRank: z.string().min(1).max(200).optional(),
     // The member who made it.
     reporterId: accountId.nullable().default(null),
     // The client report it was accepted from (intake, A9), if any.
@@ -99,6 +106,11 @@ export const issues = defineCollection({
     {
       key: { projectId: 1, statusId: 1, rank: 1 },
       name: "issues_projectIdStatusIdRank",
+    },
+    // The backlog and the sprints: the issues of a sprint in plan order.
+    {
+      key: { projectId: 1, sprintId: 1, planRank: 1 },
+      name: "issues_projectIdSprintIdPlanRank",
     },
     { key: { parentId: 1 }, name: "issues_parentId" },
     { key: { projectId: 1, type: 1 }, name: "issues_projectIdType" },
@@ -134,6 +146,12 @@ export type IssueDocument = ReadDocumentOf<typeof issues>;
 // The type of a stored issue: one stored before the types is a task.
 export const typeOf = (issue: { type?: IssueType | undefined }): IssueType =>
   issue.type ?? "task";
+
+// The plan rank of a stored issue: one stored before sprints has none yet.
+export const planRankOf = (issue: {
+  planRank?: string | undefined;
+  rank: string;
+}): string => issue.planRank ?? issue.rank;
 
 // The last number given in a project: the next issue is the one after it.
 // Written only under the project's lock, so two issues never share a number.

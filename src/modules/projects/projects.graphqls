@@ -16,6 +16,10 @@ type Project {
   archivedAt: DateTime
   createdAt: DateTime!
   updatedAt: DateTime!
+  "Whether the project plans its work in sprints; off by default, and a project without sprints behaves as it always did."
+  sprintsEnabled: Boolean!
+  "The default length of a sprint in weeks, 1 to 4 (2 by default)."
+  sprintLengthWeeks: Int!
   "The project's workflow, in order."
   statuses: [Status!]!
   labels: [Label!]!
@@ -85,6 +89,10 @@ input UpdateProjectInput {
   name: String @constraint(minLength: 1, maxLength: 200)
   description: String @constraint(maxLength: 10000)
   leadId: ID
+  "Turning sprints off while one is active is refused (409 `sprints.errors.active-sprint`); null is refused."
+  sprintsEnabled: Boolean
+  "1 to 4; the length a new sprint defaults to. Null is refused."
+  sprintLengthWeeks: Int @constraint(min: 1, max: 4)
 }
 
 input CreateStatusInput {

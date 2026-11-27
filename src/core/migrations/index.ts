@@ -1,5 +1,6 @@
 import { issueTypes } from "./2026-11-21-issue-types.migration";
 import { requestLinks } from "./2026-11-22-request-links.migration";
+import { planRank } from "./2026-11-26-plan-rank.migration";
 
 // The data migrations, in EXECUTION order: the only list `provision` and `migrateAtBoot`
 // read: run on every organisation database and recorded
@@ -7,4 +8,4 @@ import { requestLinks } from "./2026-11-22-request-links.migration";
 // the end, and a merged one is never edited, reordered or removed (a fix is a
 // new migration). A migration imports no module (models evolve): it writes
 // through the driver's `Db`, in the transaction `migrate` gives it.
-export const migrations = [issueTypes, requestLinks];
+export const migrations = [issueTypes, requestLinks, planRank];
